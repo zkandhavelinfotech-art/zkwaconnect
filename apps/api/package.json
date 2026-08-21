@@ -1,0 +1,46 @@
+{
+  "name": "@zkwa/api",
+  "version": "3.2.0",
+  "scripts": {
+    "dev":        "ts-node-dev --respawn --transpile-only --exit-child src/server.ts",
+    "build":      "tsc -p tsconfig.json",
+    "start":      "node dist/server.js",
+    "worker":     "ts-node-dev --respawn --transpile-only --exit-child src/jobs/campaignWorker.ts",
+    "test":       "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@fastify/cors":        "^9.0.1",
+    "@fastify/jwt":         "^8.0.1",
+    "@fastify/multipart":   "^8.3.0",
+    "@fastify/rate-limit":  "^9.1.0",
+    "@prisma/client":       "^5.7.1",
+    "@aws-sdk/client-s3":   "^3.470.0",
+    "@zkwa/types":          "workspace:*",
+    "axios":                "^1.6.5",
+    "bcryptjs":             "^2.4.3",
+    "bullmq":               "^5.1.6",
+    "fastify":              "^4.26.1",
+    "form-data":            "^4.0.0",
+    "ioredis":              "^5.3.2",
+    "nodemailer":           "^6.9.8",
+    "pdfkit":               "^0.14.0",
+    "razorpay":             "^2.9.2",
+    "resend":               "^2.1.0",
+    "twilio":               "^4.20.1",
+    "pino-pretty":          "^10.3.1",
+    "zod":                  "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/bcryptjs":      "^2.4.6",
+    "@types/node":          "^20.11.0",
+    "@types/nodemailer":    "^6.4.14",
+    "@types/pdfkit":        "^0.13.3",
+    "@vitest/coverage-v8":  "^1.2.0",
+    "prisma":               "^5.7.1",
+    "ts-node-dev":          "^2.0.0",
+    "typescript":           "^5.3.3",
+    "vitest":               "^1.2.0"
+  }
+}

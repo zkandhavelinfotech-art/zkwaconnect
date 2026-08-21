@@ -1,0 +1,27 @@
+{
+  "name": "zkwaconnect",
+  "version": "3.2.0",
+  "private": true,
+  "workspaces": ["apps/*","packages/*"],
+  "scripts": {
+    "dev:api":     "pnpm --filter @zkwa/api dev",
+    "dev:web":     "pnpm --filter @zkwa/web dev",
+    "dev:worker":  "pnpm --filter @zkwa/api worker",
+    "dev":         "concurrently -n API,WEB -c green,blue \"pnpm dev:api\" \"pnpm dev:web\"",
+    "db:generate": "cd packages/db && npx prisma generate",
+    "db:migrate":  "cd packages/db && npx prisma migrate dev",
+    "db:deploy":   "cd packages/db && npx prisma migrate deploy",
+    "db:seed":     "cd packages/db && npx ts-node prisma/seed.ts",
+    "db:studio":   "cd packages/db && npx prisma studio",
+    "db:reset":    "cd packages/db && npx prisma migrate reset --force",
+    "test":        "pnpm --filter @zkwa/api test",
+    "build":       "pnpm --filter @zkwa/api build && pnpm --filter @zkwa/web build",
+    "lint":        "pnpm --filter @zkwa/api lint && pnpm --filter @zkwa/web lint"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "typescript":   "^5.3.3",
+    "@types/node":  "^20.11.0"
+  },
+  "engines": { "node": ">=20.0.0", "pnpm": ">=8.0.0" }
+}

@@ -1,0 +1,512 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Plan {
+  STARTER
+  GROWTH
+  ENTERPRISE
+}
+
+enum PlanStatus {
+  TRIAL
+  ACTIVE
+  SUSPENDED
+  CANCELLED
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  MANAGER
+  AGENT
+  VIEWER
+}
+
+enum ConvStatus {
+  OPEN
+  PENDING
+  RESOLVED
+  ARCHIVED
+}
+
+enum MsgDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum MsgType {
+  TEXT
+  IMAGE
+  VIDEO
+  AUDIO
+  DOCUMENT
+  TEMPLATE
+  INTERACTIVE
+  LOCATION
+  STICKER
+}
+
+enum MsgStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum TemplateCategory {
+  MARKETING
+  UTILITY
+  AUTHENTICATION
+}
+
+enum TemplateStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PAUSED
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  RUNNING
+  PAUSED
+  COMPLETED
+  CANCELLED
+  FAILED
+}
+
+enum LeadCategory {
+  JOB_ENQUIRY
+  SERVICE_REQUEST
+  BILLING
+  SUPPORT
+  PRODUCT_ENQUIRY
+  GENERAL
+}
+
+enum LeadStage {
+  NEW
+  CONTACTED
+  QUALIFIED
+  PROPOSAL
+  NEGOTIATION
+  WON
+  LOST
+}
+
+enum InvoiceType {
+  SUBSCRIPTION
+  WALLET_TOPUP
+  USAGE
+}
+
+enum InvoiceStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+model Tenant {
+  id                     String     @id @default(cuid())
+  name                   String
+  slug                   String     @unique
+  plan                   Plan       @default(STARTER)
+  planStatus             PlanStatus @default(TRIAL)
+  gstNumber              String?
+  gstin                  String?
+  pan                    String?
+  address                String?
+  city                   String?
+  state                  String?
+  pincode                String?
+  country                String     @default("IN")
+  logoUrl                String?
+  website                String?
+  razorpayCustomerId     String?
+  razorpaySubscriptionId String?
+  walletBalance          Float      @default(0)
+  messagesSent           Int        @default(0)
+  messagesLimit          Int        @default(1000)
+  trialEndsAt            DateTime?
+  createdAt              DateTime   @default(now())
+  updatedAt              DateTime   @updatedAt
+
+  users             User[]
+  wabaAccounts      WABAAccount[]
+  fbSessions        FBSession[]
+  contacts          Contact[]
+  conversations     Conversation[]
+  templates         Template[]
+  campaigns         Campaign[]
+  leads             Lead[]
+  products          Product[]
+  webhookEvents     WebhookEvent[]
+  invoices          Invoice[]
+  walletTxns        WalletTransaction[]
+  auditLogs         AuditLog[]
+  smtpConfig        SmtpConfig?
+  apiKeys           ApiKey[]
+
+  @@map("tenants")
+}
+
+model User {
+  id           String    @id @default(cuid())
+  tenantId     String
+  tenant       Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  email        String
+  name         String
+  passwordHash String
+  role         UserRole  @default(AGENT)
+  avatarUrl    String?
+  phone        String?
+  isActive     Boolean   @default(true)
+  twoFASecret  String?
+  twoFAEnabled Boolean   @default(false)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  refreshTokens RefreshToken[]
+  assignedConvs Conversation[] @relation("AssignedAgent")
+  auditLogs     AuditLog[]
+
+  @@unique([tenantId, email])
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("refresh_tokens")
+}
+
+model WABAAccount {
+  id            String   @id @default(cuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  phoneId       String
+  wabaId        String
+  phoneNumber   String
+  displayName   String?
+  nickname      String?
+  accessToken   String
+  appSecret     String?
+  apiVersion    String   @default("v20.0")
+  isActive      Boolean  @default(true)
+  qualityRating String?
+  tierLimit     Int      @default(1000)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  messages      Message[]
+  campaigns     Campaign[]
+  webhookEvents WebhookEvent[]
+
+  @@unique([tenantId, phoneId])
+  @@map("waba_accounts")
+}
+
+model FBSession {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  fbUserId    String
+  fbName      String
+  fbEmail     String?
+  accountType String   @default("individual")
+  accessToken String
+  connectedAt DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([tenantId, fbUserId])
+  @@map("fb_sessions")
+}
+
+model Contact {
+  id           String   @id @default(cuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  phone        String
+  name         String?
+  email        String?
+  avatarUrl    String?
+  labels       String[]
+  customFields Json?
+  notes        String?
+  optedIn      Boolean  @default(true)
+  source       String?
+  segment      String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  conversations Conversation[]
+  leads         Lead[]
+
+  @@unique([tenantId, phone])
+  @@map("contacts")
+}
+
+model Conversation {
+  id            String     @id @default(cuid())
+  tenantId      String
+  tenant        Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contactId     String
+  contact       Contact    @relation(fields: [contactId], references: [id])
+  assignedToId  String?
+  assignedTo    User?      @relation("AssignedAgent", fields: [assignedToId], references: [id])
+  status        ConvStatus @default(OPEN)
+  channel       String     @default("whatsapp")
+  lastMessageAt DateTime?
+  unreadCount   Int        @default(0)
+  labels        String[]
+  csatScore     Int?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  messages Message[]
+
+  @@map("conversations")
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  wabaAccountId  String?
+  wabaAccount    WABAAccount? @relation(fields: [wabaAccountId], references: [id])
+  waMessageId    String?      @unique
+  direction      MsgDirection
+  type           MsgType      @default(TEXT)
+  content        Json
+  status         MsgStatus    @default(SENT)
+  errorCode      String?
+  timestamp      DateTime     @default(now())
+  readAt         DateTime?
+  deliveredAt    DateTime?
+
+  @@map("messages")
+}
+
+model Template {
+  id              String           @id @default(cuid())
+  tenantId        String
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  metaId          String?
+  name            String
+  category        TemplateCategory
+  language        String           @default("en")
+  status          TemplateStatus   @default(PENDING)
+  components      Json
+  headerType      String?
+  bodyText        String?
+  footerText      String?
+  buttons         Json?
+  rejectionReason String?
+  usageCount      Int              @default(0)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  campaigns Campaign[]
+
+  @@unique([tenantId, name, language])
+  @@map("templates")
+}
+
+model Campaign {
+  id             String         @id @default(cuid())
+  tenantId       String
+  tenant         Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  wabaAccountId  String?
+  wabaAccount    WABAAccount?   @relation(fields: [wabaAccountId], references: [id])
+  templateId     String?
+  template       Template?      @relation(fields: [templateId], references: [id])
+  name           String
+  status         CampaignStatus @default(DRAFT)
+  audience       Json
+  variables      Json?
+  scheduledAt    DateTime?
+  startedAt      DateTime?
+  completedAt    DateTime?
+  totalCount     Int            @default(0)
+  sentCount      Int            @default(0)
+  deliveredCount Int            @default(0)
+  readCount      Int            @default(0)
+  failedCount    Int            @default(0)
+  replyCount     Int            @default(0)
+  bullJobId      String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@map("campaigns")
+}
+
+model Lead {
+  id            String       @id @default(cuid())
+  tenantId      String
+  tenant        Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contactId     String?
+  contact       Contact?     @relation(fields: [contactId], references: [id])
+  name          String?
+  phone         String
+  email         String?
+  category      LeadCategory @default(GENERAL)
+  source        String       @default("whatsapp")
+  stage         LeadStage    @default(NEW)
+  priority      String       @default("medium")
+  message       String?
+  notes         String?
+  agentId       String?
+  smsSent       Boolean      @default(false)
+  autoReplySent Boolean      @default(false)
+  value         Float?
+  closedAt      DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@map("leads")
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  price       Float
+  currency    String   @default("INR")
+  imageUrl    String?
+  sku         String?
+  stock       Int?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("products")
+}
+
+model WebhookEvent {
+  id            String       @id @default(cuid())
+  tenantId      String?
+  tenant        Tenant?      @relation(fields: [tenantId], references: [id])
+  wabaAccountId String?
+  wabaAccount   WABAAccount? @relation(fields: [wabaAccountId], references: [id])
+  eventType     String
+  phoneNumberId String?
+  waMessageId   String?
+  payload       Json
+  processed     Boolean      @default(false)
+  processedAt   DateTime?
+  error         String?
+  receivedAt    DateTime     @default(now())
+
+  @@map("webhook_events")
+}
+
+model Invoice {
+  id                     String        @id @default(cuid())
+  tenantId               String
+  tenant                 Tenant        @relation(fields: [tenantId], references: [id])
+  invoiceNumber          String        @unique
+  type                   InvoiceType   @default(SUBSCRIPTION)
+  plan                   Plan?
+  subtotal               Float
+  cgst                   Float         @default(0)
+  sgst                   Float         @default(0)
+  igst                   Float         @default(0)
+  total                  Float
+  currency               String        @default("INR")
+  tenantState            String?
+  tenantGstin            String?
+  ourGstin               String        @default("33AABCZ1234A1Z5")
+  hsnCode                String        @default("998315")
+  razorpayPaymentId      String?
+  razorpayOrderId        String?
+  pdfUrl                 String?
+  emailSent              Boolean       @default(false)
+  status                 InvoiceStatus @default(PENDING)
+  periodStart            DateTime?
+  periodEnd              DateTime?
+  paidAt                 DateTime?
+  createdAt              DateTime      @default(now())
+
+  @@map("invoices")
+}
+
+model WalletTransaction {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  type        String
+  amount      Float
+  balance     Float
+  description String?
+  reference   String?
+  createdAt   DateTime @default(now())
+
+  @@map("wallet_transactions")
+}
+
+model SmtpConfig {
+  id        String   @id @default(cuid())
+  tenantId  String   @unique
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  host      String
+  port      Int      @default(587)
+  username  String
+  password  String
+  fromEmail String
+  fromName  String
+  useTls    Boolean  @default(true)
+  updatedAt DateTime @updatedAt
+
+  @@map("smtp_configs")
+}
+
+model ApiKey {
+  id          String    @id @default(cuid())
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  name        String
+  keyHash     String    @unique
+  keyPrefix   String
+  permissions String[]
+  lastUsedAt  DateTime?
+  expiresAt   DateTime?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+
+  @@map("api_keys")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String
+  entity    String
+  entityId  String?
+  before    Json?
+  after     Json?
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@map("audit_logs")
+}
