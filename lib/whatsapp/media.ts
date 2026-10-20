@@ -1,7 +1,7 @@
 import crypto from "node:crypto"
-import fs from "node:fs/promises"
 import path from "node:path"
 import { graphVersion } from "@/lib/meta/graph"
+import { getFile, putFile } from "@/lib/storage"
 
 export type SendKind = "image" | "video" | "audio" | "document"
 
@@ -22,21 +22,18 @@ export function attachmentRule(mime: string) {
   return rule
 }
 
-const STORAGE = path.join(process.cwd(), "storage", "inbox-media")
 const EXT: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "video/mp4": "mp4", "video/3gpp": "3gp", "audio/aac": "aac",
   "audio/amr": "amr", "audio/mpeg": "mp3", "audio/mp4": "m4a", "audio/ogg": "ogg", "application/pdf": "pdf", "text/plain": "txt", "text/csv": "csv" }
 
 export async function storeMedia(bytes: Buffer | Uint8Array, mime: string) {
-  await fs.mkdir(STORAGE, { recursive: true })
+  // "local:" is kept as the key prefix for compatibility; the file lives in the configured storage (disk or bucket).
   const file = `${crypto.randomUUID()}.${EXT[mime.split(";")[0]] || "bin"}`
-  await fs.writeFile(path.join(STORAGE, file), bytes)
+  await putFile("inbox-media", file, bytes, mime.split(";")[0])
   return `local:${file}`
 }
 
 export async function readStoredMedia(key: string) {
-  const full = path.resolve(STORAGE, path.basename(key.replace(/^local:/, "")))
-  if (!full.startsWith(STORAGE)) throw new Error("Invalid media path")
-  return fs.readFile(full)
+  return getFile("inbox-media", path.basename(key.replace(/^local:/, "")))
 }
 
 export async function uploadToWhatsApp(bytes: Uint8Array, mime: string, name: string, metaPhoneNumberId: string, accessToken: string) {

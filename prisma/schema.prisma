@@ -101,10 +101,16 @@ model User {
   adminRole       AdminRole  @default(NONE)
   emailVerifiedAt DateTime?
   lastLoginAt     DateTime?
+  // Two-factor sign-in (authenticator app): encrypted TOTP secret, set when 2FA is turned on; recovery codes are hashed
+  twoFactorSecret     String?
+  twoFactorEnabledAt  DateTime?
+  twoFactorRecovery   Json?
+  passwordChangedAt   DateTime?
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
 
   memberships           Membership[]
+  passwordResets        PasswordReset[]
   sessions              Session[]
   notifications         Notification[]
   auditLogs             AuditLog[]
@@ -999,4 +1005,46 @@ model Invitation {
 
   @@index([organizationId])
   @@map("invitations")
+}
+
+// Forgot password: a one-time link (email) and/or 6-digit code (WhatsApp), valid 30 minutes
+model PasswordReset {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  codeHash  String?
+  channels  String[]
+  attempts  Int       @default(0)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("password_resets")
+}
+
+// Brute-force protection: failed attempts per key (e.g. "login:email", "ip:1.2.3.4") within a window, with a temporary lock
+model AuthThrottle {
+  key         String    @id
+  failures    Int       @default(0)
+  windowStart DateTime  @default(now())
+  lockedUntil DateTime?
+
+  @@map("auth_throttles")
+}
+
+// Data deletion requests (Meta's data deletion callback, or the public form); tracked by confirmation code
+model DataDeletionRequest {
+  id             String    @id @default(cuid())
+  code           String    @unique
+  source         String
+  email          String?
+  facebookUserId String?
+  status         String    @default("RECEIVED")
+  note           String?
+  completedAt    DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@map("data_deletion_requests")
 }

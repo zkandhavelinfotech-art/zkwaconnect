@@ -87,5 +87,6 @@ Each deploy uploads the build, runs `npm install --omit=dev` inside the app's No
 ## After the first deploy
 
 - Admin → **Meta app setup → Register webhook** (uses `APP_URL`), and set the same URL in your Meta app.
-- Change the seeded passwords (`admin@zkwaconnect.in`, `demo@zkwaconnect.in`) or don't run the seed in production.
+- Open **Admin → 🚀 Go-live checklist** and fix every ❌; see [GO_LIVE.md](GO_LIVE.md) for Meta approval, email, storage and security.
+- In production the seed skips the demo account and creates the super admin from `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` (or prints a random password). Turn on two-factor sign-in for it.
 - `npm run db:push` (local helper) uses `--accept-data-loss`; never point it at production — the workflow uses the safe `prisma db push`.

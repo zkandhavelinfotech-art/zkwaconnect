@@ -25,7 +25,7 @@ export default function LoginPage() {
         body:JSON.stringify(body)
       })
       const d = await r.json()
-      if (r.status===403 && d.require2FA) { setNeedTotp(true); setError("Enter your 2FA code"); setLoading(false); return }
+      if (r.status===403 && d.require2FA) { setNeedTotp(true); setError(d.error||"Enter your 2FA code"); setLoading(false); return }
       if (!r.ok) { setError(d.error||"Login failed"); setLoading(false); return }
       // Return to the page that sent the user here (e.g. onboarding), but only same-site paths.
       const from = new URLSearchParams(window.location.search).get("from")
@@ -62,17 +62,20 @@ export default function LoginPage() {
             onFocus={e=>(e.target.style.borderColor="#075E54")}
             onBlur={e=>(e.target.style.borderColor="#e2e8f0")} />
 
-          <label className="form-label">Password</label>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline" }}>
+            <label className="form-label">Password</label>
+            <a href="/forgot-password" style={{ fontSize:12, color:"#075E54", fontWeight:600, textDecoration:"none" }}>Forgot password?</a>
+          </div>
           <input className="form-input" type="password" placeholder="••••••••"
-            value={form.password} onChange={F("password")} required
+            value={form.password} onChange={F("password")} required autoComplete="current-password"
             style={{ marginBottom:16 }}
             onFocus={e=>(e.target.style.borderColor="#075E54")}
             onBlur={e=>(e.target.style.borderColor="#e2e8f0")} />
 
           {needTotp && (
             <>
-              <label className="form-label">2FA Code</label>
-              <input className="form-input" type="text" inputMode="numeric" maxLength={6}
+              <label className="form-label">Authenticator code <span style={{ fontWeight:400, color:"#94a3b8" }}>(or a recovery code)</span></label>
+              <input className="form-input" type="text" inputMode="numeric" maxLength={11} autoComplete="one-time-code"
                 placeholder="· · · · · ·" value={totp}
                 onChange={e=>setTotp(e.target.value)} autoFocus
                 style={{ fontFamily:"monospace", fontSize:22, letterSpacing:10,
@@ -103,7 +106,7 @@ export default function LoginPage() {
           </a>
         </div>
 
-        <div style={{ marginTop:16, background:"#f0fdf4", border:"1px solid #bbf7d0",
+        {process.env.NEXT_PUBLIC_DEMO_LOGIN === "on" && <div style={{ marginTop:16, background:"#f0fdf4", border:"1px solid #bbf7d0",
           borderRadius:10, padding:14, textAlign:"center" }}>
           <div style={{ fontSize:12, fontWeight:600, color:"#15803d", marginBottom:6 }}>Demo account</div>
           <div style={{ fontFamily:"monospace", fontSize:13, color:"#075E54", lineHeight:1.8 }}>
@@ -113,7 +116,7 @@ export default function LoginPage() {
             style={{ marginTop:8, fontSize:11, padding:"4px 12px", background:"#fff",
               border:"1px solid #bbf7d0", borderRadius:6, cursor:"pointer",
               color:"#15803d", fontWeight:600 }}>Fill demo credentials</button>
-        </div>
+        </div>}
       </div>
 
       <a href="/admin/login" style={{ display:"block", textAlign:"center",

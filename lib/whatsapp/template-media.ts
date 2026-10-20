@@ -1,7 +1,7 @@
 import crypto from "node:crypto"
 import { createTrackedLink, type LinkContext } from "@/lib/links"
-import fs from "node:fs/promises"
 import path from "node:path"
+import { getFile, putFile } from "@/lib/storage"
 import { Prisma } from "@/generated/prisma/client"
 import { prisma } from "@/lib/db/prisma"
 import { graphVersion } from "@/lib/meta/graph"
@@ -17,14 +17,9 @@ export const MEDIA_RULES: Record<MediaKind, { mimes: string[]; maxBytes: number;
   document: { mimes: ["application/pdf"], maxBytes: 20 * 1024 * 1024, label: "PDF, up to 20 MB" },
 }
 
-const STORAGE = path.join(process.cwd(), "storage", "template-media")
 const CACHE_DAYS = 25 // WhatsApp media IDs last 30 days
 
-function resolveAsset(asset: MediaAsset) {
-  const full = path.resolve(STORAGE, path.basename(asset.path))
-  if (!full.startsWith(STORAGE)) throw new Error("Invalid media path")
-  return full
-}
+const readAsset = (asset: MediaAsset) => getFile("template-media", path.basename(asset.path))
 
 // Validates and stores an uploaded data: URL; returns the stored asset.
 export async function saveTemplateMedia(dataUrl: string, name: string, kind: MediaKind): Promise<MediaAsset> {
@@ -36,9 +31,8 @@ export async function saveTemplateMedia(dataUrl: string, name: string, kind: Med
   const bytes = Buffer.from(base64, "base64")
   if (bytes.length > rule.maxBytes) throw new Error(`File is too large — ${rule.label}.`)
   const ext = { "image/jpeg": "jpg", "image/png": "png", "video/mp4": "mp4", "video/3gpp": "3gp", "application/pdf": "pdf" }[mime] || "bin"
-  await fs.mkdir(STORAGE, { recursive: true })
   const file = `${crypto.randomUUID()}.${ext}`
-  await fs.writeFile(path.join(STORAGE, file), bytes)
+  await putFile("template-media", file, bytes, mime)
   return { path: file, mime, name: name.replace(/[^\w.\- ]/g, "_").slice(0, 120) || `media.${ext}`, size: bytes.length }
 }
 
@@ -46,7 +40,7 @@ export async function saveTemplateMedia(dataUrl: string, name: string, kind: Med
 export async function uploadSampleHandle(asset: MediaAsset, accessToken: string) {
   const appId = process.env.META_APP_ID
   if (!appId) throw new Error("META_APP_ID is not configured.")
-  const bytes = await fs.readFile(resolveAsset(asset))
+  const bytes = await readAsset(asset)
   const start = await fetch(`https://graph.facebook.com/${graphVersion()}/${appId}/uploads?file_name=${encodeURIComponent(asset.name)}&file_length=${bytes.length}&file_type=${encodeURIComponent(asset.mime)}&access_token=${encodeURIComponent(accessToken)}`,
     { method: "POST", signal: AbortSignal.timeout(30000) }).then(response => response.json()) as { id?: string; error?: { message?: string } }
   if (!start.id) throw new Error(`Meta upload failed: ${start.error?.message || "no upload session"}`)
@@ -67,7 +61,7 @@ async function mediaIdForSend(templateId: string, key: string, asset: MediaAsset
   const form = new FormData()
   form.append("messaging_product", "whatsapp")
   form.append("type", asset.mime)
-  form.append("file", new Blob([await fs.readFile(resolveAsset(asset))], { type: asset.mime }), asset.name)
+  form.append("file", new Blob([new Uint8Array(await readAsset(asset))], { type: asset.mime }), asset.name)
   const result = await fetch(`https://graph.facebook.com/${graphVersion()}/${metaPhoneNumberId}/media`, {
     method: "POST", headers: { Authorization: `Bearer ${accessToken}` }, body: form, signal: AbortSignal.timeout(120000),
   }).then(response => response.json()) as { id?: string; error?: { message?: string } }

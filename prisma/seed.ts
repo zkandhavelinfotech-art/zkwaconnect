@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto"
 import "dotenv/config"
 import { DEFAULT_PLAN_FEATURES, toFeatureJson } from "../lib/billing/features"
 import bcrypt           from "bcryptjs"
@@ -28,54 +29,61 @@ async function main() {
     console.log(`  ✅ Plan: ${p.name} (₹${p.monthlyPrice}/mo)`)
   }
 
-  // Demo user + org
-  const demoUser = await prisma.user.upsert({
-    where:  { email:"demo@zkwaconnect.in" },
-    update: {},
-    create: { email:"demo@zkwaconnect.in", name:"Demo User",
-      passwordHash: await bcrypt.hash("demo1234",12), status:"ACTIVE" },
-  })
-  console.log(`  ✅ Demo user: ${demoUser.email}`)
-
-  const demoOrg = await prisma.organization.upsert({
-    where:  { slug:"demo-org" },
-    update: {},
-    create: { name:"Demo Business", slug:"demo-org",
-      country:"IN", timezone:"Asia/Kolkata", currency:"INR", status:"TRIAL" },
-  })
-  console.log(`  ✅ Demo org: ${demoOrg.name}`)
-
-  await prisma.membership.upsert({
-    where:  { organizationId_userId:{ organizationId:demoOrg.id, userId:demoUser.id } },
-    update: {},
-    create: { organizationId:demoOrg.id, userId:demoUser.id, role:"OWNER", status:"ACTIVE" },
-  })
-  await prisma.onboarding.upsert({
-    where:  { organizationId:demoOrg.id },
-    update: {},
-    create: { organizationId:demoOrg.id, currentStep:"NOT_STARTED", status:"NOT_STARTED" },
-  })
-
-  const starter = await prisma.plan.findUnique({ where:{ slug:"starter" } })
-  if (starter) {
-    const subId = `sub_demo_${demoOrg.id.slice(0,8)}`
-    await prisma.subscription.upsert({
-      where:  { id:subId },
+  // Demo account: local development only (or SEED_DEMO=on). Never on the live site by default.
+  const production = process.env.NODE_ENV === "production"
+  if (process.env.SEED_DEMO === "on" || (!production && process.env.SEED_DEMO !== "off")) {
+    const demoUser = await prisma.user.upsert({
+      where:  { email:"demo@zkwaconnect.in" },
       update: {},
-      create: { id:subId, organizationId:demoOrg.id, planId:starter.id,
-        status:"TRIAL", startDate:new Date(),
-        trialEndsAt:new Date(Date.now()+14*86_400_000),
-        currentPeriodStart:new Date(), currentPeriodEnd:new Date(Date.now()+14*86_400_000) },
+      create: { email:"demo@zkwaconnect.in", name:"Demo User",
+        passwordHash: await bcrypt.hash("demo1234",12), status:"ACTIVE" },
     })
-    console.log("  ✅ Demo subscription: Starter TRIAL (14 days)")
+    console.log(`  ✅ Demo user: ${demoUser.email}`)
+
+    const demoOrg = await prisma.organization.upsert({
+      where:  { slug:"demo-org" },
+      update: {},
+      create: { name:"Demo Business", slug:"demo-org",
+        country:"IN", timezone:"Asia/Kolkata", currency:"INR", status:"TRIAL" },
+    })
+    console.log(`  ✅ Demo org: ${demoOrg.name}`)
+
+    await prisma.membership.upsert({
+      where:  { organizationId_userId:{ organizationId:demoOrg.id, userId:demoUser.id } },
+      update: {},
+      create: { organizationId:demoOrg.id, userId:demoUser.id, role:"OWNER", status:"ACTIVE" },
+    })
+    await prisma.onboarding.upsert({
+      where:  { organizationId:demoOrg.id },
+      update: {},
+      create: { organizationId:demoOrg.id, currentStep:"NOT_STARTED", status:"NOT_STARTED" },
+    })
+
+    const starter = await prisma.plan.findUnique({ where:{ slug:"starter" } })
+    if (starter) {
+      const subId = `sub_demo_${demoOrg.id.slice(0,8)}`
+      await prisma.subscription.upsert({
+        where:  { id:subId },
+        update: {},
+        create: { id:subId, organizationId:demoOrg.id, planId:starter.id,
+          status:"TRIAL", startDate:new Date(),
+          trialEndsAt:new Date(Date.now()+7*86_400_000),
+          currentPeriodStart:new Date(), currentPeriodEnd:new Date(Date.now()+7*86_400_000) },
+      })
+      console.log("  ✅ Demo subscription: Starter TRIAL (7 days)")
+    }
   }
 
   // Admin user
+  // Live: set SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD, otherwise a random password is generated and printed once.
+  const adminEmail = (process.env.SEED_ADMIN_EMAIL || "admin@zkwaconnect.in").toLowerCase()
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD || (production ? randomBytes(12).toString("base64url") : "admin2026!")
+  const existingAdmin = await prisma.user.findUnique({ where: { email: adminEmail } })
   const adminUser = await prisma.user.upsert({
-    where:  { email:"admin@zkwaconnect.in" },
+    where:  { email:adminEmail },
     update: {},
-    create: { email:"admin@zkwaconnect.in", name:"ZK Admin",
-      passwordHash: await bcrypt.hash("admin2026!",12),
+    create: { email:adminEmail, name:"ZK Admin",
+      passwordHash: await bcrypt.hash(adminPassword,12),
       status:"ACTIVE", adminRole:"SUPER_ADMIN" },
   })
   console.log(`  ✅ Admin user: ${adminUser.email}`)
@@ -83,8 +91,8 @@ async function main() {
   console.log("\n==============================================")
   console.log("🎉 SEED COMPLETE")
   console.log("==============================================")
-  console.log("  Customer : demo@zkwaconnect.in  / demo1234")
-  console.log("  Admin    : admin@zkwaconnect.in / admin2026!")
+  if (!production) console.log("  Customer : demo@zkwaconnect.in  / demo1234")
+  console.log(`  Admin    : ${adminEmail} / ${existingAdmin ? "(existing account — password unchanged)" : adminPassword}`)
   console.log("==============================================\n")
 }
 

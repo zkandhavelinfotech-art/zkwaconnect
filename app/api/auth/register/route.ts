@@ -13,6 +13,7 @@ const schema = z.object({
   country:          z.string().default("IN"),
   timezone:         z.string().default("Asia/Kolkata"),
   gstin:            z.string().optional(),
+  phone:            z.string().trim().regex(/^\+?[\d\s-]{8,18}$/, "Enter a valid WhatsApp number.").optional().or(z.literal("")),
 })
 
 export async function POST(req: Request) {
@@ -24,7 +25,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "An account with this email already exists." }, { status: 409 })
 
     const passwordHash = await hashPassword(input.password)
-    const user = await prisma.user.create({ data: { email, name: input.name, passwordHash } })
+    const user = await prisma.user.create({ data: { email, name: input.name, passwordHash, phone: input.phone || null } })
     const workspace = await createWorkspace(user.id, { name: input.organizationName, country: input.country, timezone: input.timezone, gstin: input.gstin })
 
     await createSession(user.id)

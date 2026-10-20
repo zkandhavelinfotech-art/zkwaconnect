@@ -228,6 +228,10 @@ export default function AdminDashboard() {
             color:"#86efac",borderRadius:6,padding:"7px 12px",fontSize:12,fontWeight:700,textDecoration:"none"}}>
             Plans &amp; features
           </a>
+          <a href="/admin/go-live" style={{background:"rgba(250,204,21,.15)",border:"1px solid rgba(250,204,21,.4)",
+            color:"#fde68a",borderRadius:6,padding:"7px 12px",fontSize:12,fontWeight:700,textDecoration:"none"}}>
+            🚀 Go-live checklist
+          </a>
           <button onClick={() => setRefresh(value => value + 1)} disabled={loading}
             style={{background:"transparent",border:"1px solid rgba(255,255,255,.15)",
               color:"#fff",borderRadius:6,padding:"7px 12px",fontSize:12,cursor:"pointer"}}>

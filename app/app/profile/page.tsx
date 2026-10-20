@@ -1,6 +1,7 @@
 "use client"
 import { useEffect, useState } from "react"
 import { NotificationSettings } from "@/components/pwa/Pwa"
+import { TwoFactorSettings } from "@/components/TwoFactorSettings"
 
 type Profile = { user: { name: string; email: string; phone: string | null; createdAt: string; lastLoginAt: string | null }
   workspaces: { id: string; name: string; role: string }[] }
@@ -70,7 +71,7 @@ export default function ProfilePage() {
         <input id="name" required minLength={2} maxLength={80} value={name} onChange={event => setName(event.target.value)} style={field} />
         <label style={label} htmlFor="email">Email (used to sign in)</label>
         <input id="email" value={profile.user.email} readOnly style={{ ...field, background: "#f8fafc", color: "#64748b" }} />
-        <label style={label} htmlFor="phone">Mobile number</label>
+        <label style={label} htmlFor="phone">WhatsApp mobile number <span style={{ fontWeight: 400, color: "#94a3b8" }}>(for password reset codes)</span></label>
         <input id="phone" value={phone} onChange={event => setPhone(event.target.value)} placeholder="+91 98765 43210" style={field} />
         <button type="submit" disabled={busy === "profile"} style={button}>{busy === "profile" ? "Saving…" : "Save profile"}</button>
         <Message value={profileMessage} />
@@ -101,6 +102,7 @@ export default function ProfilePage() {
         </div>
       </div>
     </div>}
+    <TwoFactorSettings />
     <NotificationSettings />
   </div>
 }

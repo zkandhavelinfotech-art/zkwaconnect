@@ -7,7 +7,7 @@ const GSTIN_PATTERN = /^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$/
 
 export default function RegisterPage() {
   const router = useRouter()
-  const [form,     setForm]     = useState({ name:"", organizationName:"", email:"", password:"", gstin:"" })
+  const [form,     setForm]     = useState({ name:"", organizationName:"", email:"", password:"", gstin:"", phone:"" })
   const [showPass, setShowPass] = useState(false)
   const [agreed,   setAgreed]   = useState(false)
   const [loading,  setLoading]  = useState(false)
@@ -30,7 +30,7 @@ export default function RegisterPage() {
       const r = await fetch("/api/auth/register",{
         method:"POST", headers:{"Content-Type":"application/json"},
         body:JSON.stringify({ name:form.name.trim(), organizationName:form.organizationName.trim(),
-          email:form.email.trim(), password:form.password, gstin:form.gstin||undefined }),
+          email:form.email.trim(), password:form.password, gstin:form.gstin||undefined, phone:form.phone.trim()||undefined }),
       })
       const d = await r.json()
       if (!r.ok) { setError(d.error||"Could not create your account."); setLoading(false); return }
@@ -73,6 +73,10 @@ export default function RegisterPage() {
           <input id="email" className="form-input" type="email" placeholder="you@company.com" value={form.email} onChange={F("email")}
             required autoComplete="email" style={{ marginBottom:14 }} onFocus={focus} onBlur={blur} />
 
+          <label className="form-label" htmlFor="phone">WhatsApp number <span style={{ fontWeight:400, color:"#94a3b8" }}>(optional, for password reset codes)</span></label>
+          <input id="phone" className="form-input" type="tel" placeholder="+91 98765 43210" value={form.phone} onChange={F("phone")}
+            autoComplete="tel" maxLength={18} style={{ marginBottom:14 }} onFocus={focus} onBlur={blur} />
+
           <label className="form-label" htmlFor="password">Password</label>
           <div style={{ position:"relative", marginBottom:4 }}>
             <input id="password" className="form-input" type={showPass?"text":"password"} placeholder="At least 8 characters"
@@ -92,7 +96,7 @@ export default function RegisterPage() {
 
           <label style={{ display:"flex", gap:9, alignItems:"flex-start", fontSize:12, color:"#475569", marginBottom:14, lineHeight:1.5 }}>
             <input type="checkbox" checked={agreed} onChange={e=>setAgreed(e.target.checked)} style={{ marginTop:2 }} />
-            <span>I agree to the <strong>Terms of Service</strong> and <strong>Privacy Policy</strong>.</span>
+            <span>I agree to the <a href="/terms" target="_blank" style={{ color:"#075E54", fontWeight:700 }}>Terms of Service</a>, <a href="/privacy" target="_blank" style={{ color:"#075E54", fontWeight:700 }}>Privacy Policy</a> and <a href="/refund-policy" target="_blank" style={{ color:"#075E54", fontWeight:700 }}>Refund Policy</a>.</span>
           </label>
 
           {error && (
