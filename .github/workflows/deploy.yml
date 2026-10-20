@@ -1,0 +1,179 @@
+name: Deploy ZKWAConnect v4
+
+# Push to main → check & build → update the database schema → deploy to every host that has its secrets set.
+# Hosts without secrets are skipped, so you can enable Railway, Vercel, GoDaddy and HostGator one at a time.
+# Setup guide: docs/DEPLOYMENT.md
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Where to deploy
+        type: choice
+        options: [all, railway, vercel, godaddy, hostgator, none]
+        default: all
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "20"
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  plan:
+    name: Plan
+    runs-on: ubuntu-latest
+    outputs:
+      database: ${{ steps.flags.outputs.database }}
+      railway: ${{ steps.flags.outputs.railway }}
+      vercel: ${{ steps.flags.outputs.vercel }}
+      godaddy: ${{ steps.flags.outputs.godaddy }}
+      hostgator: ${{ steps.flags.outputs.hostgator }}
+    steps:
+      - id: flags
+        env:
+          TARGET: ${{ github.event.inputs.target || 'all' }}
+          HAS_DATABASE: ${{ secrets.DATABASE_URL != '' }}
+          HAS_RAILWAY: ${{ secrets.RAILWAY_TOKEN != '' && secrets.RAILWAY_SERVICE_ID != '' }}
+          HAS_VERCEL: ${{ secrets.VERCEL_TOKEN != '' && secrets.VERCEL_ORG_ID != '' && secrets.VERCEL_PROJECT_ID != '' }}
+          HAS_GODADDY: ${{ secrets.GODADDY_SSH_HOST != '' && secrets.GODADDY_SSH_KEY != '' }}
+          HAS_HOSTGATOR: ${{ secrets.HOSTGATOR_SSH_HOST != '' && secrets.HOSTGATOR_SSH_KEY != '' }}
+        run: |
+          pick() { if [ "$2" = "true" ] && { [ "$TARGET" = "all" ] || [ "$TARGET" = "$1" ]; }; then echo true; else echo false; fi; }
+          echo "database=$([ "$TARGET" != "none" ] && echo "$HAS_DATABASE" || echo false)" >> "$GITHUB_OUTPUT"
+          echo "railway=$(pick railway "$HAS_RAILWAY")" >> "$GITHUB_OUTPUT"
+          echo "vercel=$(pick vercel "$HAS_VERCEL")" >> "$GITHUB_OUTPUT"
+          echo "godaddy=$(pick godaddy "$HAS_GODADDY")" >> "$GITHUB_OUTPUT"
+          echo "hostgator=$(pick hostgator "$HAS_HOSTGATOR")" >> "$GITHUB_OUTPUT"
+          cat "$GITHUB_OUTPUT" >> "$GITHUB_STEP_SUMMARY"
+
+  build:
+    name: Check & build
+    runs-on: ubuntu-latest
+    needs: plan
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npx prisma generate
+        env:
+          DATABASE_URL: postgresql://build:build@localhost:5432/build
+      - name: Type check
+        run: npx tsc --noEmit
+      - name: Production build
+        run: npm run build
+        env:
+          DATABASE_URL: postgresql://build:build@localhost:5432/build
+          # Browser-side values are baked in at build time (Settings → Secrets and variables → Actions → Variables).
+          NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL }}
+          NEXT_PUBLIC_META_APP_ID: ${{ vars.NEXT_PUBLIC_META_APP_ID }}
+          NEXT_PUBLIC_META_CONFIG_ID: ${{ vars.NEXT_PUBLIC_META_CONFIG_ID }}
+      - name: Package for cPanel hosts
+        if: needs.plan.outputs.godaddy == 'true' || needs.plan.outputs.hostgator == 'true'
+        run: |
+          tar --exclude=.next/cache -czf release.tgz .next public prisma generated package.json package-lock.json server.js next.config.ts prisma.config.ts
+      - uses: actions/upload-artifact@v4
+        if: needs.plan.outputs.godaddy == 'true' || needs.plan.outputs.hostgator == 'true'
+        with:
+          name: release
+          path: release.tgz
+          retention-days: 7
+
+  database:
+    name: Update database schema
+    runs-on: ubuntu-latest
+    needs: [plan, build]
+    if: needs.plan.outputs.database == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      # Adds new tables/columns. Without --accept-data-loss it stops (and blocks the deploy) if a change would delete data.
+      - run: npx prisma db push
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+  railway:
+    name: Deploy · Railway
+    runs-on: ubuntu-latest
+    needs: [plan, build, database]
+    if: ${{ !cancelled() && needs.plan.outputs.railway == 'true' && needs.build.result == 'success' && needs.database.result != 'failure' }}
+    environment: { name: railway, url: "${{ vars.RAILWAY_APP_URL }}" }
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm install -g @railway/cli
+      - name: Upload and deploy
+        run: railway up --service "$RAILWAY_SERVICE_ID" --ci
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_SERVICE_ID: ${{ secrets.RAILWAY_SERVICE_ID }}
+      - name: Health check
+        if: vars.RAILWAY_APP_URL != ''
+        run: curl --fail --silent --show-error --retry 20 --retry-delay 15 --retry-all-errors "${{ vars.RAILWAY_APP_URL }}/api/health"
+
+  vercel:
+    name: Deploy · Vercel
+    runs-on: ubuntu-latest
+    needs: [plan, build, database]
+    if: ${{ !cancelled() && needs.plan.outputs.vercel == 'true' && needs.build.result == 'success' && needs.database.result != 'failure' }}
+    environment: { name: vercel, url: "${{ vars.VERCEL_APP_URL }}" }
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm install -g vercel@latest
+      - run: vercel pull --yes --environment=production --token="${{ secrets.VERCEL_TOKEN }}"
+      - run: vercel build --prod --token="${{ secrets.VERCEL_TOKEN }}"
+      - run: vercel deploy --prebuilt --prod --token="${{ secrets.VERCEL_TOKEN }}"
+      - name: Health check
+        if: vars.VERCEL_APP_URL != ''
+        run: curl --fail --silent --show-error --retry 10 --retry-delay 10 --retry-all-errors "${{ vars.VERCEL_APP_URL }}/api/health"
+
+  godaddy:
+    name: Deploy · GoDaddy
+    needs: [plan, build, database]
+    if: ${{ !cancelled() && needs.plan.outputs.godaddy == 'true' && needs.build.result == 'success' && needs.database.result != 'failure' }}
+    uses: ./.github/workflows/deploy-cpanel.yml
+    with:
+      host_name: GoDaddy
+      app_url: ${{ vars.GODADDY_APP_URL }}
+    secrets:
+      SSH_HOST: ${{ secrets.GODADDY_SSH_HOST }}
+      SSH_USER: ${{ secrets.GODADDY_SSH_USER }}
+      SSH_KEY: ${{ secrets.GODADDY_SSH_KEY }}
+      SSH_PORT: ${{ secrets.GODADDY_SSH_PORT }}
+      APP_DIR: ${{ secrets.GODADDY_APP_DIR }}
+      NODE_ENV_ACTIVATE: ${{ secrets.GODADDY_NODE_ENV_ACTIVATE }}
+
+  hostgator:
+    name: Deploy · HostGator
+    needs: [plan, build, database]
+    if: ${{ !cancelled() && needs.plan.outputs.hostgator == 'true' && needs.build.result == 'success' && needs.database.result != 'failure' }}
+    uses: ./.github/workflows/deploy-cpanel.yml
+    with:
+      host_name: HostGator
+      app_url: ${{ vars.HOSTGATOR_APP_URL }}
+    secrets:
+      SSH_HOST: ${{ secrets.HOSTGATOR_SSH_HOST }}
+      SSH_USER: ${{ secrets.HOSTGATOR_SSH_USER }}
+      SSH_KEY: ${{ secrets.HOSTGATOR_SSH_KEY }}
+      SSH_PORT: ${{ secrets.HOSTGATOR_SSH_PORT }}
+      APP_DIR: ${{ secrets.HOSTGATOR_APP_DIR }}
+      NODE_ENV_ACTIVATE: ${{ secrets.HOSTGATOR_NODE_ENV_ACTIVATE }}

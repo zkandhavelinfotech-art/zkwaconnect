@@ -1,0 +1,59 @@
+name: Deploy to a cPanel Node.js host
+
+# Reused by deploy.yml for GoDaddy and HostGator (cPanel "Setup Node.js App", Phusion Passenger).
+# Uploads the build over SSH, installs production packages inside the app's Node environment, restarts the app.
+# Never touches the host's .env, storage/ (uploaded media) or node_modules symlink.
+on:
+  workflow_call:
+    inputs:
+      host_name: { type: string, required: true }
+      app_url: { type: string, required: false, default: "" }
+    secrets:
+      SSH_HOST: { required: true }
+      SSH_USER: { required: true }
+      SSH_KEY: { required: true }
+      SSH_PORT: { required: false }
+      APP_DIR: { required: true }
+      NODE_ENV_ACTIVATE: { required: false }
+
+jobs:
+  deploy:
+    name: ${{ inputs.host_name }}
+    runs-on: ubuntu-latest
+    environment: { name: "${{ inputs.host_name }}", url: "${{ inputs.app_url }}" }
+    env:
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_USER: ${{ secrets.SSH_USER }}
+      SSH_PORT: ${{ secrets.SSH_PORT || '22' }}
+      APP_DIR: ${{ secrets.APP_DIR }}
+      NODE_ENV_ACTIVATE: ${{ secrets.NODE_ENV_ACTIVATE }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: release }
+      - name: SSH key
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "${{ secrets.SSH_KEY }}" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+      - name: Upload release
+        run: |
+          scp -P "$SSH_PORT" -i ~/.ssh/deploy_key release.tgz "$SSH_USER@$SSH_HOST:$APP_DIR/release.tgz"
+      - name: Install and restart
+        run: |
+          ssh -p "$SSH_PORT" -i ~/.ssh/deploy_key "$SSH_USER@$SSH_HOST" APP_DIR="$APP_DIR" NODE_ENV_ACTIVATE="$NODE_ENV_ACTIVATE" 'bash -se' <<'REMOTE'
+          set -euo pipefail
+          cd "$APP_DIR"
+          # Replace the previous build; keep .env, storage/ and node_modules (a symlink on CloudLinux).
+          rm -rf .next.previous && { [ -d .next ] && mv .next .next.previous || true; }
+          tar -xzf release.tgz && rm release.tgz
+          mkdir -p storage tmp
+          # Use the Node version selected in cPanel → Setup Node.js App (its "Enter to the virtual environment" command).
+          if [ -n "${NODE_ENV_ACTIVATE:-}" ] && [ -f "$NODE_ENV_ACTIVATE" ]; then source "$NODE_ENV_ACTIVATE"; fi
+          node --version
+          npm install --omit=dev --no-audit --no-fund
+          touch tmp/restart.txt
+          echo "Deployed $(date)"
+          REMOTE
+      - name: Health check
+        if: inputs.app_url != ''
+        run: curl --fail --silent --show-error --retry 20 --retry-delay 15 --retry-all-errors "${{ inputs.app_url }}/api/health"

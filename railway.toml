@@ -1,0 +1,13 @@
+# Railway: one always-on service runs the web app and the background sender (broadcasts, webhooks, flow delays, cart reminders).
+# Add a Postgres plugin (or Neon) and set the variables from .env.example in the service's Variables tab.
+[build]
+builder = "nixpacks"
+buildCommand = "npm ci && npx prisma generate && npm run build"
+
+[deploy]
+startCommand = "npm start"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 120
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 5
+# Keep a volume mounted at /app/storage so uploaded template/inbox media survives redeploys.
