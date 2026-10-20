@@ -2,10 +2,13 @@ import { tickCampaigns } from "./worker"
 import { deliverWebhooks } from "@/lib/developer/webhooks"
 import { resumeDueDelays } from "@/lib/flows/engine"
 import { sendDueCartReminders } from "@/lib/integrations/store"
+import { sendPlanReminders } from "@/lib/billing/reminders"
 
 // One pass of all background jobs; true when any of them had work.
 async function tickAll() {
-  const [campaigns, webhooks, delays, carts] = await Promise.all([
+  const [, campaigns, webhooks, delays, carts] = await Promise.all([
+    // Hourly at most; never counts as "busy".
+    sendPlanReminders().catch(error => { console.error("[billing] plan reminders failed", error); return 0 }).then(() => false),
     tickCampaigns().catch(error => { console.error("[campaigns] tick failed", error); return false }),
     deliverWebhooks().catch(error => { console.error("[webhooks] delivery failed", error); return 0 }),
     resumeDueDelays().catch(error => { console.error("[flows] delay resume failed", error); return 0 }),

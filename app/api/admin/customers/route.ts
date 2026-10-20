@@ -72,11 +72,14 @@ export async function PATCH(req: Request) {
     if (action === "activate")
       return NextResponse.json({ org: await prisma.organization.update({ where:{id}, data:{status:"ACTIVE"} }) })
     if (action === "extend-trial" && trialDays) {
-      const sub = await prisma.subscription.findFirst({ where: { organizationId: id, status: "TRIAL" } })
+      // The latest trial, even one that already lapsed; extends from its end or from today, whichever is later.
+      const sub = await prisma.subscription.findFirst({ where: { organizationId: id, trialEndsAt: { not: null }, status: { in: ["TRIAL", "EXPIRED"] } }, orderBy: { createdAt: "desc" } })
       if (sub) {
-        const d = new Date(sub.trialEndsAt || new Date())
+        const end = sub.currentPeriodEnd || sub.trialEndsAt!
+        const d = new Date(Math.max(end.getTime(), Date.now()))
         d.setDate(d.getDate() + trialDays)
-        await prisma.subscription.update({ where: { id: sub.id }, data: { trialEndsAt: d } })
+        await prisma.subscription.update({ where: { id: sub.id }, data: { status: "TRIAL", trialEndsAt: d, currentPeriodEnd: d } })
+        forgetPlanCache(id)
       }
       return NextResponse.json({ ok: true })
     }

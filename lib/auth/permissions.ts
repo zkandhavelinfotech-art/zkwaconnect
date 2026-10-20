@@ -17,7 +17,7 @@ export const atLeast = (role: string | null | undefined, minimum: Role) => RANK[
 type Rule = { prefix: string; read?: Role; write?: Role; skip?: boolean }
 // Longest matching prefix wins. Defaults: anyone can read, agents and above can change things.
 const RULES = [
-  ...["/api/admin", "/api/auth", "/api/profile", "/api/workspaces", "/api/me", "/api/push", "/api/invitations", "/api/webhooks", "/api/v1", "/api/hooks", "/api/public", "/api/cron"]
+  ...["/api/admin", "/api/auth", "/api/profile", "/api/workspaces", "/api/me", "/api/push", "/api/invitations", "/api/webhooks", "/api/v1", "/api/hooks", "/api/public", "/api/cron", "/api/notifications"]
     .map(prefix => ({ prefix, skip: true }) as Rule),
   { prefix: "/api/team", read: "MANAGER", write: "ADMIN" } as Rule,
   { prefix: "/api/billing", read: "ADMIN", write: "ADMIN" } as Rule,

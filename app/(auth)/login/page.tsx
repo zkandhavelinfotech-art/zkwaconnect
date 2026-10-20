@@ -99,7 +99,7 @@ export default function LoginPage() {
         <div style={{ textAlign:"center", fontSize:13, color:"#64748b" }}>
           No account?{" "}
           <a href="/register" style={{ color:"#075E54", fontWeight:600, textDecoration:"none" }}>
-            Start 14-day free trial →
+            Start 7-day free trial →
           </a>
         </div>
 

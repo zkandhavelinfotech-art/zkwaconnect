@@ -5,6 +5,7 @@ import Link from "next/link"
 import { Logo, LogoIcon } from "@/components/Logo"
 import { ProfileMenu } from "@/components/ProfileMenu"
 import { InstallButton } from "@/components/pwa/Pwa"
+import { NotificationBell } from "@/components/NotificationBell"
 import { atLeast, PAGE_MIN_ROLE } from "@/lib/auth/permissions"
 import { featureForPage, type FeatureKey, type PlanSummary } from "@/lib/billing/features"
 import { LockedFeature } from "@/components/billing/LockedFeature"
@@ -67,7 +68,7 @@ type Me = {
   workspace:{id:string;name:string;role:string;walletBalance:number;currency:string;count:number}
   plan:{name:string;status:string;interval:string;renewsOn:string|null;trialEndsAt:string|null}|null
   whatsapp:{connected:boolean;phoneNumber:string|null}
-  access?:{active:boolean;onFree:boolean;status:string;endsAt:string|null;planName:string|null;features:FeatureKey[];messagesUsed:number;messagesLimit:number|null;
+  access?:{active:boolean;onFree:boolean;internal?:boolean;status:string;endsAt:string|null;planName:string|null;features:FeatureKey[];messagesUsed:number;messagesLimit:number|null;
     nearLimit:boolean;atLimit:boolean;next:{name:string;adds:FeatureKey[]}|null;plans:PlanSummary[]}
 }
 
@@ -309,16 +310,17 @@ export default function AppLayout({ children }:{ children:React.ReactNode }) {
             {me && !me.whatsapp.connected && <a href="/onboarding" className="zk-hide-sm" style={{fontSize:12,color:"#053d36",fontWeight:700,textDecoration:"none",
               background:"#dcf8c6",borderRadius:20,padding:"6px 12px",whiteSpace:"nowrap"}}>Finish WhatsApp setup →</a>}
             {me && <span className="zk-hide-sm" style={{fontSize:13,color:"rgba(255,255,255,.85)",whiteSpace:"nowrap"}}>
-              Current Plan : <strong style={{color:"#fff"}}>{me.plan ? me.plan.name.toUpperCase() : "FREE"}</strong>{" "}
-              <span style={{fontSize:11,opacity:.8}}>({me.plan?.status === "TRIAL" ? "trial" : me.plan ? me.plan.interval : "forever"})</span></span>}
-            <a href="/app/billing" style={{display:"inline-flex",alignItems:"center",gap:6,background:"#25D366",color:"#053d36",fontSize:13,fontWeight:700,
-              textDecoration:"none",borderRadius:8,padding:"7px 14px",whiteSpace:"nowrap"}}>💎 Explore Plans</a>
+              Current Plan : <strong style={{color:"#fff"}}>{me.access?.internal ? "INTERNAL" : me.plan ? me.plan.name.toUpperCase() : "FREE"}</strong>{" "}
+              <span style={{fontSize:11,opacity:.8}}>({me.access?.internal ? "all features" : me.plan?.status === "TRIAL" ? "trial" : me.plan ? me.plan.interval : "forever"})</span></span>}
+            {!me?.access?.internal && <a href="/app/billing" style={{display:"inline-flex",alignItems:"center",gap:6,background:"#25D366",color:"#053d36",fontSize:13,fontWeight:700,
+              textDecoration:"none",borderRadius:8,padding:"7px 14px",whiteSpace:"nowrap"}}>💎 {me?.access?.status === "TRIAL" ? "Upgrade" : "Explore Plans"}</a>}
+            {me && <NotificationBell />}
             <InstallButton />
             {me && <ProfileMenu name={me.user.name} email={me.user.email} workspace={workspace} />}
           </div>
         </header>
         <main className="zk-content">
-          {me?.access && (!me.access.active || me.access.onFree || me.access.nearLimit || (me.access.status === "TRIAL" && me.access.endsAt && new Date(me.access.endsAt).getTime() - Date.now() < 3 * 86_400_000)) &&
+          {me?.access && (!me.access.active || me.access.onFree || me.access.nearLimit || (me.access.status === "TRIAL" && me.access.active && !me.access.onFree && me.access.endsAt)) &&
             <div role="status" style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap",borderRadius:10,padding:"10px 14px",marginBottom:16,fontSize:13,
               background:!me.access.active||me.access.atLimit?"#fef2f2":me.access.onFree?"#eff6ff":"#fffbeb",border:`1px solid ${!me.access.active||me.access.atLimit?"#fecaca":"#fde68a"}`,color:!me.access.active||me.access.atLimit?"#991b1b":"#92400e"}}>
               <span style={{flex:1}}>{!me.access.active
@@ -326,7 +328,8 @@ export default function AppLayout({ children }:{ children:React.ReactNode }) {
                 : me.access.onFree && !me.access.atLimit ? `You're on the Free plan${me.access.messagesLimit ? ` (${me.access.messagesLimit.toLocaleString("en-IN")} messages/month)` : ""}${me.access.status === "TRIAL" ? " — your trial has ended" : ""}. Upgrade to unlock broadcasts, chatbots and more.`
                 : me.access.atLimit ? `You've used all ${me.access.messagesLimit?.toLocaleString("en-IN")} messages for this month — sending is paused until the 1st or until you upgrade.`
                 : me.access.nearLimit ? `You've used ${me.access.messagesUsed.toLocaleString("en-IN")} of ${me.access.messagesLimit?.toLocaleString("en-IN")} messages this month.`
-                : `Your free trial ends on ${new Date(me.access.endsAt!).toLocaleDateString("en-IN",{day:"numeric",month:"short"})}. Choose a plan to keep sending.`}</span>
+                : (() => { const days = Math.max(0, Math.ceil((new Date(me.access.endsAt!).getTime() - Date.now()) / 86_400_000))
+                    return `${days <= 1 ? "Your free trial ends tomorrow" : `${days} days left in your free ${me.access.planName || ""} trial`} (ends ${new Date(me.access.endsAt!).toLocaleDateString("en-IN",{day:"numeric",month:"short"})}). Upgrade now so broadcasts, chatbots and other features keep working — otherwise the workspace moves to the Free plan.` })()}</span>
               {atLeast(me.workspace.role, "ADMIN") ? <a href="/app/billing" style={{background:"#075e54",color:"#fff",borderRadius:6,padding:"6px 12px",fontWeight:700,textDecoration:"none",fontSize:12}}>
                 {me.access.active ? "Upgrade" : "Renew plan"}</a> : <span style={{fontSize:12}}>Ask your workspace owner to renew.</span>}
             </div>}

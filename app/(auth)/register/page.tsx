@@ -57,7 +57,7 @@ export default function RegisterPage() {
         <h1 style={{ fontFamily:"Sora,sans-serif", fontSize:22, fontWeight:700,
           color:"#0f172a", margin:"0 0 4px" }}>Create your account</h1>
         <p style={{ fontSize:13, color:"#64748b", margin:"0 0 22px" }}>
-          Start your 14-day free trial. No credit card required.
+          Start your 7-day free trial. No credit card required.
         </p>
 
         <form onSubmit={submit} style={{ display:"flex", flexDirection:"column" }}>

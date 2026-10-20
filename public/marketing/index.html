@@ -547,7 +547,7 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:40px 6%
     <div class="free-banner" style="margin-top:32px">
       <div class="fb-left">
         <h3>🎉 Free Forever Plan — WhatsApp API FREE for life</h3>
-        <p id="free-banner-text">Official WhatsApp Business API, shared team inbox, templates and green-tick help — 1 user, 1 number and 250 messages a month at ₹0 forever. Start with a 14-day trial of Starter; no credit card required.</p>
+        <p id="free-banner-text">Official WhatsApp Business API, shared team inbox, templates and green-tick help — 1 user, 1 number and 250 messages a month at ₹0 forever. Start with a 7-day trial of Business; no credit card required.</p>
       </div>
       <div class="fb-badge">₹0<small>FOREVER</small></div>
     </div>
@@ -669,7 +669,7 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:40px 6%
     </div>
 
     <p style="text-align:center;font-size:12px;color:rgba(255,255,255,.3);margin-top:20px">
-      All plans include 14-day free trial. Per-message rates are charged by Meta directly and apply on all plans.
+      Every new workspace starts with a 7-day free trial of Business. Per-message rates are charged by Meta directly and apply on all plans.
       Compare the published entry plans shown above; competitor pricing may change. Meta message charges are separate.
     </p>
 
@@ -1017,7 +1017,7 @@ function renderPlans() {
       + (previous ? '<div class="pf"><span class="pf-check">✓</span>Everything in ' + esc(previous.name) + '</div>' : '')
       + adds.map(key => '<div class="pf"><span class="pf-check">✓</span>' + esc(liveFeatures[key] || key) + '</div>').join('')
       + '</div><a class="pc-btn ' + (plan.popular ? 'solid' : 'ghost') + '" href="/register" target="_top" style="display:block;text-align:center;text-decoration:none">'
-      + (free ? 'Start for FREE' : 'Start 14-day trial') + '</a>' + rates + '</div>'
+      + (free ? 'Start for FREE' : 'Start 7-day trial') + '</a>' + rates + '</div>'
   }).join('')
 }
 
@@ -1035,7 +1035,7 @@ fetch('/api/public/plans').then(response => response.ok ? response.json() : null
   data.features.forEach(feature => { liveFeatures[feature.key] = feature.label })
   const free = livePlans.find(plan => plan.monthlyPrice === 0)
   if (free) document.getElementById('free-banner-text').textContent = 'Official WhatsApp Business API, shared team inbox, templates and green-tick help — '
-    + cap(free.limits.users, 'user') + ', ' + cap(free.limits.numbers, 'number') + ' and ' + cap(free.limits.messages, 'messages a month') + ' at ₹0 forever. Start with a 14-day trial; no credit card required.'
+    + cap(free.limits.users, 'user') + ', ' + cap(free.limits.numbers, 'number') + ' and ' + cap(free.limits.messages, 'messages a month') + ' at ₹0 forever. Start with a 7-day Business trial; no credit card required.'
   const best = Math.max(0, ...livePlans.filter(plan => plan.annualPrice > 0).map(plan => Math.round((1 - plan.annualPrice / (plan.monthlyPrice * 12)) * 100)))
   if (best) document.getElementById('yearly-save').textContent = 'SAVE ' + best + '%'
   renderPlans()

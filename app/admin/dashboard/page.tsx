@@ -407,9 +407,9 @@ export default function AdminDashboard() {
                       title="Internal: all features, no limits, no plan or charges (your company and managed clients)"
                       style={{border:"1px solid #3b82f6",borderRadius:4,padding:"6px 8px",background:tenant.billingExempt?"#1d4ed8":"transparent",color:"#fff",fontSize:10,cursor:"pointer"}}>
                       {tenant.billingExempt ? "Internal ✓" : "Make internal"}</button>
-                    {tenant.subscriptions[0]?.status === "TRIAL" && <button disabled={workingId === tenant.id}
-                      onClick={() => updateTenant(tenant.id,"extend-trial",{trialDays:14})}
-                      style={{border:"1px solid rgba(255,255,255,.16)",borderRadius:4,padding:"6px 8px",background:"transparent",color:"#fff",fontSize:10,cursor:"pointer"}}>+14 trial days</button>}
+                    {["TRIAL","EXPIRED"].includes(tenant.subscriptions[0]?.status) && <button disabled={workingId === tenant.id}
+                      onClick={() => updateTenant(tenant.id,"extend-trial",{trialDays:7})}
+                      style={{border:"1px solid rgba(255,255,255,.16)",borderRadius:4,padding:"6px 8px",background:"transparent",color:"#fff",fontSize:10,cursor:"pointer"}}>+7 trial days</button>}
                   </div>
                 </td>
               </tr>)}</tbody>
