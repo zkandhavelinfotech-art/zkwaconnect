@@ -1,0 +1,27 @@
+{
+  "id": "/app/dashboard",
+  "name": "ZKWAConnect",
+  "short_name": "ZKWAConnect",
+  "description": "WhatsApp Business inbox, broadcasts and chatbots by ZKandhavel Infotech Pvt. Ltd.",
+  "start_url": "/app/dashboard?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#075E54",
+  "theme_color": "#075E54",
+  "categories": ["business", "productivity"],
+  "icons": [
+    { "src": "/icons/zkwaconnect-icon-48.png",  "sizes": "48x48",   "type": "image/png" },
+    { "src": "/icons/zkwaconnect-icon-72.png",  "sizes": "72x72",   "type": "image/png" },
+    { "src": "/icons/zkwaconnect-icon-96.png",  "sizes": "96x96",   "type": "image/png" },
+    { "src": "/icons/zkwaconnect-icon-144.png", "sizes": "144x144", "type": "image/png" },
+    { "src": "/icons/zkwaconnect-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/zkwaconnect-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/zkwaconnect-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Inbox", "url": "/app/inbox", "icons": [{ "src": "/icons/zkwaconnect-icon-96.png", "sizes": "96x96" }] },
+    { "name": "New broadcast", "url": "/app/campaigns", "icons": [{ "src": "/icons/zkwaconnect-icon-96.png", "sizes": "96x96" }] },
+    { "name": "Orders", "url": "/app/commerce", "icons": [{ "src": "/icons/zkwaconnect-icon-96.png", "sizes": "96x96" }] }
+  ]
+}
