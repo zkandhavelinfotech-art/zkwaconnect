@@ -223,6 +223,10 @@ export default function AdminDashboard() {
             color:"#86efac",borderRadius:6,padding:"7px 12px",fontSize:12,fontWeight:700,textDecoration:"none"}}>
             Messaging charges
           </a>
+          <a href="/admin/plans" style={{background:"rgba(37,211,102,.15)",border:"1px solid rgba(37,211,102,.35)",
+            color:"#86efac",borderRadius:6,padding:"7px 12px",fontSize:12,fontWeight:700,textDecoration:"none"}}>
+            Plans &amp; features
+          </a>
           <button onClick={() => setRefresh(value => value + 1)} disabled={loading}
             style={{background:"transparent",border:"1px solid rgba(255,255,255,.15)",
               color:"#fff",borderRadius:6,padding:"7px 12px",fontSize:12,cursor:"pointer"}}>

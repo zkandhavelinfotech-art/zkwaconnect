@@ -1,4 +1,5 @@
 import { Prisma } from "@/generated/prisma/client"
+import { hasFeature } from "@/lib/billing/limits"
 import { prisma } from "@/lib/db/prisma"
 import { metaGraph } from "@/lib/meta/graph"
 import { decryptMetaToken, encryptMetaToken } from "@/lib/meta/token"
@@ -33,7 +34,7 @@ type Messaging = { sender?: { id?: string }; recipient?: { id?: string }; timest
 // Instagram webhook: entry.id is the Instagram account; each messaging item is a DM.
 export async function handleInstagramEntry(entry: { id?: string; messaging?: Messaging[] }) {
   const account = entry.id ? await prisma.instagramAccount.findUnique({ where: { igUserId: entry.id } }) : null
-  if (!account || account.status !== "CONNECTED") return
+  if (!account || account.status !== "CONNECTED" || !(await hasFeature(account.organizationId, "instagram"))) return
   for (const event of entry.messaging || []) {
     const message = event.message
     const senderId = event.sender?.id

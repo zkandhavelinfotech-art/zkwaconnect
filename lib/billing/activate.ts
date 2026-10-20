@@ -1,4 +1,5 @@
 import { Prisma } from "@/generated/prisma/client"
+import { forgetPlans } from "./plans"
 import { forgetPlanCache } from "./limits"
 import { creditWallet } from "@/lib/billing/messaging"
 import { prisma } from "@/lib/db/prisma"
@@ -44,6 +45,7 @@ export async function activatePaidSubscription(tx: Prisma.TransactionClient, pay
   })
   await tx.organization.updateMany({ where: { id: payment.organizationId, status: "TRIAL" }, data: { status: "ACTIVE" } })
   forgetPlanCache(payment.organizationId)
+  forgetPlans()
   return activated
 }
 

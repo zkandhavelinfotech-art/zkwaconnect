@@ -1,4 +1,6 @@
 import crypto             from "node:crypto"
+import { featureForApi } from "@/lib/billing/features"
+import { effectivePlan, lockedError } from "@/lib/billing/plans"
 import { cookies, headers } from "next/headers"
 import { apiPermission, PermissionError } from "@/lib/auth/permissions"
 import { prisma }         from "@/lib/db/prisma"
@@ -68,6 +70,11 @@ export async function getSession() {
   if (path && method && list[0]) {
     const denied = apiPermission(list[0].role, method, path)
     if (denied) throw new PermissionError(denied)
+    const feature = featureForApi(method, path)
+    if (feature) {
+      const plan = await effectivePlan(list[0].organization.subscriptions[0])
+      if (!plan?.features.includes(feature)) throw await lockedError(feature)
+    }
   }
   return session
 }

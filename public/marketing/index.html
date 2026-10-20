@@ -547,7 +547,7 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:40px 6%
     <div class="free-banner" style="margin-top:32px">
       <div class="fb-left">
         <h3>🎉 Free Forever Plan — WhatsApp API FREE for life</h3>
-        <p>Get Official WhatsApp Business API, Blue Tick application, 1,000 free service messages/month and unlimited agent seats — at ₹0 forever. No credit card required.</p>
+        <p id="free-banner-text">Official WhatsApp Business API, shared team inbox, templates and green-tick help — 1 user, 1 number and 250 messages a month at ₹0 forever. Start with a 14-day trial of Starter; no credit card required.</p>
       </div>
       <div class="fb-badge">₹0<small>FOREVER</small></div>
     </div>
@@ -556,7 +556,7 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:40px 6%
     <div class="pricing-toggle">
       <button class="pt-btn on" id="monthly-btn" onclick="setMonthly(true)">Monthly</button>
       <button class="pt-btn" id="yearly-btn" onclick="setMonthly(false)">
-        Yearly <span class="pt-save">SAVE 20%</span>
+        Yearly <span class="pt-save" id="yearly-save">2 MONTHS FREE</span>
       </button>
     </div>
 
@@ -569,10 +569,10 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:40px 6%
         <div class="pc-features">
           <div class="pf"><span class="pf-check">✓</span>Free WhatsApp API</div>
           <div class="pf"><span class="pf-check">✓</span>Blue Tick application</div>
-          <div class="pf"><span class="pf-check">✓</span>1,000 service msgs/mo</div>
-          <div class="pf"><span class="pf-check">✓</span>Unlimited agents</div>
+          <div class="pf"><span class="pf-check">✓</span>1 user · 1 number · 250 messages/mo</div>
+          <div class="pf"><span class="pf-check">✓</span>Templates &amp; contacts</div>
           <div class="pf"><span class="pf-check">✓</span>Live inbox</div>
-          <div class="pf"><span class="pf-check">✓</span>1 chatbot flow + keyword replies</div>
+          <div class="pf"><span class="pf-check">✓</span>Quick replies &amp; notes</div>
           <div class="pf"><span class="pf-check">✓</span>WhatsApp link generator</div>
         </div>
         <button class="pc-btn ghost">Start for FREE</button>
@@ -591,9 +591,9 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:40px 6%
         <div class="pc-features">
           <div class="pf"><span class="pf-check">✓</span>Everything in Free</div>
           <div class="pf"><span class="pf-check">✓</span>3 users · 1 phone</div>
-          <div class="pf"><span class="pf-check">✓</span>5,000 messages/mo</div>
-          <div class="pf"><span class="pf-check">✓</span>5 chatbot flows</div>
-          <div class="pf"><span class="pf-check">✓</span>Basic campaigns</div>
+          <div class="pf"><span class="pf-check">✓</span>1,000 messages/mo</div>
+          <div class="pf"><span class="pf-check">✓</span>Broadcasts &amp; scheduling</div>
+          <div class="pf"><span class="pf-check">✓</span>Saved segments</div>
           <div class="pf"><span class="pf-check">✓</span>GST invoicing</div>
           <div class="pf"><span class="pf-check">✓</span>WhatsApp payments</div>
         </div>
@@ -613,8 +613,8 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:40px 6%
         <div class="pc-divider"></div>
         <div class="pc-features">
           <div class="pf"><span class="pf-check">✓</span>10 users · 3 phones</div>
-          <div class="pf"><span class="pf-check">✓</span>20,000 messages/mo</div>
-          <div class="pf"><span class="pf-check">✓</span>15 chatbot flows</div>
+          <div class="pf"><span class="pf-check">✓</span>10,000 messages/mo</div>
+          <div class="pf"><span class="pf-check">✓</span>Unlimited chatbot flows</div>
           <div class="pf"><span class="pf-check">✓</span>Advanced campaigns</div>
           <div class="pf"><span class="pf-check">✓</span>Meta Ads integration</div>
           <div class="pf"><span class="pf-check">✓</span>Analytics dashboard</div>
@@ -990,17 +990,56 @@ if (/^\d{8,15}$/.test(supportNumber)) {
   whatsappButton.title = 'WhatsApp contact is not configured. Email ZKWAConnect instead.'
 }
 
-const monthly = {starter:999, business:2499, pro:4999}
-const yearly  = {starter:799, business:1999, pro:3999}
+let livePlans = null, liveFeatures = {}, liveRates = null, showMonthly = true
+const esc = text => String(text).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
+const inr = value => '₹' + Number(value).toLocaleString('en-IN', { maximumFractionDigits: 2 })
+const cap = (value, unit) => value === null ? 'Unlimited ' + unit : Number(value).toLocaleString('en-IN') + ' ' + unit
+
+function renderPlans() {
+  if (!livePlans) return
+  const grid = document.querySelector('.price-grid')
+  if (!grid) return
+  grid.innerHTML = livePlans.map((plan, index) => {
+    const previous = livePlans[index - 1]
+    const adds = previous ? plan.features.filter(key => !previous.features.includes(key)) : plan.features
+    const free = plan.monthlyPrice === 0
+    const yearly = !showMonthly && plan.annualPrice > 0
+    const price = free ? '₹0<span class="pc-per">/forever</span>'
+      : '<sup>₹</sup>' + Math.round(yearly ? plan.annualPrice / 12 : plan.monthlyPrice).toLocaleString('en-IN') + '<span class="pc-per">/mo' + (yearly ? ' · billed ' + inr(plan.annualPrice) + '/yr' : '') + '</span>'
+    const rates = liveRates ? '<div class="msg-rates"><div class="mr-title">' + (liveRates.mode === 'DIRECT' ? 'Meta per-message rates (billed by Meta)' : 'Per-message rates') + '</div>'
+      + [['Marketing', liveRates.marketing], ['Utility', liveRates.utility], ['Authentication', liveRates.authentication]]
+        .map(([label, price]) => '<div class="mr-row"><span>' + label + '</span><span>' + inr(price.payToMeta + price.wallet) + '</span></div>').join('')
+      + '<div class="mr-row"><span>Service replies</span><span>Free</span></div></div>' : ''
+    return '<div class="pc' + (plan.popular ? ' hot' : '') + '">' + (plan.popular ? '<div class="hot-tag">⭐ Most Popular</div>' : '')
+      + '<div class="pc-name">' + esc(plan.name) + '</div><div class="pc-price">' + price + '</div><div class="pc-divider"></div><div class="pc-features">'
+      + '<div class="pf"><span class="pf-check">✓</span>' + cap(plan.limits.users, 'users') + ' · ' + cap(plan.limits.numbers, plan.limits.numbers === 1 ? 'number' : 'numbers') + '</div>'
+      + '<div class="pf"><span class="pf-check">✓</span>' + cap(plan.limits.messages, 'messages/mo') + '</div>'
+      + (previous ? '<div class="pf"><span class="pf-check">✓</span>Everything in ' + esc(previous.name) + '</div>' : '')
+      + adds.map(key => '<div class="pf"><span class="pf-check">✓</span>' + esc(liveFeatures[key] || key) + '</div>').join('')
+      + '</div><a class="pc-btn ' + (plan.popular ? 'solid' : 'ghost') + '" href="/register" target="_top" style="display:block;text-align:center;text-decoration:none">'
+      + (free ? 'Start for FREE' : 'Start 14-day trial') + '</a>' + rates + '</div>'
+  }).join('')
+}
 
 function setMonthly(isMonthly) {
+  showMonthly = isMonthly
   document.getElementById('monthly-btn').classList.toggle('on', isMonthly)
   document.getElementById('yearly-btn').classList.toggle('on', !isMonthly)
-  const p = isMonthly ? monthly : yearly
-  document.getElementById('starter-price').innerHTML  = `<sup>₹</sup>${p.starter.toLocaleString()}<span class="pc-per">/mo</span>`
-  document.getElementById('business-price').innerHTML = `<sup>₹</sup>${p.business.toLocaleString()}<span class="pc-per">/mo</span>`
-  document.getElementById('pro-price').innerHTML      = `<sup>₹</sup>${p.pro.toLocaleString()}<span class="pc-per">/mo</span>`
+  renderPlans()
 }
+
+fetch('/api/public/plans').then(response => response.ok ? response.json() : null).then(data => {
+  if (!data || !data.plans || !data.plans.length) return
+  livePlans = data.plans
+  liveRates = data.messageRates
+  data.features.forEach(feature => { liveFeatures[feature.key] = feature.label })
+  const free = livePlans.find(plan => plan.monthlyPrice === 0)
+  if (free) document.getElementById('free-banner-text').textContent = 'Official WhatsApp Business API, shared team inbox, templates and green-tick help — '
+    + cap(free.limits.users, 'user') + ', ' + cap(free.limits.numbers, 'number') + ' and ' + cap(free.limits.messages, 'messages a month') + ' at ₹0 forever. Start with a 14-day trial; no credit card required.'
+  const best = Math.max(0, ...livePlans.filter(plan => plan.annualPrice > 0).map(plan => Math.round((1 - plan.annualPrice / (plan.monthlyPrice * 12)) * 100)))
+  if (best) document.getElementById('yearly-save').textContent = 'SAVE ' + best + '%'
+  renderPlans()
+}).catch(() => {})
 
 document.querySelectorAll('a[href^="/"]').forEach(function (link) { link.target = '_top' })
 </script>

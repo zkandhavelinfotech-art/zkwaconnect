@@ -1,4 +1,6 @@
 import { Prisma } from "@/generated/prisma/client"
+import { hasFeature } from "@/lib/billing/limits"
+import { lockedError } from "@/lib/billing/plans"
 import { buildTemplateMessage, trackedButtonComponents } from "@/lib/whatsapp/template-media"
 import { assertCanSend, PlanLimitError } from "@/lib/billing/limits"
 import { chargeTemplateMessage, InsufficientBalanceError, refundCharge, serviceWindowOpen } from "@/lib/billing/messaging"
@@ -53,6 +55,7 @@ export async function startDueCampaigns(now = new Date()) {
     try {
       const campaign = await prisma.campaign.findUniqueOrThrow({ where: { id }, include: { template: true } })
       if (campaign.template?.status !== "APPROVED") throw new Error("The template is no longer approved by WhatsApp.")
+      if (!(await hasFeature(campaign.organizationId, "broadcasts"))) throw await lockedError("broadcasts")
       await materializeRecipients(id)
       const queued = await prisma.campaignRecipient.count({ where: { campaignId: id } })
       if (!queued) throw new Error("No opted-in contacts matched the audience when the broadcast started.")
@@ -84,6 +87,7 @@ async function releaseClaims(ids: string[]) {
 async function prepare(campaignId: string): Promise<Context | string> {
   const campaign = await prisma.campaign.findUniqueOrThrow({ where: { id: campaignId }, include: { template: true, phoneNumber: true } })
   if (!campaign.template || campaign.template.status !== "APPROVED") return "The template is no longer approved by WhatsApp."
+  if (!(await hasFeature(campaign.organizationId, "broadcasts"))) return (await lockedError("broadcasts")).message
   if (campaign.phoneNumber.status !== "CONNECTED") return "The WhatsApp number is no longer connected."
   const token = await getMetaAccessToken(campaign.organizationId)
   if (!token) return "Meta is not connected for this workspace. Reconnect Facebook, then resume."

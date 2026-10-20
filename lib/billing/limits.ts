@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/db/prisma"
+import { featuresOf, type FeatureKey } from "./features"
+import { freePlan, lockedError } from "./plans"
 import { expireLapsedSubscriptions } from "./activate"
 
 // Plan enforcement: an active (trial or paid) plan is needed to send messages, and the plan's
@@ -17,7 +19,11 @@ const startOfMonth = () => { const now = new Date(); return new Date(now.getFull
 export async function planState(organizationId: string) {
   await expireLapsedSubscriptions(organizationId)
   const subscription = await prisma.subscription.findFirst({ where: { organizationId, status: { not: "PENDING_PAYMENT" } }, include: { plan: true }, orderBy: { createdAt: "desc" } })
-  const active = Boolean(subscription && ["TRIAL", "ACTIVE"].includes(subscription.status) && (!subscription.currentPeriodEnd || subscription.currentPeriodEnd > new Date()))
+  const paidOrTrial = Boolean(subscription && ["TRIAL", "ACTIVE"].includes(subscription.status) && (!subscription.currentPeriodEnd || subscription.currentPeriodEnd > new Date()))
+  // After a trial or paid period ends, the workspace continues on the Free plan (if one is offered).
+  const free = paidOrTrial ? null : await freePlan()
+  const active = paidOrTrial || Boolean(free)
+  const planRow = paidOrTrial ? subscription!.plan : free
   // Messages are counted per calendar month (resets on the 1st).
   const since = startOfMonth()
   const [messages, users, invites, numbers] = await Promise.all([
@@ -27,9 +33,11 @@ export async function planState(organizationId: string) {
     prisma.phoneNumber.count({ where: { status: "CONNECTED", waba: { organizationId } } }),
   ])
   return {
-    active, status: subscription?.status || "NONE", planName: subscription?.plan.name || null,
+    active, onFree: !paidOrTrial && Boolean(free), features: paidOrTrial ? featuresOf(subscription!.plan) : free?.features || [],
+    status: subscription?.status || "NONE", planName: planRow?.name || subscription?.plan.name || null, planSlug: planRow?.slug || null,
     endsAt: subscription?.status === "TRIAL" ? subscription.trialEndsAt || subscription.currentPeriodEnd : subscription?.currentPeriodEnd || null,
-    limits: { messages: subscription?.plan.maxMessages ?? null, users: subscription?.plan.maxUsers ?? null, numbers: subscription?.plan.maxPhoneNumbers ?? null },
+    limits: planRow ? { messages: planRow.maxMessages ?? null, users: planRow.maxUsers ?? null, numbers: planRow.maxPhoneNumbers ?? null }
+      : { messages: subscription?.plan.maxMessages ?? null, users: subscription?.plan.maxUsers ?? null, numbers: subscription?.plan.maxPhoneNumbers ?? null },
     usage: { messages, users, invites, numbers }, periodStart: since,
   }
 }
@@ -59,6 +67,16 @@ export async function assertCanSend(organizationId: string, count = 1) {
 }
 
 export function forgetPlanCache(organizationId: string) { cache.delete(organizationId) }
+
+// Feature checks for background work and specific actions (API routes are also checked centrally in getSession).
+export async function hasFeature(organizationId: string, feature: FeatureKey) {
+  let entry = cache.get(organizationId)
+  if (!entry || Date.now() - entry.at > CACHE_MS) { entry = { at: Date.now(), state: await planState(organizationId), extra: 0 }; cache.set(organizationId, entry) }
+  return entry.state.features.includes(feature)
+}
+export async function assertFeature(organizationId: string, feature: FeatureKey) {
+  if (!(await hasFeature(organizationId, feature))) throw await lockedError(feature)
+}
 
 export async function assertSeatAvailable(organizationId: string) {
   const state = await planState(organizationId)

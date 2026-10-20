@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server"
+import { hasFeature } from "@/lib/billing/limits"
+import { lockedError } from "@/lib/billing/plans"
 import { PlanLimitError } from "@/lib/billing/limits"
 import { z } from "zod"
 import { prisma } from "@/lib/db/prisma"
@@ -35,6 +37,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
   const integration = await hook((await params).token)
   if (!integration) return NextResponse.json({ error: "Unknown or disabled hook." }, { status: 404 })
   const organizationId = integration.organizationId
+  if (!(await hasFeature(organizationId, "integrations")))
+    return NextResponse.json({ ok: false, error: (await lockedError("integrations")).message }, { status: 402 })
   const fail = async (status: number, error: string) => {
     await prisma.integration.update({ where: { id: integration.id }, data: { lastEventAt: new Date(), lastError: error.slice(0, 300) } })
     return NextResponse.json({ ok: false, error }, { status })

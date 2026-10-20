@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { featuresOf } from "@/lib/billing/features"
 import { planState } from "@/lib/billing/limits"
 import { z } from "zod"
 import { prisma }        from "@/lib/db/prisma"
@@ -38,8 +39,10 @@ export async function GET() {
       prisma.plan.findMany({ where: { status: true }, orderBy: { monthlyPrice: "asc" } }),
     ])
     return NextResponse.json({
-      subscription, invoices, payments, plans,
-      usage: await planState(organization.id).then(state => ({ limits: state.limits, usage: state.usage, active: state.active })),
+      subscription, invoices, payments,
+      plans: plans.map(plan => ({ ...plan, features: featuresOf(plan) })),
+      usage: await planState(organization.id).then(state => ({ limits: state.limits, usage: state.usage, active: state.active, onFree: state.onFree,
+        planName: state.planName, planSlug: state.planSlug, features: state.features })),
       pending: pending && { id: pending.id, plan: pending.plan, billingInterval: pending.billingInterval, invoice: pending.invoices[0] },
       billingProfile: {
         legalName: organization.legalName || organization.name,

@@ -1,4 +1,5 @@
 import "dotenv/config"
+import { DEFAULT_PLAN_FEATURES, toFeatureJson } from "../lib/billing/features"
 import bcrypt           from "bcryptjs"
 import { PrismaPg }    from "@prisma/adapter-pg"
 import { PrismaClient } from "../generated/prisma/client"
@@ -15,13 +16,15 @@ async function main() {
 
   // Plans
   const plans = [
+    { name:"Free",         slug:"free",         monthlyPrice:0,    annualPrice:0,      maxUsers:1,   maxPhoneNumbers:1,  maxMessages:250    },
     { name:"Starter",      slug:"starter",      monthlyPrice:999,  annualPrice:9990,   maxUsers:3,   maxPhoneNumbers:1,  maxMessages:1000   },
     { name:"Business",     slug:"business",     monthlyPrice:2499, annualPrice:24990,  maxUsers:10,  maxPhoneNumbers:3,  maxMessages:10000  },
     { name:"Professional", slug:"professional", monthlyPrice:4999, annualPrice:49990,  maxUsers:25,  maxPhoneNumbers:10, maxMessages:50000  },
     { name:"Enterprise",   slug:"enterprise",   monthlyPrice:9999, annualPrice:99990,  maxUsers:100, maxPhoneNumbers:25, maxMessages:100000 },
   ]
   for (const p of plans) {
-    await prisma.plan.upsert({ where:{ slug:p.slug }, update:{}, create: p })
+    await prisma.plan.upsert({ where:{ slug:p.slug }, update:{},
+      create: { ...p, features: toFeatureJson(DEFAULT_PLAN_FEATURES[p.slug] || []), isPopular: p.slug === "business" } })
     console.log(`  ✅ Plan: ${p.name} (₹${p.monthlyPrice}/mo)`)
   }
 

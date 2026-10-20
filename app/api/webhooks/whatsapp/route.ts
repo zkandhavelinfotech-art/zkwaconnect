@@ -1,4 +1,5 @@
 import crypto from "node:crypto"
+import { hasFeature } from "@/lib/billing/limits"
 import { handleConsentKeyword } from "@/lib/inbox/consent"
 import { handleInstagramEntry } from "@/lib/instagram/accounts"
 import { notifyNewMessage } from "@/lib/push"
@@ -134,7 +135,7 @@ async function processMessage(organizationId:string,phoneNumber:NonNullable<Awai
       return
     }
   }
-  if(body||replyId||location||media||welcome||orderInfo){
+  if((body||replyId||location||media||welcome||orderInfo)&&await hasFeature(organizationId,"flows")){
     try{
       handled=await handleInboundMessage({organizationId,metaPhoneNumberId:phoneNumber.phoneNumberId,conversationId:conversation.id,
         flowState:conversation.flowState,contact,text:body||mediaPart?.caption||"",replyId,location,media,welcome,getAccessToken,

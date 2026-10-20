@@ -304,6 +304,8 @@ model Plan {
   maxPhoneNumbers Int?
   maxMessages     Int?
   features        Json?
+  // Shown with a "Most popular" badge on plan cards
+  isPopular       Boolean        @default(false)
   status          Boolean        @default(true)
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt

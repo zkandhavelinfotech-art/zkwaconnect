@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
-import { PlanLimitError } from "@/lib/billing/limits"
+import { assertFeature, PlanLimitError } from "@/lib/billing/limits"
+import { FeatureLockedError } from "@/lib/billing/plans"
 import { InsufficientBalanceError } from "@/lib/billing/messaging"
 import { z } from "zod"
 import { Prisma } from "@/generated/prisma/client"
@@ -15,10 +16,12 @@ export function apiHandler<P>(handler: (request: Request, context: Context, para
   return async (request: Request, route: { params: Promise<P> }) => {
     try {
       const context = await authenticateApiKey(request)
+      await assertFeature(context.organizationId, "api")
       return await handler(request, context, await route.params)
     } catch (error) {
       if (error instanceof ApiError) return apiError(error.status, error.code, error.message)
       if (error instanceof PlanLimitError) return apiError(402, `plan_${error.reason}`, error.message)
+      if (error instanceof FeatureLockedError) return apiError(402, "plan_feature", error.message, { feature: error.feature })
       if (error instanceof InsufficientBalanceError) return apiError(402, "insufficient_balance", error.message, { needed: error.needed, balance: error.balance })
       if (error instanceof z.ZodError) {
         const issue = error.issues[0]

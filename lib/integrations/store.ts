@@ -1,4 +1,5 @@
 import crypto from "node:crypto"
+import { hasFeature } from "@/lib/billing/limits"
 import { z } from "zod"
 import { Prisma } from "@/generated/prisma/client"
 import { prisma } from "@/lib/db/prisma"
@@ -161,6 +162,7 @@ export async function sendAutomation(integrationId: string, orderId: string, key
   const order = await prisma.order.findUniqueOrThrow({ where: { id: orderId } })
   const notified = (order.notified && typeof order.notified === "object" ? order.notified : {}) as Record<string, string>
   if (!automation?.enabled || !automation.templateId || notified[key] || !order.customerPhone || integration.status !== "ACTIVE") return false
+  if (!(await hasFeature(integration.organizationId, "integrations"))) return false
   const phone = await prisma.phoneNumber.findFirst({ where: { status: "CONNECTED", waba: { organizationId: integration.organizationId, status: "CONNECTED" }, ...(config.phoneNumberId ? { id: config.phoneNumberId } : {}) } })
   const template = await prisma.template.findFirst({ where: { id: automation.templateId, organizationId: integration.organizationId, status: "APPROVED" } })
   const token = await getMetaAccessToken(integration.organizationId)
@@ -208,6 +210,7 @@ async function upsertOrder(integration: { id: string; organizationId: string; ty
 
 export async function processStoreEvent(integrationId: string, topic: string, payload: Any) {
   const integration = await prisma.integration.findUniqueOrThrow({ where: { id: integrationId } })
+  if (!(await hasFeature(integration.organizationId, "integrations"))) return "store integrations aren't included in the current plan"
   const config = readConfig(integration.config)
   const isCart = topic.startsWith("checkouts/") || topic === "cart.abandoned"
   if (isCart) {

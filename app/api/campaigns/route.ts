@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { planState } from "@/lib/billing/limits"
+import { assertFeature, planState } from "@/lib/billing/limits"
 import { z } from "zod"
 import { Prisma } from "@/generated/prisma/client"
 import { prisma }        from "@/lib/db/prisma"
@@ -108,6 +108,7 @@ export async function POST(req: Request) {
     const variables = Object.fromEntries(numbers.map(number => [number, input.variables[number]]).filter(([, value]) => value))
     const problems = mappingProblems(numbers, variables)
     if (problems.length) return NextResponse.json({ error: problems[0] }, { status: 400 })
+    if (numbers.some(number => input.variables[number]?.source === "link")) await assertFeature(organizationId, "clickTracking")
 
     if (input.when !== "draft") {
       const plan = await planState(organizationId)

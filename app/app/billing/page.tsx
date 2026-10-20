@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from "react"
 import QRCode from "qrcode"
 import { GST_STATES, stateByName } from "@/lib/billing/states"
 import { MessagingCosts } from "@/components/billing/MessagingCosts"
+import { PlanCards, type CardPlan } from "@/components/billing/PlanCards"
+import type { FeatureKey } from "@/lib/billing/features"
 
 type BillingProfile = {
   legalName: string
@@ -14,8 +16,8 @@ type BillingProfile = {
   billingPostalCode: string
 }
 type Interval = "MONTHLY" | "ANNUAL"
-type Plan = { id: string; name: string; description?: string | null; monthlyPrice: number | string; annualPrice?: number | string | null
-  maxUsers?: number | null; maxPhoneNumbers?: number | null; maxMessages?: number | null }
+type Plan = { id: string; slug: string; name: string; description?: string | null; monthlyPrice: number | string; annualPrice?: number | string | null
+  maxUsers?: number | null; maxPhoneNumbers?: number | null; maxMessages?: number | null; features: FeatureKey[]; isPopular?: boolean }
 type Invoice = { id: string; invoiceNumber: string; description?: string | null; amount: number | string; tax: number | string; total: number | string
   status: string; issuedAt: string; dueAt?: string | null; paidAt?: string | null }
 type Payment = { id: string; invoiceId?: string | null; amount: number | string; method: string; status: string; transactionId?: string | null
@@ -29,7 +31,8 @@ type BillingData = {
   plans: Plan[]
   billingProfile: BillingProfile
   paymentDetails: { upiId: string; payeeName: string }
-  usage?: { active: boolean; limits: { messages: number | null; users: number | null; numbers: number | null }; usage: { messages: number; users: number; invites: number; numbers: number } }
+  usage?: { active: boolean; onFree: boolean; planName: string | null; planSlug: string | null; features: FeatureKey[]
+    limits: { messages: number | null; users: number | null; numbers: number | null }; usage: { messages: number; users: number; invites: number; numbers: number } }
 }
 
 const emptyProfile: BillingProfile = {
@@ -223,6 +226,8 @@ export default function BillingPage() {
   const activePaid = subscription?.status === "ACTIVE"
 
   function planAction(plan: Plan) {
+    if (Number(plan.monthlyPrice) === 0) return { label: data?.usage?.onFree ? "Your current plan" : "Free after trial ends", disabled: true }
+    if (data?.usage?.onFree) return { label: "Upgrade", disabled: false }
     if (pending && pending.plan.id === plan.id && pending.billingInterval === period) return { label: pendingReviewed ? "Payment under review" : "Pay pending invoice", disabled: Boolean(pendingReviewed) }
     if (!activePaid || !subscription) return { label: subscription?.status === "TRIAL" && subscription.plan.id === plan.id ? "Buy this plan" : "Choose plan", disabled:false }
     if (subscription.plan.id === plan.id) return { label: period === subscription.billingInterval ? "Renew plan" : `Switch to ${period === "ANNUAL" ? "yearly" : "monthly"}`, disabled:false }
@@ -280,8 +285,8 @@ export default function BillingPage() {
         <article style={{...card,padding:18}}>
           <div style={{fontSize:11,color:"#64748b",fontWeight:700,textTransform:"uppercase"}}>Current plan</div>
           <div style={{display:"flex",alignItems:"center",gap:8,marginTop:8,flexWrap:"wrap"}}>
-            <span style={{fontFamily:"Sora,sans-serif",fontSize:20,fontWeight:700,color:"#0f172a"}}>{subscription?.plan.name || "No plan"}</span>
-            {subscription && <Chip status={subscription.status} />}
+            <span style={{fontFamily:"Sora,sans-serif",fontSize:20,fontWeight:700,color:"#0f172a"}}>{data?.usage?.onFree ? data.usage.planName : subscription?.plan.name || "No plan"}</span>
+            {data?.usage?.onFree ? <Chip status="FREE" /> : subscription && <Chip status={subscription.status} />}
           </div>
           <div style={{fontSize:12,color:"#64748b",marginTop:6}}>
             {!subscription ? "Choose a plan below"
@@ -365,34 +370,12 @@ export default function BillingPage() {
               {option === "MONTHLY" ? "Monthly" : "Yearly · 2 months free"}</button>)}
           </div>}
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(min(100%,220px),1fr))",gap:12}}>
-          {data?.plans.map(plan => {
-            const current = subscription?.plan.id === plan.id && ["ACTIVE","TRIAL"].includes(subscription.status)
-            const yearly = period === "ANNUAL" && Number(plan.annualPrice) > 0
-            const action = planAction(plan)
-            const unavailable = period === "ANNUAL" && !yearly
-            return <article key={plan.id} style={{...card,border:`1px solid ${current ? "#0e8b71" : "#e2e8f0"}`,padding:18,display:"flex",flexDirection:"column",minHeight:200}}>
-              <div style={{display:"flex",alignItems:"center",gap:8,justifyContent:"space-between"}}>
-                <span style={{fontSize:14,fontWeight:700,color:"#183633"}}>{plan.name}</span>
-                {current && <Chip status={subscription!.status} />}
-              </div>
-              <div style={{fontFamily:"Sora,sans-serif",fontSize:24,fontWeight:800,color:"#075e54",marginTop:9}}>
-                {formatInr(yearly ? plan.annualPrice! : plan.monthlyPrice)}<span style={{fontFamily:"DM Sans,sans-serif",fontSize:11,fontWeight:500,color:"#64748b"}}>/{yearly ? "year" : "month"} + GST</span>
-              </div>
-              {yearly && <div style={{fontSize:11,color:"#168253",fontWeight:700,marginTop:2}}>
-                ≈ {formatInr(Number(plan.annualPrice) / 12)}/month · save {formatInr(Number(plan.monthlyPrice) * 12 - Number(plan.annualPrice))}</div>}
-              <div style={{fontSize:11,color:"#64748b",lineHeight:1.6,marginTop:8,flex:1}}>
-                {plan.maxUsers ?? "Unlimited"} users · {plan.maxPhoneNumbers ?? "Unlimited"} phone numbers · {plan.maxMessages ? Number(plan.maxMessages).toLocaleString("en-IN") : "Unlimited"} messages
-              </div>
-              <button onClick={() => pending && pending.plan.id === plan.id && pending.billingInterval === period ? setSelectedInvoice(pending.invoice) : buyPlan(plan)}
-                disabled={action.disabled || unavailable || Boolean(busyPlan)}
-                style={{marginTop:12,border:0,borderRadius:6,padding:"9px 12px",background:action.disabled || unavailable ? "#e9efed" : "#075e54",
-                  color:action.disabled || unavailable ? "#49615e" : "#fff",fontWeight:700,fontSize:12,cursor:action.disabled || unavailable ? "default" : "pointer"}}>
-                {busyPlan === plan.id ? "Creating invoice…" : unavailable ? "Monthly only" : action.label}
-              </button>
-            </article>
-          })}
-        </div>
+        {data && <PlanCards plans={data.plans as CardPlan[]} period={period} busyId={busyPlan}
+          currentSlug={data.usage?.planSlug || null} currentFeatures={data.usage?.features || []} currentLimits={data.usage?.limits || null}
+          action={plan => { const found = data.plans.find(item => item.id === plan.id)!; const state = planAction(found)
+            return period === "ANNUAL" && !(Number(found.annualPrice) > 0) && Number(found.monthlyPrice) > 0 ? { label: "Monthly only", disabled: true } : state }}
+          onBuy={plan => { const found = data.plans.find(item => item.id === plan.id)!
+            if (pending && pending.plan.id === found.id && pending.billingInterval === period) setSelectedInvoice(pending.invoice); else buyPlan(found) }}/>}
         <p style={{fontSize:11,color:"#71817e",margin:"10px 0 0"}}>Prices exclude GST (added on the invoice). Your current plan keeps working until the new one is paid and activated.</p>
       </section>
 

@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server"
+import { hasFeature } from "@/lib/billing/limits"
+import { lockedError } from "@/lib/billing/plans"
 import { consentSettings, DEFAULT_OPT_IN, DEFAULT_OPT_OUT } from "@/lib/inbox/consent"
 import { z } from "zod"
 import { Prisma } from "@/generated/prisma/client"
@@ -46,6 +48,8 @@ export async function PUT(request: Request) {
   try {
     const { organizationId } = await requireMember({ manager: true })
     const input = schema.parse(await request.json())
+    // Opt-out handling is for everyone; routing and business hours need the automation feature.
+    if ((input.autoAssign !== "OFF" || input.businessHoursEnabled) && !(await hasFeature(organizationId, "inboxAutomation"))) throw await lockedError("inboxAutomation")
     const valid = await prisma.membership.findMany({ where: { organizationId, status: "ACTIVE", userId: { in: input.agentIds } }, select: { userId: true } })
     const data = { ...input, agentIds: valid.map(member => member.userId), hours: input.hours as Prisma.InputJsonValue,
       optOutKeywords: input.optOutKeywords.length ? input.optOutKeywords : DEFAULT_OPT_OUT, optInKeywords: input.optInKeywords.length ? input.optInKeywords : DEFAULT_OPT_IN }

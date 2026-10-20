@@ -6,6 +6,8 @@ import { Logo, LogoIcon } from "@/components/Logo"
 import { ProfileMenu } from "@/components/ProfileMenu"
 import { InstallButton } from "@/components/pwa/Pwa"
 import { atLeast, PAGE_MIN_ROLE } from "@/lib/auth/permissions"
+import { featureForPage, type FeatureKey, type PlanSummary } from "@/lib/billing/features"
+import { LockedFeature } from "@/components/billing/LockedFeature"
 
 type NavItem = { href:string; icon:string; label:string }
 type NavGroup = { id:string; icon:string; label:string; items:NavItem[] }
@@ -65,7 +67,8 @@ type Me = {
   workspace:{id:string;name:string;role:string;walletBalance:number;currency:string;count:number}
   plan:{name:string;status:string;interval:string;renewsOn:string|null;trialEndsAt:string|null}|null
   whatsapp:{connected:boolean;phoneNumber:string|null}
-  access?:{active:boolean;status:string;endsAt:string|null;messagesUsed:number;messagesLimit:number|null;nearLimit:boolean;atLimit:boolean}
+  access?:{active:boolean;onFree:boolean;status:string;endsAt:string|null;planName:string|null;features:FeatureKey[];messagesUsed:number;messagesLimit:number|null;
+    nearLimit:boolean;atLimit:boolean;next:{name:string;adds:FeatureKey[]}|null;plans:PlanSummary[]}
 }
 
 // Hide pages the member's role can't use (the server enforces the same rules).
@@ -223,7 +226,9 @@ export default function AppLayout({ children }:{ children:React.ReactNode }) {
         </div>}
 
         <nav className="zk-nav" style={compact ? {padding:"8px 6px"} : undefined}>
-          {NAV.map(group => ({ ...group, items:group.items.filter(item => allowed(me?.workspace.role, item.href)) })).filter(group => group.items.length).map(group => {
+          {NAV.map(group => ({ ...group, items:group.items.filter(item => allowed(me?.workspace.role, item.href))
+            .map(item => { const feature = featureForPage(item.href); return feature && me?.access && !me.access.features.includes(feature) ? { ...item, label:`${item.label} 🔒` } : item }) }))
+            .filter(group => group.items.length).map(group => {
             const hasActive = group.id === activeGroup?.id
             const single = group.items.length === 1 ? group.items[0] : null
             if (compact) {
@@ -313,18 +318,25 @@ export default function AppLayout({ children }:{ children:React.ReactNode }) {
           </div>
         </header>
         <main className="zk-content">
-          {me?.access && (!me.access.active || me.access.nearLimit || (me.access.status === "TRIAL" && me.access.endsAt && new Date(me.access.endsAt).getTime() - Date.now() < 3 * 86_400_000)) &&
+          {me?.access && (!me.access.active || me.access.onFree || me.access.nearLimit || (me.access.status === "TRIAL" && me.access.endsAt && new Date(me.access.endsAt).getTime() - Date.now() < 3 * 86_400_000)) &&
             <div role="status" style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap",borderRadius:10,padding:"10px 14px",marginBottom:16,fontSize:13,
-              background:!me.access.active||me.access.atLimit?"#fef2f2":"#fffbeb",border:`1px solid ${!me.access.active||me.access.atLimit?"#fecaca":"#fde68a"}`,color:!me.access.active||me.access.atLimit?"#991b1b":"#92400e"}}>
+              background:!me.access.active||me.access.atLimit?"#fef2f2":me.access.onFree?"#eff6ff":"#fffbeb",border:`1px solid ${!me.access.active||me.access.atLimit?"#fecaca":"#fde68a"}`,color:!me.access.active||me.access.atLimit?"#991b1b":"#92400e"}}>
               <span style={{flex:1}}>{!me.access.active
                 ? `Your ${me.access.status === "TRIAL" ? "free trial has ended" : me.access.status === "NONE" ? "workspace has no active plan" : "plan has expired"} — sending messages, broadcasts and chatbot replies are paused.`
+                : me.access.onFree && !me.access.atLimit ? `You're on the Free plan${me.access.messagesLimit ? ` (${me.access.messagesLimit.toLocaleString("en-IN")} messages/month)` : ""}${me.access.status === "TRIAL" ? " — your trial has ended" : ""}. Upgrade to unlock broadcasts, chatbots and more.`
                 : me.access.atLimit ? `You've used all ${me.access.messagesLimit?.toLocaleString("en-IN")} messages for this month — sending is paused until the 1st or until you upgrade.`
                 : me.access.nearLimit ? `You've used ${me.access.messagesUsed.toLocaleString("en-IN")} of ${me.access.messagesLimit?.toLocaleString("en-IN")} messages this month.`
                 : `Your free trial ends on ${new Date(me.access.endsAt!).toLocaleDateString("en-IN",{day:"numeric",month:"short"})}. Choose a plan to keep sending.`}</span>
               {atLeast(me.workspace.role, "ADMIN") ? <a href="/app/billing" style={{background:"#075e54",color:"#fff",borderRadius:6,padding:"6px 12px",fontWeight:700,textDecoration:"none",fontSize:12}}>
                 {me.access.active ? "Upgrade" : "Renew plan"}</a> : <span style={{fontSize:12}}>Ask your workspace owner to renew.</span>}
             </div>}
-          {children}
+          {(()=>{
+            // Pages the plan doesn't include show an upgrade screen instead (the server refuses the actions too).
+            const feature = featureForPage(pathname)
+            if (feature && me?.access && !me.access.features.includes(feature))
+              return <LockedFeature feature={feature} plans={me.access.plans} currentPlan={me.access.planName} canUpgrade={atLeast(me.workspace.role, "ADMIN")}/>
+            return children
+          })()}
         </main>
       </div>
     </div>

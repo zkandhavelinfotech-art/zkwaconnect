@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db/prisma"
-import { assertCanSend } from "@/lib/billing/limits"
+import { assertCanSend, assertFeature } from "@/lib/billing/limits"
 import { graphVersion, MetaApiError } from "@/lib/meta/graph"
 import { decryptMetaToken } from "@/lib/meta/token"
 
@@ -21,6 +21,7 @@ export async function sendInstagramText(conversationId: string, text: string, se
   if (!last || Date.now() - last.createdAt.getTime() > WINDOW_MS)
     throw new Error("Instagram only allows replies within 24 hours of the customer's last message.")
   await assertCanSend(conversation.organizationId)
+  await assertFeature(conversation.organizationId, "instagram")
   const account = conversation.instagramAccount
   const result = await pageCall<{ message_id?: string }>(`${account.pageId}/messages`, decryptMetaToken(account.pageTokenEncrypted), {
     method: "POST", body: JSON.stringify({ recipient: { id: conversation.contact.instagramId }, message: { text: text.slice(0, 1000) } }) })

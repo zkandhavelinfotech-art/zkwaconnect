@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { hasFeature } from "@/lib/billing/limits"
 import { emitEvent } from "@/lib/developer/webhooks"
 import { prisma } from "@/lib/db/prisma"
 import { sendAndRecord } from "@/lib/whatsapp/send"
@@ -48,7 +49,7 @@ export function isOpen(settings: Pick<InboxSettingsView, "businessHoursEnabled" 
 // Assign an unassigned conversation to the next agent (round robin) or the agent with the fewest open chats.
 export async function autoAssignConversation(organizationId: string, conversationId: string) {
   const settings = await getInboxSettings(organizationId)
-  if (settings.autoAssign === "OFF") return null
+  if (settings.autoAssign === "OFF" || !(await hasFeature(organizationId, "inboxAutomation"))) return null
   const conversation = await prisma.conversation.findFirst({ where: { id: conversationId, organizationId }, select: { assignedUserId: true } })
   if (!conversation || conversation.assignedUserId) return null
   const members = await prisma.membership.findMany({ where: { organizationId, status: "ACTIVE", ...(settings.agentIds.length ? { userId: { in: settings.agentIds } } : {}) },
@@ -79,6 +80,7 @@ export async function sendAwayMessageIfClosed(input: { organizationId: string; c
   const message = settings.awayMessage.trim()
   const at = input.at || new Date()
   if (!settings.businessHoursEnabled || !message || isOpen(settings, at)) return false
+  if (!(await hasFeature(input.organizationId, "inboxAutomation"))) return false
   const cutoff = new Date(at.getTime() - settings.awayCooldownMinutes * 60_000)
   const claimed = await prisma.conversation.updateMany({ where: { id: input.conversationId, OR: [{ awayMessageAt: null }, { awayMessageAt: { lt: cutoff } }] },
     data: { awayMessageAt: at } })

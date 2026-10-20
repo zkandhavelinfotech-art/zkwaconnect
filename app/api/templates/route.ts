@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { assertFeature } from "@/lib/billing/limits"
 import { linkBase } from "@/lib/links"
 import { z } from "zod"
 import { prisma } from "@/lib/db/prisma"
@@ -166,6 +167,7 @@ export async function POST(request: Request) {
       }
       // "Track clicks": the button points at our short-link path; the real URL is kept here and filled in per message.
       const base = linkBase()
+      if (input.buttons.some(button => button.type === "URL" && button.track)) await assertFeature(organizationId, "clickTracking")
       trackedButtons = input.buttons.flatMap((button, index) => button.type === "URL" && button.track ? [{ index, destination: button.url }] : [])
       const metaButtons = input.buttons.map(button => button.type === "URL" && button.track
         ? { type:"URL", text:button.text, url:`${base}/l/{{1}}`, example:[`${base}/l/demo12345a`] }

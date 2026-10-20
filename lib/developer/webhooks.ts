@@ -1,4 +1,5 @@
 import crypto from "node:crypto"
+import { hasFeature } from "@/lib/billing/limits"
 import { Prisma } from "@/generated/prisma/client"
 import { prisma } from "@/lib/db/prisma"
 import { safeFetch } from "@/lib/flows/safe-fetch"
@@ -32,8 +33,11 @@ export function sign(secret: string, timestamp: string, body: string) {
 export async function emitEvent(organizationId: string, event: WebhookEvent, data: Record<string, unknown>, onlyEndpointId?: string) {
   try {
     const endpoints = await prisma.webhookEndpoint.findMany({ where: { organizationId, active: true, ...(onlyEndpointId ? { id: onlyEndpointId } : {}) },
-      select: { id: true, events: true } })
-    const targets = endpoints.filter(endpoint => onlyEndpointId || (Array.isArray(endpoint.events) && endpoint.events.includes(event)))
+      select: { id: true, events: true, url: true } })
+    if (!endpoints.length) return 0
+    const [api, integrations] = await Promise.all([hasFeature(organizationId, "api"), hasFeature(organizationId, "integrations")])
+    const targets = endpoints.filter(endpoint => (endpoint.url.startsWith("https://script.google.com/") ? integrations : api)
+      && (onlyEndpointId || (Array.isArray(endpoint.events) && endpoint.events.includes(event))))
     if (!targets.length) return 0
     const createdAt = new Date().toISOString()
     await prisma.webhookDelivery.createMany({ data: targets.map(endpoint => ({ endpointId: endpoint.id, organizationId, event,
