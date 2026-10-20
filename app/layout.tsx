@@ -17,7 +17,8 @@ export const metadata: Metadata = {
     "Multi-tenant WhatsApp Business API SaaS. Live inbox, chatbot automation and bulk campaigns. Built for Indian businesses.",
   applicationName: "ZKWAConnect",
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL ?? "https://app.zkwaconnect.in"
+    // || not ??: CI passes unset variables as empty strings
+    process.env.NEXT_PUBLIC_APP_URL || "https://app.zkwaconnect.in"
   ),
   icons: {
     icon: [
