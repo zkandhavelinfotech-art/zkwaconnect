@@ -31,7 +31,7 @@ type BillingData = {
   plans: Plan[]
   billingProfile: BillingProfile
   paymentDetails: { upiId: string; payeeName: string }
-  usage?: { active: boolean; onFree: boolean; planName: string | null; planSlug: string | null; features: FeatureKey[]
+  usage?: { active: boolean; onFree: boolean; internal?: boolean; planName: string | null; planSlug: string | null; features: FeatureKey[]
     limits: { messages: number | null; users: number | null; numbers: number | null }; usage: { messages: number; users: number; invites: number; numbers: number } }
 }
 
@@ -285,8 +285,8 @@ export default function BillingPage() {
         <article style={{...card,padding:18}}>
           <div style={{fontSize:11,color:"#64748b",fontWeight:700,textTransform:"uppercase"}}>Current plan</div>
           <div style={{display:"flex",alignItems:"center",gap:8,marginTop:8,flexWrap:"wrap"}}>
-            <span style={{fontFamily:"Sora,sans-serif",fontSize:20,fontWeight:700,color:"#0f172a"}}>{data?.usage?.onFree ? data.usage.planName : subscription?.plan.name || "No plan"}</span>
-            {data?.usage?.onFree ? <Chip status="FREE" /> : subscription && <Chip status={subscription.status} />}
+            <span style={{fontFamily:"Sora,sans-serif",fontSize:20,fontWeight:700,color:"#0f172a"}}>{data?.usage?.internal ? "Internal" : data?.usage?.onFree ? data.usage.planName : subscription?.plan.name || "No plan"}</span>
+            {data?.usage?.internal ? <Chip status="ACTIVE" /> : data?.usage?.onFree ? <Chip status="FREE" /> : subscription && <Chip status={subscription.status} />}
           </div>
           <div style={{fontSize:12,color:"#64748b",marginTop:6}}>
             {!subscription ? "Choose a plan below"
@@ -370,7 +370,10 @@ export default function BillingPage() {
               {option === "MONTHLY" ? "Monthly" : "Yearly · 2 months free"}</button>)}
           </div>}
         </div>
-        {data && <PlanCards plans={data.plans as CardPlan[]} period={period} busyId={busyPlan}
+        {data?.usage?.internal ? <div style={{background:"#eff6ff",border:"1px solid #bfdbfe",borderRadius:10,padding:16,fontSize:13,color:"#1e3a8a"}}>
+          🏢 <strong>Internal workspace</strong> — this project belongs to ZKandavel Infotech, so every feature is included with no plan, limits or ZKWAConnect charges.
+          Meta bills WhatsApp messages to the connected account as usual.</div>
+        : data && <PlanCards plans={data.plans as CardPlan[]} period={period} busyId={busyPlan}
           currentSlug={data.usage?.planSlug || null} currentFeatures={data.usage?.features || []} currentLimits={data.usage?.limits || null}
           action={plan => { const found = data.plans.find(item => item.id === plan.id)!; const state = planAction(found)
             return period === "ANNUAL" && !(Number(found.annualPrice) > 0) && Number(found.monthlyPrice) > 0 ? { label: "Monthly only", disabled: true } : state }}

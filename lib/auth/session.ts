@@ -71,7 +71,7 @@ export async function getSession() {
     const denied = apiPermission(list[0].role, method, path)
     if (denied) throw new PermissionError(denied)
     const feature = featureForApi(method, path)
-    if (feature) {
+    if (feature && !list[0].organization.billingExempt) {
       const plan = await effectivePlan(list[0].organization.subscriptions[0])
       if (!plan?.features.includes(feature)) throw await lockedError(feature)
     }

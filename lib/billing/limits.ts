@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db/prisma"
-import { featuresOf, type FeatureKey } from "./features"
+import { FEATURE_KEYS, featuresOf, type FeatureKey } from "./features"
 import { freePlan, lockedError } from "./plans"
 import { expireLapsedSubscriptions } from "./activate"
 
@@ -17,6 +17,17 @@ export class PlanLimitError extends Error {
 const startOfMonth = () => { const now = new Date(); return new Date(now.getFullYear(), now.getMonth(), 1) }
 
 export async function planState(organizationId: string) {
+  const org = await prisma.organization.findUnique({ where: { id: organizationId }, select: { billingExempt: true } })
+  if (org?.billingExempt) {
+    const [users, invites, numbers] = await Promise.all([
+      prisma.membership.count({ where: { organizationId, status: "ACTIVE" } }),
+      prisma.invitation.count({ where: { organizationId, acceptedAt: null, revokedAt: null, expiresAt: { gt: new Date() } } }),
+      prisma.phoneNumber.count({ where: { status: "CONNECTED", waba: { organizationId } } }),
+    ])
+    return { active: true, onFree: false, internal: true, features: [...FEATURE_KEYS], status: "INTERNAL", planName: "Internal", planSlug: null as string | null,
+      endsAt: null as Date | null, limits: { messages: null as number | null, users: null as number | null, numbers: null as number | null },
+      usage: { messages: await messagesSince(organizationId, startOfMonth()), users, invites, numbers }, periodStart: startOfMonth() }
+  }
   await expireLapsedSubscriptions(organizationId)
   const subscription = await prisma.subscription.findFirst({ where: { organizationId, status: { not: "PENDING_PAYMENT" } }, include: { plan: true }, orderBy: { createdAt: "desc" } })
   const paidOrTrial = Boolean(subscription && ["TRIAL", "ACTIVE"].includes(subscription.status) && (!subscription.currentPeriodEnd || subscription.currentPeriodEnd > new Date()))
@@ -33,7 +44,7 @@ export async function planState(organizationId: string) {
     prisma.phoneNumber.count({ where: { status: "CONNECTED", waba: { organizationId } } }),
   ])
   return {
-    active, onFree: !paidOrTrial && Boolean(free), features: paidOrTrial ? featuresOf(subscription!.plan) : free?.features || [],
+    active, onFree: !paidOrTrial && Boolean(free), internal: false, features: paidOrTrial ? featuresOf(subscription!.plan) : free?.features || [],
     status: subscription?.status || "NONE", planName: planRow?.name || subscription?.plan.name || null, planSlug: planRow?.slug || null,
     endsAt: subscription?.status === "TRIAL" ? subscription.trialEndsAt || subscription.currentPeriodEnd : subscription?.currentPeriodEnd || null,
     limits: planRow ? { messages: planRow.maxMessages ?? null, users: planRow.maxUsers ?? null, numbers: planRow.maxPhoneNumbers ?? null }

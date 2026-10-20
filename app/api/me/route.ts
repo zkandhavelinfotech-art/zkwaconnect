@@ -13,10 +13,10 @@ async function accessSummary(organizationId: string) {
   const current = plans.find(plan => plan.slug === state.planSlug)
   // The next paid plan up, and what it would add — for "Upgrade to unlock …" prompts.
   const next = plans.find(plan => plan.monthlyPrice > (current?.monthlyPrice ?? -1) && plan.monthlyPrice > 0)
-  return { active: state.active, onFree: state.onFree, status: state.status, endsAt: state.endsAt, planName: state.planName, planSlug: state.planSlug,
+  return { active: state.active, onFree: state.onFree, internal: state.internal, status: state.status, endsAt: state.endsAt, planName: state.planName, planSlug: state.planSlug,
     features: state.features, messagesUsed: state.usage.messages, messagesLimit: messages,
     nearLimit: messages !== null && state.usage.messages >= messages * 0.9, atLimit: messages !== null && state.usage.messages >= messages,
-    next: next ? { name: next.name, slug: next.slug, monthlyPrice: next.monthlyPrice, adds: next.features.filter(feature => !state.features.includes(feature)) } : null,
+    next: next && !state.internal ? { name: next.name, slug: next.slug, monthlyPrice: next.monthlyPrice, adds: next.features.filter(feature => !state.features.includes(feature)) } : null,
     plans: plans.map(plan => ({ slug: plan.slug, name: plan.name, monthlyPrice: plan.monthlyPrice, features: plan.features })) }
 }
 

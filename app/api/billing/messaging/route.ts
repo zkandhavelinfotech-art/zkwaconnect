@@ -11,12 +11,13 @@ export async function GET() {
     const { organizationId } = await requireMember()
     const [settings, org, transactions, usage] = await Promise.all([
       getMessagingSettings(),
-      prisma.organization.findUniqueOrThrow({ where: { id: organizationId }, select: { messagingBillingMode: true, walletBalance: true, currency: true } }),
+      prisma.organization.findUniqueOrThrow({ where: { id: organizationId }, select: { messagingBillingMode: true, walletBalance: true, currency: true, billingExempt: true } }),
       prisma.walletTransaction.findMany({ where: { organizationId }, orderBy: { createdAt: "desc" }, take: 50,
         select: { id: true, type: true, amount: true, balanceAfter: true, reason: true, category: true, createdAt: true } }),
       templateUsage(organizationId, 30),
     ])
-    const mode = effectiveMode(settings, org.messagingBillingMode)
+    // Internal workspaces aren't charged by ZKWAConnect: Meta bills the connected account directly.
+    const mode = org.billingExempt ? "DIRECT" : effectiveMode(settings, org.messagingBillingMode)
     // Customers compare every option the admin allows them to see (or at least their own).
     const visible = settings.showComparisonToCustomers ? MODES.filter(item => settings.enabledModes.includes(item)) : [mode]
     const prices = Object.fromEntries(MODES.map(item => [item, Object.fromEntries(CATEGORIES.map(category => [category, priceOf(settings, item, category)]))]))
@@ -37,7 +38,7 @@ export async function POST(request: Request) {
   try {
     const { organizationId } = await requireMember({ manager: true })
     const [settings, organization] = await Promise.all([getMessagingSettings(), prisma.organization.findUniqueOrThrow({ where: { id: organizationId } })])
-    const mode = effectiveMode(settings, organization.messagingBillingMode)
+    const mode = organization.billingExempt ? "DIRECT" : effectiveMode(settings, organization.messagingBillingMode)
     if (mode === "DIRECT") return NextResponse.json({ error: "Your workspace pays Meta directly, so there's no wallet to top up." }, { status: 409 })
     const { amount } = z.object({ amount: z.number().int("Use whole rupees.").min(settings.minTopup, `The minimum top-up is ${organization.currency} ${settings.minTopup}.`).max(500000) })
       .parse(await request.json())

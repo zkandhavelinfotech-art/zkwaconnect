@@ -111,8 +111,9 @@ export async function chargeTemplateMessage(input: { organizationId: string; cat
   conversationId?: string; campaignId?: string; reason: string }) {
   const [settings, org] = await Promise.all([
     getMessagingSettings(),
-    prisma.organization.findUniqueOrThrow({ where: { id: input.organizationId }, select: { messagingBillingMode: true, currency: true } }),
+    prisma.organization.findUniqueOrThrow({ where: { id: input.organizationId }, select: { messagingBillingMode: true, currency: true, billingExempt: true } }),
   ])
+  if (org.billingExempt) return null
   const mode = effectiveMode(settings, org.messagingBillingMode)
   const category = normalizeCategory(input.category)
   if (mode === "DIRECT" || (category === "UTILITY" && input.inServiceWindow)) return null

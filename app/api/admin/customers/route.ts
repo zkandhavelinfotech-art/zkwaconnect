@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { forgetPlanCache } from "@/lib/billing/limits"
 import { z } from "zod"
 import { prisma }        from "@/lib/db/prisma"
 import { getSession }    from "@/lib/auth/session"
@@ -52,11 +53,17 @@ export async function PATCH(req: Request) {
     await assertAdmin()
     const input = z.object({
       id: z.string().min(1),
-      action: z.enum(["suspend", "activate", "extend-trial", "assign-plan"]),
+      action: z.enum(["suspend", "activate", "extend-trial", "assign-plan", "set-internal"]),
+      internal: z.boolean().optional(),
       trialDays: z.number().int().min(1).max(365).optional(),
       planId: z.string().min(1).optional(),
     }).parse(await req.json())
     const { id, action, trialDays, planId } = input
+    if (action === "set-internal") {
+      const updated = await prisma.organization.update({ where: { id }, data: { billingExempt: Boolean(input.internal), ...(input.internal ? { status: "ACTIVE" } : {}) } })
+      forgetPlanCache(id)
+      return NextResponse.json({ ok: true, tenant: updated, message: input.internal ? "Marked internal: all features, no limits, no charges." : "Back on normal plans and limits." })
+    }
     const org = await prisma.organization.findUnique({ where: { id } })
     if (!org) return NextResponse.json({ error: "Not found" }, { status: 404 })
 

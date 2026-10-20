@@ -28,6 +28,7 @@ type AdminTenant = {
   status: string
   memberships: { user: { name: string; email: string } }[]
   subscriptions: { id: string; status: string; plan: AdminPlan }[]
+  billingExempt?: boolean
   onboarding: { currentStep: string } | null
   wabas: { id: string; wabaId: string; name: string; status: string; phoneNumbers: { phoneNumber: string; status: string; qualityRating: string | null }[] }[]
 }
@@ -375,7 +376,8 @@ export default function AdminDashboard() {
                   <th key={label as string} style={{width:width as number,padding:"11px 14px",fontWeight:600}}>{label}</th>)}
               </tr></thead>
               <tbody>{tenants.map(tenant => <tr key={tenant.id} style={{borderTop:"1px solid rgba(255,255,255,.07)"}}>
-                <td style={{padding:14}}><div style={{fontWeight:700}}>{tenant.name}</div><div style={{color:"rgba(255,255,255,.4)",marginTop:3}}>{tenant.slug} · {tenant.status}</div></td>
+                <td style={{padding:14}}><div style={{fontWeight:700}}>{tenant.name}{tenant.billingExempt && <span style={{marginLeft:6,fontSize:10,color:"#93c5fd",border:"1px solid #3b82f6",borderRadius:8,padding:"1px 6px"}}>INTERNAL</span>}</div>
+                  <div style={{color:"rgba(255,255,255,.4)",marginTop:3}}>{tenant.slug} · {tenant.status}</div></td>
                 <td style={{padding:14}}>{tenant.memberships[0]?.user.name || "-"}<div style={{color:"rgba(255,255,255,.4)",marginTop:3}}>{tenant.memberships[0]?.user.email || "No owner"}</div></td>
                 <td style={{padding:14,color:"rgba(255,255,255,.65)"}}>{tenant.onboarding?.currentStep || "NOT_STARTED"}</td>
                 <td style={{padding:14}}>{tenant.wabas.length ? tenant.wabas.map(waba => <div key={waba.id} style={{marginBottom:5}}>
@@ -401,6 +403,10 @@ export default function AdminDashboard() {
                       style={{border:"1px solid rgba(255,255,255,.16)",borderRadius:4,padding:"6px 8px",background:"transparent",color:"#fff",fontSize:10,cursor:"pointer"}}>
                       {tenant.status === "SUSPENDED" ? "Activate" : "Suspend"}
                     </button>
+                    <button disabled={workingId === tenant.id} onClick={() => updateTenant(tenant.id,"set-internal",{internal:!tenant.billingExempt})}
+                      title="Internal: all features, no limits, no plan or charges (your company and managed clients)"
+                      style={{border:"1px solid #3b82f6",borderRadius:4,padding:"6px 8px",background:tenant.billingExempt?"#1d4ed8":"transparent",color:"#fff",fontSize:10,cursor:"pointer"}}>
+                      {tenant.billingExempt ? "Internal ✓" : "Make internal"}</button>
                     {tenant.subscriptions[0]?.status === "TRIAL" && <button disabled={workingId === tenant.id}
                       onClick={() => updateTenant(tenant.id,"extend-trial",{trialDays:14})}
                       style={{border:"1px solid rgba(255,255,255,.16)",borderRadius:4,padding:"6px 8px",background:"transparent",color:"#fff",fontSize:10,cursor:"pointer"}}>+14 trial days</button>}

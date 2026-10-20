@@ -146,6 +146,8 @@ model Organization {
   billingStateCode  String?
   walletBalance     Decimal            @default(0) @db.Decimal(14, 4)
   // DIRECT | PLATFORM_FEE | RESELLER — null means the platform default (set by super admin)
+  // Internal workspace (the platform owner's own company or managed clients): all features, no limits, no plan or charges
+  billingExempt     Boolean            @default(false)
   messagingBillingMode String?
   lowBalanceAlertAt DateTime?
   status    OrganizationStatus @default(TRIAL)

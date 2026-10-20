@@ -16,6 +16,8 @@ export default function AdminPlansPage() {
   const [editing, setEditing] = useState<Plan | null>(null)
   const [error, setError] = useState("")
   const [notice, setNotice] = useState("")
+  const [company, setCompany] = useState<{ emails: { email: string; account: { name: string } | null }[]; internal: { id: string; name: string }[] } | null>(null)
+  const [emailsText, setEmailsText] = useState("")
 
   async function load() {
     const response = await fetch("/api/admin/plans")
@@ -23,7 +25,21 @@ export default function AdminPlansPage() {
     if (!response.ok) { setError(body.error); return }
     setPlans(body.plans); setFeatures(body.features)
   }
-  useEffect(() => { load() }, [])
+  useEffect(() => { load(); loadCompany() }, [])
+
+  async function loadCompany() {
+    const response = await fetch("/api/admin/company")
+    const body = await response.json()
+    if (response.ok) { setCompany(body); setEmailsText(body.emails.map((item: { email: string }) => item.email).join("\n")) }
+  }
+  async function saveCompany() {
+    setError(""); setNotice("")
+    const response = await fetch("/api/admin/company", { method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ emails: emailsText.split(/[\s,;]+/).filter(Boolean) }) })
+    const body = await response.json()
+    if (!response.ok) { setError(body.error); return }
+    setNotice(body.message); loadCompany()
+  }
 
   async function save() {
     if (!editing) return
@@ -43,6 +59,23 @@ export default function AdminPlansPage() {
     <p style={{ fontSize: 13, color: muted, margin: "0 0 18px" }}>What each plan costs, its limits and which features it unlocks. Used by Billing, the dashboard, upgrade prompts, the marketing page and server-side enforcement.</p>
     {error && <div role="alert" style={{ padding: 11, background: "rgba(239,68,68,.15)", color: "#fca5a5", borderRadius: 6, marginBottom: 14, fontSize: 13 }}>{error}</div>}
     {notice && <div role="status" style={{ padding: 11, background: "rgba(34,197,94,.15)", color: "#86efac", borderRadius: 6, marginBottom: 14, fontSize: 13 }}>{notice}</div>}
+
+    <section style={panel}>
+      <h2 style={{ fontSize: 15, margin: "0 0 4px" }}>🏢 Company logins (internal)</h2>
+      <p style={{ fontSize: 12, color: muted, margin: "0 0 10px" }}>Your own company&apos;s logins. Every project they create is <strong>internal</strong>: all features, no limits, no plan or charges —
+        for your company and the clients you manage. Customers who sign up themselves stay on normal plans. One email per line.</p>
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 14 }}>
+        <div>
+          <textarea rows={4} value={emailsText} onChange={event => setEmailsText(event.target.value)} style={{ ...input, fontFamily: "monospace" }} />
+          <div style={{ fontSize: 11, color: muted, margin: "4px 0 8px" }}>{company?.emails.map(item => `${item.email}: ${item.account ? "account exists" : "no account yet"}`).join(" · ")}</div>
+          <button onClick={saveCompany} style={btn}>Save company logins</button>
+        </div>
+        <div style={{ fontSize: 12 }}>
+          <div style={{ color: muted, marginBottom: 6 }}>Internal workspaces ({company?.internal.length || 0}) — toggle others under Admin dashboard → Tenants</div>
+          {company?.internal.map(org => <div key={org.id} style={{ padding: "3px 0" }}>🏢 {org.name}</div>)}
+        </div>
+      </div>
+    </section>
 
     {!editing ? <section style={{ ...panel, padding: 0, overflowX: "auto" }}>
       <table style={{ width: "100%", minWidth: 760, borderCollapse: "collapse", fontSize: 13, textAlign: "left" }}>

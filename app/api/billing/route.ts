@@ -41,7 +41,7 @@ export async function GET() {
     return NextResponse.json({
       subscription, invoices, payments,
       plans: plans.map(plan => ({ ...plan, features: featuresOf(plan) })),
-      usage: await planState(organization.id).then(state => ({ limits: state.limits, usage: state.usage, active: state.active, onFree: state.onFree,
+      usage: await planState(organization.id).then(state => ({ limits: state.limits, usage: state.usage, active: state.active, onFree: state.onFree, internal: state.internal,
         planName: state.planName, planSlug: state.planSlug, features: state.features })),
       pending: pending && { id: pending.id, plan: pending.plan, billingInterval: pending.billingInterval, invoice: pending.invoices[0] },
       billingProfile: {

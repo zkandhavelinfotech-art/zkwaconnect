@@ -8,7 +8,7 @@ type Stats = { openConversations: number; unread: number; contacts: number; opte
 type Me = { user: { name: string }; workspace: { name: string; walletBalance: number; currency: string }
   plan: { name: string; status: string; interval: string; renewsOn: string | null; trialEndsAt: string | null } | null
   whatsapp: { connected: boolean; phoneNumber: string | null }
-  access?: { onFree: boolean; planName: string | null; features: FeatureKey[]; messagesUsed: number; messagesLimit: number | null
+  access?: { onFree: boolean; internal?: boolean; planName: string | null; features: FeatureKey[]; messagesUsed: number; messagesLimit: number | null
     next: { name: string; slug: string; monthlyPrice: number; adds: FeatureKey[] } | null } }
 
 const card: React.CSSProperties = { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 20, boxShadow: "0 1px 3px rgba(11,20,26,.06)" }
@@ -109,9 +109,9 @@ export default function DashboardPage() {
           <div style={card}>
             <div style={{ fontSize: 12, color: "#64748b" }}>Current Plan</div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10, margin: "6px 0 16px", flexWrap: "wrap" }}>
-              <span style={{ fontSize: 18, fontWeight: 600 }}>{me?.access?.onFree ? "FREE" : me?.plan ? me.plan.name.toUpperCase() : "FREE"}{" "}
-                <span style={{ fontSize: 12, fontWeight: 400, color: "#64748b" }}>({me?.access?.onFree ? "forever" : me?.plan?.status === "TRIAL" ? "trial" : me?.plan ? me.plan.interval : "forever"})</span></span>
-              {!me?.access?.onFree && me?.plan?.renewsOn && <span style={{ fontSize: 12, color: "#475569" }}>{me.plan.status === "TRIAL" ? "trial ends" : "renews on"} {new Date(me.plan.renewsOn).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "2-digit" })}</span>}
+              <span style={{ fontSize: 18, fontWeight: 600 }}>{me?.access?.internal ? "INTERNAL" : me?.access?.onFree ? "FREE" : me?.plan ? me.plan.name.toUpperCase() : "FREE"}{" "}
+                <span style={{ fontSize: 12, fontWeight: 400, color: "#64748b" }}>({me?.access?.internal ? "all features" : me?.access?.onFree ? "forever" : me?.plan?.status === "TRIAL" ? "trial" : me?.plan ? me.plan.interval : "forever"})</span></span>
+              {!me?.access?.onFree && !me?.access?.internal && me?.plan?.renewsOn && <span style={{ fontSize: 12, color: "#475569" }}>{me.plan.status === "TRIAL" ? "trial ends" : "renews on"} {new Date(me.plan.renewsOn).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "2-digit" })}</span>}
             </div>
             {me?.access && <>
               {me.access.messagesLimit !== null && <div style={{ fontSize: 12, color: "#475569", marginBottom: 10 }}>
@@ -129,8 +129,8 @@ export default function DashboardPage() {
                 {me.access.next.adds.length > 5 && <div style={{ fontSize: 11, color: "#166534" }}>+ {me.access.next.adds.length - 5} more</div>}
               </div>}
             </>}
-            <a href={me?.access?.next ? `/app/billing?plan=${me.access.next.slug}#plans` : "/app/billing#plans"} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, background: "#25D366", color: "#fff", borderRadius: 8,
-              padding: "11px 14px", fontSize: 15, fontWeight: 600, textDecoration: "none" }}>💎 {me?.access?.next ? `Upgrade to ${me.access.next.name}` : "See plans"}</a>
+            {!me?.access?.internal && <a href={me?.access?.next ? `/app/billing?plan=${me.access.next.slug}#plans` : "/app/billing#plans"} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, background: "#25D366", color: "#fff", borderRadius: 8,
+              padding: "11px 14px", fontSize: 15, fontWeight: 600, textDecoration: "none" }}>💎 {me?.access?.next ? `Upgrade to ${me.access.next.name}` : "See plans"}</a>}
           </div>
 
           <WhatsAppLinkCard phone={me?.whatsapp.phoneNumber || stats?.whatsapp?.phoneNumber || null} />
