@@ -89,6 +89,8 @@ enum PaymentMethod {
   QR
   RAZORPAY
   CASHFREE
+  // In-chat "Review and pay" (WhatsApp Payments India) through the business's gateway configured in WhatsApp Manager
+  WHATSAPP_PAY
 }
 
 model User {
@@ -333,6 +335,9 @@ model Subscription {
   currentPeriodStart DateTime?
   currentPeriodEnd   DateTime?
   cancelledAt        DateTime?
+  // Automatic renewal through a Razorpay subscription (UPI AutoPay mandate or card)
+  razorpaySubscriptionId String?        @unique
+  autoRenew          Boolean            @default(false)
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
   organization       Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -394,6 +399,11 @@ model Payment {
   transactionId   String?
   proofUrl        String?
   paymentLinkUrl  String?
+  // Customer payments: public /pay/<publicToken> page, the UTR the payer submitted, and what it pays for
+  publicToken     String?       @unique
+  utr             String?
+  orderId         String?
+  paymentAccountId String?
   status          PaymentStatus @default(PENDING)
   submittedAt     DateTime?
   verifiedAt      DateTime?
@@ -1047,4 +1057,20 @@ model DataDeletionRequest {
   createdAt      DateTime  @default(now())
 
   @@map("data_deletion_requests")
+}
+
+// A workspace's own payment collection accounts (its customers pay the business directly, never the platform):
+// UPI (upiId, payeeName), RAZORPAY / CASHFREE (keyId / clientId in config; secrets encrypted). One per provider.
+model PaymentAccount {
+  id              String   @id @default(cuid())
+  organizationId  String
+  provider        String
+  config          Json
+  secretEncrypted String?
+  status          String   @default("ACTIVE")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([organizationId, provider])
+  @@map("payment_accounts")
 }

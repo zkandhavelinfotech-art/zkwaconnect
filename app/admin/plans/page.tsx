@@ -18,6 +18,7 @@ export default function AdminPlansPage() {
   const [notice, setNotice] = useState("")
   const [company, setCompany] = useState<{ emails: { email: string; account: { name: string } | null }[]; internal: { id: string; name: string }[] } | null>(null)
   const [emailsText, setEmailsText] = useState("")
+  const [payOptions, setPayOptions] = useState<{ autopay: boolean; razorpayConfigured: boolean; upiConfigured: boolean; webhook: string } | null>(null)
 
   async function load() {
     const response = await fetch("/api/admin/plans")
@@ -25,7 +26,19 @@ export default function AdminPlansPage() {
     if (!response.ok) { setError(body.error); return }
     setPlans(body.plans); setFeatures(body.features)
   }
-  useEffect(() => { load(); loadCompany() }, [])
+  useEffect(() => { load(); loadCompany(); loadPayOptions() }, [])
+
+  async function loadPayOptions() {
+    const response = await fetch("/api/admin/billing-options")
+    if (response.ok) setPayOptions(await response.json())
+  }
+  async function setAutopay(autopay: boolean) {
+    setError(""); setNotice("")
+    const response = await fetch("/api/admin/billing-options", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ autopay }) })
+    const body = await response.json()
+    if (!response.ok) { setError(body.error); return }
+    setNotice(body.message); loadPayOptions()
+  }
 
   async function loadCompany() {
     const response = await fetch("/api/admin/company")
@@ -76,6 +89,16 @@ export default function AdminPlansPage() {
         </div>
       </div>
     </section>
+
+    {payOptions && <section style={panel}>
+      <h2 style={{ fontSize: 15, margin: "0 0 4px" }}>💳 How customers pay for plans</h2>
+      <div style={{ fontSize: 13, margin: "8px 0" }}>{payOptions.upiConfigured ? "✅" : "❌"} Direct UPI (GPay / PhonePe / Paytm / QR) — you approve each payment {payOptions.upiConfigured ? "" : "· set UPI_ID on the server"}</div>
+      <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13 }}>
+        <input type="checkbox" checked={payOptions.autopay} disabled={!payOptions.razorpayConfigured} onChange={event => setAutopay(event.target.checked)} />
+        Automatic renewal with Razorpay (UPI AutoPay mandate or card){!payOptions.razorpayConfigured && <span style={{ color: "#fcd34d" }}> — set RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET first</span>}
+      </label>
+      {payOptions.autopay && <p style={{ fontSize: 12, color: muted, margin: "8px 0 0" }}>Razorpay Dashboard → Webhooks → <code>{payOptions.webhook}</code> with events subscription.charged, subscription.halted, subscription.cancelled, subscription.completed and payment_link.paid (secret = RAZORPAY_WEBHOOK_SECRET). Subscriptions must be enabled on your Razorpay account.</p>}
+    </section>}
 
     {!editing ? <section style={{ ...panel, padding: 0, overflowX: "auto" }}>
       <table style={{ width: "100%", minWidth: 760, borderCollapse: "collapse", fontSize: 13, textAlign: "left" }}>

@@ -7,6 +7,7 @@ import { getSession }    from "@/lib/auth/session"
 import { createGstInvoice } from "@/lib/billing/invoices"
 import { stateByCode, stateByName } from "@/lib/billing/states"
 import { addInterval, expireLapsedSubscriptions, intervalLabel } from "@/lib/billing/activate"
+import { autopayAvailable } from "@/lib/billing/autopay"
 
 async function getOrganization() {
   const session = await getSession()
@@ -53,6 +54,7 @@ export async function GET() {
         billingStateCode: organization.billingStateCode || "",
         billingPostalCode: organization.billingPostalCode || "",
       },
+      autopay: await autopayAvailable(),
       paymentDetails: {
         upiId: process.env.UPI_ID || "",
         payeeName: process.env.COMPANY_NAME || "ZKandhavel Infotech Pvt. Ltd.",

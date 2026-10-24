@@ -5,6 +5,8 @@ import { GST_STATES, stateByName } from "@/lib/billing/states"
 import { MessagingCosts } from "@/components/billing/MessagingCosts"
 import { PlanCards, type CardPlan } from "@/components/billing/PlanCards"
 import type { FeatureKey } from "@/lib/billing/features"
+import { UpiAppButtons } from "@/components/payments/UpiAppButtons"
+import { upiAppLinks } from "@/lib/payments/upi"
 
 type BillingProfile = {
   legalName: string
@@ -22,7 +24,7 @@ type Invoice = { id: string; invoiceNumber: string; description?: string | null;
   status: string; issuedAt: string; dueAt?: string | null; paidAt?: string | null }
 type Payment = { id: string; invoiceId?: string | null; amount: number | string; method: string; status: string; transactionId?: string | null
   rejectionReason?: string | null; createdAt: string; invoice?: { invoiceNumber: string } | null }
-type Subscription = { id: string; status: string; billingInterval: Interval; trialEndsAt?: string | null; currentPeriodEnd?: string | null; plan: Plan }
+type Subscription = { id: string; status: string; billingInterval: Interval; trialEndsAt?: string | null; currentPeriodEnd?: string | null; autoRenew?: boolean; plan: Plan }
 type BillingData = {
   subscription: Subscription | null
   pending: { id: string; plan: Plan; billingInterval: Interval; invoice: Invoice } | null
@@ -31,6 +33,7 @@ type BillingData = {
   plans: Plan[]
   billingProfile: BillingProfile
   paymentDetails: { upiId: string; payeeName: string }
+  autopay?: boolean
   usage?: { active: boolean; onFree: boolean; internal?: boolean; planName: string | null; planSlug: string | null; features: FeatureKey[]
     limits: { messages: number | null; users: number | null; numbers: number | null }; usage: { messages: number; users: number; invites: number; numbers: number } }
 }
@@ -220,6 +223,18 @@ export default function BillingPage() {
 
   const subscription = data?.subscription
   const pending = data?.pending
+
+  // Razorpay auto-renew: redirect to Razorpay to approve UPI AutoPay / card; turning it off keeps the paid period.
+  async function autopay(action: "start" | "cancel") {
+    setError(""); setNotice("")
+    if (action === "cancel" && !window.confirm("Turn off automatic renewal? Your plan stays active until the end of the paid period.")) return
+    const response = await fetch("/api/billing/autopay", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(action === "start" ? { action, subscriptionId: data?.pending?.id } : { action }) })
+    const body = await response.json()
+    if (!response.ok) { setError(body.error || "Request failed."); return }
+    if (body.url) { window.location.href = body.url; return }
+    setNotice(body.message); setRefresh(value => value + 1)
+  }
   const underReview = new Set((data?.payments || []).filter(payment => payment.status === "PENDING").map(payment => payment.invoiceId))
   const pendingReviewed = pending && underReview.has(pending.invoice.id)
   const anyAnnual = data?.plans.some(plan => Number(plan.annualPrice) > 0)
@@ -291,10 +306,12 @@ export default function BillingPage() {
           <div style={{fontSize:12,color:"#64748b",marginTop:6}}>
             {!subscription ? "Choose a plan below"
               : subscription.status === "TRIAL" ? `Trial ends ${formatDate(subscription.trialEndsAt || subscription.currentPeriodEnd)}`
-              : subscription.status === "ACTIVE" ? `${subscription.billingInterval === "ANNUAL" ? "Yearly" : "Monthly"} · renews ${formatDate(subscription.currentPeriodEnd)}`
+              : subscription.status === "ACTIVE" ? `${subscription.billingInterval === "ANNUAL" ? "Yearly" : "Monthly"} · ${subscription.autoRenew ? "auto-renews" : "ends"} ${formatDate(subscription.currentPeriodEnd)}`
               : subscription.status === "EXPIRED" ? `Ended ${formatDate(subscription.currentPeriodEnd)} — choose a plan to continue`
               : subscription.status}
           </div>
+          {subscription?.autoRenew && <div style={{fontSize:12,color:"#15803d",marginTop:6}}>🔁 Auto-renew on (Razorpay){" "}
+            <button onClick={() => autopay("cancel")} style={{border:0,background:"none",color:"#b91c1c",fontSize:12,fontWeight:700,cursor:"pointer",padding:0}}>Turn off</button></div>}
         </article>
         {data?.usage&&<article style={{...card,padding:18}}>
           <div style={{fontSize:11,color:"#64748b",fontWeight:700,textTransform:"uppercase"}}>Usage</div>
@@ -320,7 +337,11 @@ export default function BillingPage() {
           <strong>{pending.plan.name} ({pending.billingInterval === "ANNUAL" ? "yearly" : "monthly"})</strong> — invoice {pending.invoice.invoiceNumber} for <strong>{formatInr(pending.invoice.total)}</strong>{" "}
           {pendingReviewed ? "is being verified. Your plan activates once it's approved." : "is waiting for payment."}
         </div>
-        {!pendingReviewed && <button onClick={() => setSelectedInvoice(pending.invoice)} style={primary}>Pay now with UPI</button>}
+        {!pendingReviewed && <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          <button onClick={() => setSelectedInvoice(pending.invoice)} style={primary}>Pay now with UPI</button>
+          {data?.autopay && <button onClick={() => autopay("start")} style={{...primary,background:"#fff",color:"#075e54",border:"1px solid #075e54"}}
+            title="Approve once with UPI AutoPay or a card; renews every period until you turn it off">🔁 Pay &amp; auto-renew (UPI AutoPay / card)</button>}
+        </div>}
       </section>}
 
       {selectedInvoice && <section ref={payRef} style={{...card,borderColor:"#b9d9d1",padding:20,marginBottom:18,scrollMarginTop:80}}>
@@ -341,8 +362,8 @@ export default function BillingPage() {
               UPI ID: <strong>{data.paymentDetails.upiId}</strong>
               <button type="button" onClick={copyUpi} style={{border:"1px solid #cbd5d3",background:"#fff",borderRadius:5,padding:"3px 8px",fontSize:11,cursor:"pointer"}}>{copied ? "Copied ✓" : "Copy"}</button>
             </div>
-            <a href={upiLink(data.paymentDetails, selectedInvoice)} style={{display:"inline-block",marginTop:10,color:"#087763",fontSize:12,fontWeight:700}}>
-              On your phone? Open UPI app →</a>
+            <div style={{fontSize:12,fontWeight:700,color:"#075e54",margin:"14px 0 8px"}}>On your phone? Pay in one tap</div>
+            <UpiAppButtons links={upiAppLinks({upiId:data.paymentDetails.upiId,payeeName:data.paymentDetails.payeeName,amount:Number(selectedInvoice.total),note:`Invoice ${selectedInvoice.invoiceNumber}`})} />
             <p style={{fontSize:11,color:"#71817e",lineHeight:1.5,margin:"10px 0 0"}}>The amount and invoice number are filled in automatically. Please don&apos;t change the amount.</p>
           </div>
           <form onSubmit={submitPayment}>

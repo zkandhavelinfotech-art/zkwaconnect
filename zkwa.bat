@@ -1,14 +1,14 @@
 @echo off
 setlocal enabledelayedexpansion
-title ZKWAConnect v4.0.6 — Setup Menu
+title ZKWAConnect v4.3.0 - Setup Manager
 
 :MENU
 cls
 echo.
-echo  ╔═══════════════════════════════════════════════════════╗
-echo  ║        ZKWAConnect v4.0.6 — Setup Manager            ║
-echo  ║        ZKandhavel Infotech Pvt. Ltd.                  ║
-echo  ╚═══════════════════════════════════════════════════════╝
+echo  ╔═══════════════════════════════════════════════════════════╗
+echo  ║   ZKWAConnect v4.3.0  -  Setup Manager                    ║
+echo  ║   ZKandavel Infotech  ·  zkwaconnect.in                   ║
+echo  ╚═══════════════════════════════════════════════════════════╝
 echo.
 echo   SETUP
 echo   [1]  Install dependencies             npm install
@@ -17,14 +17,16 @@ echo   [3]  Format Prisma schema             npx prisma format
 echo   [4]  Generate Prisma client           npx prisma generate
 echo.
 echo   DATABASE
+echo   [14] Start local PostgreSQL 18        (run this window as Administrator)
+echo   [15] DB Push - safe                   npx prisma db push      ^<- USE THIS
+echo   [16] DB Push - allow data loss        LOCAL dev only, asks YES
 echo   [5]  Migration status                 npx prisma migrate status
 echo   [6]  Migrate dev (LOCAL DB only)      npx prisma migrate dev
-echo   [15] DB Push (Railway/Neon/GoDaddy)   npx prisma db push  ← USE THIS
 echo   [7]  Seed database                    npm run db:seed
 echo   [12] Open Prisma Studio               npx prisma studio
 echo   [13] Reset database (DANGER)          npx prisma migrate reset
 echo.
-echo   BUILD & RUN
+echo   BUILD ^& RUN
 echo   [8]  TypeScript check                 npm run typecheck
 echo   [9]  Build Next.js                    npm run build
 echo   [10] Start dev server                 npm run dev
@@ -51,7 +53,9 @@ if "%CHOICE%"=="10" goto DEV
 if "%CHOICE%"=="11" goto START
 if "%CHOICE%"=="12" goto STUDIO
 if "%CHOICE%"=="13" goto RESET
+if "%CHOICE%"=="14" goto PGSTART
 if "%CHOICE%"=="15" goto DBPUSH
+if "%CHOICE%"=="16" goto DBPUSHLOSS
 if "%CHOICE%"=="20" goto FRESH
 if "%CHOICE%"=="21" goto FULLBUILD
 if "%CHOICE%"=="0"  goto EXIT
@@ -85,44 +89,68 @@ call npx prisma migrate status & pause & goto MENU
 
 :MIGRATE
 cls & echo.
-echo  NOTE: migrate dev requires superuser DB access.
+echo  NOTE: migrate dev requires superuser DB access and is for a LOCAL database only.
 echo  For Railway/Neon/GoDaddy use [15] DB Push instead.
 echo.
-set /p MNAME=  Migration name (e.g. zkwa_v406):
-if "!MNAME!"=="" set MNAME=zkwa_v406
+set /p MNAME=  Migration name (e.g. zkwa_v430):
+if "!MNAME!"=="" set MNAME=zkwa_v430
 call npx prisma migrate dev --name !MNAME!
 if errorlevel 1 ( echo  [ERROR] Use [15] DB Push for managed databases & pause & goto MENU )
 call npx prisma generate
 echo. & echo  [OK] Migration done. & pause & goto MENU
 
+:PGSTART
+cls & echo.
+echo  Starting the local PostgreSQL 18 service (database zkwaconnect_dev on port 5432)...
+echo  If you see "Access is denied", close this window and run zkwa.bat as Administrator.
+echo.
+net start postgresql-x64-18
+echo. & pause & goto MENU
+
 :DBPUSH
 cls & echo.
 echo  ═══════════════════════════════════════
-echo   [15] DB PUSH — Railway / Neon / GoDaddy
+echo   [15] DB PUSH (safe) - local, Railway, Neon, GoDaddy
 echo  ═══════════════════════════════════════
 echo.
-echo  Pushes schema directly without shadow DB.
-echo  Use this for all managed/cloud PostgreSQL.
+echo  Adds new tables and columns. It STOPS instead of deleting data:
+echo  if a change would drop a column or table, nothing is changed and Prisma explains why.
 echo.
 set /p C=  Start db push? (Y/N):
 if /I not "!C!"=="Y" goto MENU
 echo. & echo  [1/3] Generating client...
 call npx prisma generate
 echo. & echo  [2/3] Pushing schema...
-call npx prisma db push --accept-data-loss
-if errorlevel 1 ( echo  [ERROR] db push failed — check DATABASE_URL in .env & pause & goto MENU )
+call npx prisma db push
+if errorlevel 1 ( echo  [ERROR] db push stopped - check DATABASE_URL, or read the warning above. Nothing was deleted. & pause & goto MENU )
 echo. & echo  [3/3] Regenerating client...
 call npx prisma generate
-echo. & echo  [OK] Schema pushed. Now run [7] Seed database.
+echo. & echo  [OK] Schema pushed. On a new database, run [7] Seed database.
 pause & goto MENU
+
+:DBPUSHLOSS
+cls & echo.
+echo  ═══════════════════════════════════════
+echo   [16] DB PUSH ALLOWING DATA LOSS  (LOCAL DEV ONLY)
+echo  ═══════════════════════════════════════
+echo.
+echo  This can DELETE columns, tables and their data to match the schema.
+echo  NEVER use it on the live database - the GitHub deploy uses the safe push.
+echo.
+set /p CONFIRM=  Type YES to continue:
+if not "!CONFIRM!"=="YES" goto MENU
+call npx prisma db push --accept-data-loss
+if errorlevel 1 ( echo  [ERROR] db push failed & pause & goto MENU )
+call npx prisma generate
+echo. & echo  [OK] Done. & pause & goto MENU
 
 :SEED
 cls & echo. & echo  Seeding database... & echo.
 call npm run db:seed
 if errorlevel 1 ( echo  [ERROR] Seed failed & pause & goto MENU )
 echo.
-echo  Customer: demo@zkwaconnect.in  / demo1234
-echo  Admin:    admin@zkwaconnect.in / admin2026!
+echo  The seed printed the logins above. In production (NODE_ENV=production) the demo
+echo  account is skipped and the admin password comes from SEED_ADMIN_PASSWORD or is random.
 pause & goto MENU
 
 :TYPECHECK
@@ -158,7 +186,7 @@ goto MENU
 
 :RESET
 cls & echo.
-echo  WARNING: Deletes ALL data!
+echo  WARNING: Deletes ALL data! Local development only.
 set /p CONFIRM=  Type YES to confirm:
 if not "!CONFIRM!"=="YES" goto MENU
 call npx prisma migrate reset --force
@@ -167,7 +195,7 @@ echo. & echo  [OK] DB reset. & pause & goto MENU
 :FRESH
 cls & echo.
 echo  ═══════════════════════════════════════
-echo   FRESH INSTALL — ZKWAConnect v4.0.6
+echo   FRESH INSTALL - ZKWAConnect v4.3.0
 echo  ═══════════════════════════════════════
 echo.
 echo  Steps:
@@ -175,7 +203,7 @@ echo    1. npm install
 echo    2. prisma format
 echo    3. prisma validate
 echo    4. prisma generate
-echo    5. prisma db push (works on Railway/Neon/GoDaddy)
+echo    5. prisma db push (safe - never deletes data)
 echo    6. prisma generate
 echo    7. db:seed
 echo.
@@ -198,12 +226,8 @@ call npx prisma generate
 if errorlevel 1 ( echo  [ERROR] Generate failed & pause & goto MENU )
 
 echo. & echo  [5/7] prisma db push...
-call npx prisma db push --accept-data-loss
-if errorlevel 1 (
-  echo  db push failed — trying migrate dev...
-  call npx prisma migrate dev --name zkwa_v406
-  if errorlevel 1 ( echo  [ERROR] Both failed. Check DATABASE_URL in .env & pause & goto MENU )
-)
+call npx prisma db push
+if errorlevel 1 ( echo  [ERROR] db push stopped - check DATABASE_URL in .env and that PostgreSQL is running - option 14. Nothing was deleted. & pause & goto MENU )
 
 echo. & echo  [6/7] prisma generate...
 call npx prisma generate
@@ -214,12 +238,12 @@ if errorlevel 1 ( echo  [ERROR] Seed failed & pause & goto MENU )
 
 echo.
 echo  ═══════════════════════════════════════
-echo   FRESH INSTALL COMPLETE ✅
+echo   FRESH INSTALL COMPLETE
 echo  ═══════════════════════════════════════
 echo.
 echo  Run:     zkwa.bat [10] Dev server
-echo  Login:   demo@zkwaconnect.in / demo1234
-echo  Admin:   admin@zkwaconnect.in / admin2026!
+echo  Logins:  printed by the seed above
+echo  Live:    open Admin - Go-live checklist before customers sign up
 echo.
 pause & goto MENU
 

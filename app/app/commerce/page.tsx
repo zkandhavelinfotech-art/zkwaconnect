@@ -66,7 +66,7 @@ function Orders() {
                 {order.trackingNumber && <div style={{ color: "#71817e", marginTop: 4 }}>🚚 {order.trackingNumber}</div>}</td>
               <td style={{ padding: 10, whiteSpace: "nowrap" }}>
                 {order.conversationId && <a href="/app/inbox" style={{ color: "#075e54", fontWeight: 700, marginRight: 10, textDecoration: "none" }}>Chat</a>}
-                {order.contactId && order.source === "WHATSAPP" && <a href={`/app/payments?contact=${order.contactId}&amount=${order.total}&description=${encodeURIComponent(`Order ${order.orderNumber || ""}`)}`}
+                {order.contactId && order.source === "WHATSAPP" && <a href={`/app/payments?contact=${order.contactId}&order=${order.id}&amount=${order.total}&description=${encodeURIComponent(`Order ${order.orderNumber || ""}`)}`}
                   style={{ color: "#075e54", fontWeight: 700, marginRight: 10, textDecoration: "none" }}>Payment link</a>}
                 {order.status !== "CHECKOUT" && <button onClick={() => setEditing({ id: order.id, status: order.status, trackingNumber: order.trackingNumber || "", trackingUrl: order.trackingUrl || "", notify: order.source === "WHATSAPP" })}
                   style={{ border: 0, background: "none", color: "#075e54", fontWeight: 700, cursor: "pointer", padding: 0 }}>Update</button>}

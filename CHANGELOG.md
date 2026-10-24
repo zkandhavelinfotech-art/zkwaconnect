@@ -1,5 +1,23 @@
 # Changelog
 
+## 4.4.0 — next · Partners & calling (planned)
+
+- **White-label:** partner branding (name, logo, colours, support contact) on sign-in, the app, emails and invoices. Each partner gets a subdomain, plus an optional own domain.
+- **Partner/reseller panel (`/partner`):** client workspaces, plans, usage and wallets. Wholesale or commission, chosen per partner by super admin.
+- **WhatsApp Calling:** answer customer calls in the browser, call back after the customer grants permission, call logs and missed-call alerts.
+
+## 4.3.0 — 2026-10-24 · Payments
+
+- **Direct UPI without a gateway:**
+  - each workspace adds its own UPI ID;
+  - customers get a `/pay/<code>` page with Google Pay, PhonePe, Paytm and BHIM buttons plus a QR code, and submit the UTR;
+  - the business clicks Confirm received, the linked order is marked paid and the customer gets a WhatsApp receipt.
+- **Fix:** customer payment requests used the platform's own UPI ID and Razorpay/Cashfree keys, so money would have gone to the platform account. Each workspace now has its own payment accounts. Gateway webhooks are checked against that workspace's secret.
+- **WhatsApp Pay (India):** "Review and pay" `order_details` messages through the business's gateway configured in WhatsApp Manager (Razorpay, PayU, BillDesk or Zaakpay). Meta's signed payment status marks the payment paid and updates the customer's order card.
+- **Razorpay automatic plan renewal:** UPI AutoPay mandate or card, switched on by super admin. Every charge creates a GST invoice and extends the plan, and the customer can turn auto-renew off from Billing.
+- **Billing:** one-tap UPI app buttons for plan invoices.
+- **zkwa.bat:** DB Push and Fresh Install now use the safe `prisma db push` (it stops instead of deleting data). Allowing data loss is a separate option that asks for YES, and there's a new option to start local PostgreSQL 18.
+
 ## 4.0.7 — 2026-10-20 · Go-live readiness
 
 - **Legal pages:** `/privacy`, `/terms`, `/refund-policy` and `/data-deletion`. Linked from sign-up, sign-in and the website footer, and filled in with the company details from the environment.

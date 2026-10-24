@@ -16,6 +16,7 @@ import { getMetaAccessToken } from "@/lib/onboarding/context"
 import { handleInboundMessage } from "@/lib/flows/engine"
 import { findOrCreateConversation } from "@/lib/whatsapp/conversation"
 import { applyTemplateEvent } from "@/lib/whatsapp/template-events"
+import { handleWhatsAppPayStatus } from "@/lib/payments/whatsapp-pay"
 
 export const runtime = "nodejs"
 
@@ -176,6 +177,11 @@ export async function POST(request:NextRequest) {
         const organizationId=phoneNumber?.waba.organizationId||null
 
         for(const status of value.statuses||[]){
+          // WhatsApp Pay: payment status for an order_details message (not a message delivery status).
+          if((status as {type?:string}).type==="payment"){
+            if(phoneNumber&&organizationId)await handleWhatsAppPayStatus(organizationId,phoneNumber,status as Parameters<typeof handleWhatsAppPayStatus>[2]).catch(error=>console.error("[webhook] whatsapp pay",error))
+            continue
+          }
           await applyRecipientStatus(status)
           if(organizationId)await emitEvent(organizationId,"message.status",{message_id:status.id,status:status.status,
             recipient:(status as {recipient_id?:string}).recipient_id||null,timestamp:timestamp(status.timestamp).toISOString(),

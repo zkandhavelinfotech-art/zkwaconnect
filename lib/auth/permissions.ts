@@ -22,6 +22,7 @@ const RULES = [
   { prefix: "/api/team", read: "MANAGER", write: "ADMIN" } as Rule,
   { prefix: "/api/billing", read: "ADMIN", write: "ADMIN" } as Rule,
   { prefix: "/api/payments", write: "ADMIN" } as Rule,
+  { prefix: "/api/whatsapp/payments/accounts", read: "ADMIN", write: "ADMIN" } as Rule,
   { prefix: "/api/developer", read: "ADMIN", write: "ADMIN" } as Rule,
   { prefix: "/api/integrations", read: "ADMIN", write: "ADMIN" } as Rule,
   { prefix: "/api/settings", write: "ADMIN" } as Rule,
