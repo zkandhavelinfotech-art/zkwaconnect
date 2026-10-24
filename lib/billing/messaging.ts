@@ -28,6 +28,8 @@ export const settingsSchema = z.object({
   resellerMarkupPercent: z.number().min(0).max(500),
   minTopup: z.number().min(1).max(1_000_000),
   lowBalanceThreshold: z.number().min(0).max(1_000_000),
+  // Free wallet credit for every new self sign-up (0 = off). It pays message charges in the wallet-based options.
+  welcomeCredit: z.number().min(0).max(100_000).default(500),
   showComparisonToCustomers: z.boolean(),
   ratesNote: z.string().max(300).default(""),
 }).refine(value => value.enabledModes.includes(value.defaultMode), { message: "The default option must be one of the enabled options.", path: ["defaultMode"] })
@@ -37,7 +39,7 @@ export const DEFAULT_SETTINGS: MessagingSettings = {
   enabledModes: ["DIRECT"], defaultMode: "DIRECT", currency: "INR",
   metaRates: { MARKETING: 0.7846, UTILITY: 0.115, AUTHENTICATION: 0.115 },
   platformFee: { MARKETING: 0.05, UTILITY: 0.02, AUTHENTICATION: 0.02 },
-  resellerMarkupPercent: 20, minTopup: 500, lowBalanceThreshold: 100, showComparisonToCustomers: true,
+  resellerMarkupPercent: 20, minTopup: 500, lowBalanceThreshold: 100, welcomeCredit: 500, showComparisonToCustomers: true,
   ratesNote: "Meta rates are defaults for India — check Meta's current WhatsApp rate card.",
 }
 const KEY = "messaging_billing"
@@ -152,7 +154,7 @@ export async function refundCharge(transactionId: string | null | undefined, rea
   }
 }
 
-export async function creditWallet(tx: Prisma.TransactionClient, input: { organizationId: string; amount: number; type: "TOPUP" | "ADJUSTMENT"
+export async function creditWallet(tx: Prisma.TransactionClient, input: { organizationId: string; amount: number; type: "TOPUP" | "ADJUSTMENT" | "WELCOME"
   reason: string; invoiceId?: string; createdById?: string }) {
   const updated = await tx.organization.update({ where: { id: input.organizationId }, data: { walletBalance: { increment: input.amount }, lowBalanceAlertAt: null },
     select: { walletBalance: true } })

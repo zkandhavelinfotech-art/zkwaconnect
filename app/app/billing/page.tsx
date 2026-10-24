@@ -407,6 +407,7 @@ export default function BillingPage() {
         <p style={{fontSize:11,color:"#71817e",margin:"10px 0 0"}}>Prices exclude GST (added on the invoice). Your current plan keeps working until the new one is paid and activated.</p>
       </section>
 
+      <div id="wallet" style={{scrollMarginTop:80}} />
       <MessagingCosts refreshKey={refresh} onInvoice={invoice=>{
         setNotice(`Invoice ${invoice.invoiceNumber} created. Scan the QR code below to pay; credits are added once the payment is approved.`)
         setSelectedInvoice({ id:invoice.id, invoiceNumber:invoice.invoiceNumber, total:invoice.total, amount:0, tax:0, status:"DUE", issuedAt:new Date().toISOString() })

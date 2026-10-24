@@ -1,29 +1,31 @@
-# ZKWAConnect v4.4.0
+# ZKWAConnect v5.0.0
 
 **WhatsApp Business API platform for Indian businesses.** It talks only to Meta's official Cloud API, with no AI and no third-party BSP.
 Built with Next.js 15 · TypeScript · Prisma 7.9.1 · PostgreSQL. It deploys to Railway, Vercel, GoDaddy or HostGator via GitHub Actions.
 
 ---
 
-## What's new in v4.3.0: payments
+## What's new in v5.0.0
 
-| Feature | Before | v4.3.0 |
-|---|---|---|
-| Collect from customers by UPI | The platform's UPI ID was used for every workspace | ✅ Each workspace's **own UPI ID**, on a payment page with **Google Pay, PhonePe, Paytm and BHIM** buttons and a QR code |
-| Confirming UPI payments | ❌ | ✅ The customer submits the UTR; the business clicks **Confirm received**, the order is marked paid and the customer gets a WhatsApp receipt |
-| Razorpay / Cashfree links | The platform's keys were used for every workspace | ✅ Each workspace's **own keys**, with webhooks checked against that workspace's secret |
-| WhatsApp Pay | ❌ | ✅ A **"Review and pay"** message, so the customer pays inside the chat (needs a gateway linked in WhatsApp Manager) |
-| Plan renewals | Manual UPI each period | ✅ Optional **Razorpay automatic renewal** (UPI AutoPay or card) with a GST invoice each period; direct UPI still available |
+v5.0.0 brings together the payments work (planned as 4.3), partners and calling (planned as 4.4), and the features of the separate v5.0.0 package, all in this git repo.
+
+| Area | v5.0.0 |
+|---|---|
+| **UPI without a gateway** | Each workspace's **own UPI ID**. Customers get a payment page with **Google Pay, PhonePe, Paytm and BHIM** buttons plus a QR code, and submit the UTR; the business clicks **Confirm received** |
+| **Payment accounts** | Each workspace's own UPI, Razorpay, Cashfree and WhatsApp Pay. Customer money never goes to the platform account |
+| **WhatsApp Pay** | A **"Review and pay"** message, paid inside the chat through the business's gateway in WhatsApp Manager |
+| **Plan auto-renewal** | Optional **Razorpay UPI AutoPay or card**, with a GST invoice every period |
+| **WhatsApp Calling** | Answer customers' WhatsApp calls in the browser, and call them back with permission. Needs a messaging limit of 2,000+ |
+| **Partner programme** | `/partner`: agencies manage client workspaces, either **wholesale** (wallet and discount) or **commission**, set per partner |
+| **White-label** | The partner's logo, name and colour on sign-in and in client workspaces, at `<slug>.PARTNER_BASE_DOMAIN` or the partner's own domain |
+| **Welcome credits** | ₹500 in the WhatsApp wallet for every new sign-up (change or turn off under Admin → Messaging charges) |
+| **Credits / wallet** | `/app/billing/credits` → wallet top-up by UPI QR + UTR; messages are deducted automatically in the wallet-based billing options |
+| **Org API** | `GET /api/app/org`: workspace, plan, usage and wallet balance |
+| **Already in v4.x** (also listed in the v5.0.0 package) | WhatsApp Forms (native Flows + hosted), contact filters and segments, template library (40+), Meta Ads (CTWA and lead forms), live analytics, Free plan ₹0, Starter ₹999 / Business ₹2,499 / Professional ₹4,999 |
 
 Earlier releases (see [CHANGELOG.md](CHANGELOG.md)):
 - **v4.0.7:** legal pages, forgot password, two-factor sign-in and login lockout, cloud media storage, and the go-live checklist.
-- **Before that:** 7-day trial with upgrade reminders, plan features with a Free plan, internal company workspaces, and AiSensy-parity features.
-
-## What's new in v4.4.0: partners, white-label and calling
-
-- **WhatsApp Calling:** answer customers' WhatsApp calls in the browser, and call them back after they give permission. The number needs a messaging limit of 2,000+.
-- **Partner programme (`/partner`):** agencies create and manage client workspaces. Each partner is either **wholesale** (wallet with a discount on plans) or **commission** (a share of client payments), set by the super admin.
-- **White-label:** the partner's logo, name and colour on sign-in and inside client workspaces, at `<slug>.PARTNER_BASE_DOMAIN` or the partner's own domain.
+- **Before that:** 7-day trial with upgrade reminders, plan features, internal company workspaces, and AiSensy-parity features.
 
 ---
 
@@ -116,4 +118,4 @@ Webhook URLs to register:
 
 ---
 
-© 2026 ZKandavel Infotech · ZKWAConnect v4.4.0
+© 2026 ZKandavel Infotech · ZKWAConnect v5.0.0

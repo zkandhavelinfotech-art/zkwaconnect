@@ -6,6 +6,7 @@ import { createSession, setActiveWorkspace }  from "@/lib/auth/session"
 import { createWorkspace } from "@/lib/workspaces"
 import { headers } from "next/headers"
 import { brandForHost } from "@/lib/partners/brand"
+import { creditWallet, getMessagingSettings } from "@/lib/billing/messaging"
 
 const schema = z.object({
   name:             z.string().min(2),
@@ -33,6 +34,10 @@ export async function POST(req: Request) {
     const list = await headers()
     const brand = await brandForHost(list.get("x-forwarded-host") || list.get("host"))
     if (brand) await prisma.organization.update({ where: { id: workspace.id }, data: { partnerId: brand.partnerId, billingExempt: false } })
+    // Welcome credit in the WhatsApp wallet (amount set under Admin → Messaging charges; internal workspaces never pay, so they get none).
+    const { welcomeCredit } = await getMessagingSettings()
+    if (welcomeCredit > 0 && !workspace.billingExempt)
+      await prisma.$transaction(tx => creditWallet(tx, { organizationId: workspace.id, amount: welcomeCredit, type: "WELCOME", reason: "Welcome credit" }))
 
     await createSession(user.id)
     await setActiveWorkspace(workspace.id)

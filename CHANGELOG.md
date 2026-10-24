@@ -1,6 +1,14 @@
 # Changelog
 
-## 4.4.0 — 2026-10-24 · Partners, white-label & WhatsApp Calling
+## 5.0.0 — 2026-10-24 · Payments, partners, calling and v5 merge
+
+This release includes everything below that was planned as 4.3.0 and 4.4.0; those were never released on their own. It also brings in the features of the separate `ZKWAConnect-v5.0.0-RELEASE` package:
+- **Welcome credits:** ₹500 is added to the WhatsApp wallet of every new self-sign-up workspace. Super admins can change or turn it off under Admin → Messaging charges.
+- **`GET /api/app/org`:** returns the workspace, plan, usage and wallet balance.
+- **`/app/billing/credits`:** opens the wallet top-up on Billing.
+- **Already in this repo,** in a fuller form than the v5.0.0 package: WhatsApp Forms, contact filters, the template library, Meta Ads, live analytics and the Free / ₹999 / ₹2,499 / ₹4,999 pricing. The package's separate `Form`, `AdCampaign` and `CreditLedger` tables aren't used, because the existing hosted forms, Meta Ads API and wallet already cover them.
+
+### Partners, white-label & WhatsApp Calling (planned as 4.4.0)
 
 - **WhatsApp Calling (Calls page and a call widget):**
   - customers tap the call button in the business's WhatsApp chat, the call rings in every open ZKWAConnect tab, and the first agent to answer takes it, talking in the browser over WebRTC;
@@ -18,7 +26,7 @@
   - sign-ups on a partner's address become that partner's clients.
 - **Admin:** Partners page (approve or suspend, programme and %, payouts and adjustments, domain status).
 
-## 4.3.0 — 2026-10-24 · Payments
+### Payments (planned as 4.3.0)
 
 - **Direct UPI without a gateway:**
   - each workspace adds its own UPI ID;

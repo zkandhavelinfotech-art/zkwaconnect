@@ -5,7 +5,7 @@ import { CostComparator, type ModeOption } from "@/components/billing/CostCompar
 type Mode = "DIRECT" | "PLATFORM_FEE" | "RESELLER"
 type Category = "MARKETING" | "UTILITY" | "AUTHENTICATION"
 type Settings = { enabledModes: Mode[]; defaultMode: Mode; currency: string; metaRates: Record<Category, number>; platformFee: Record<Category, number>
-  resellerMarkupPercent: number; minTopup: number; lowBalanceThreshold: number; showComparisonToCustomers: boolean; ratesNote: string }
+  resellerMarkupPercent: number; minTopup: number; lowBalanceThreshold: number; welcomeCredit: number; showComparisonToCustomers: boolean; ratesNote: string }
 type Workspace = { id: string; name: string; slug: string; mode: Mode; override: Mode | null; walletBalance: number; currency: string; usage: Record<Category, number> }
 type Data = { settings: Settings; workspaces: Workspace[]; platformUsage: Record<Category, number>; walletRevenue30d: { mode: string | null; charged: number; metaCost: number }[] }
 
@@ -100,6 +100,7 @@ export default function AdminMessagingPage() {
           <label>Reseller markup %<br /><input type="number" min={0} max={500} value={settings.resellerMarkupPercent} onChange={event => set({ resellerMarkupPercent: Math.max(0, Number(event.target.value) || 0) })} style={{ ...input, width: 100 }} /></label>
           <label>Minimum top-up<br /><input type="number" min={1} value={settings.minTopup} onChange={event => set({ minTopup: Math.max(1, Number(event.target.value) || 1) })} style={{ ...input, width: 110 }} /></label>
           <label>Low-balance alert below<br /><input type="number" min={0} value={settings.lowBalanceThreshold} onChange={event => set({ lowBalanceThreshold: Math.max(0, Number(event.target.value) || 0) })} style={{ ...input, width: 110 }} /></label>
+          <label title="Free wallet credit for every new customer who signs up (0 = off)">Welcome credit on sign-up (₹)<br /><input type="number" min={0} value={settings.welcomeCredit ?? 500} onChange={event => set({ welcomeCredit: Math.max(0, Number(event.target.value) || 0) })} style={{ ...input, width: 110 }} /></label>
           <label style={{ flex: 1, minWidth: 260 }}>Note shown to customers<br /><input value={settings.ratesNote} maxLength={300} onChange={event => set({ ratesNote: event.target.value })} style={{ ...input, width: "100%" }} /></label>
         </div>
         <p style={{ fontSize: 11, color: muted }}>Meta changes its rates by country and category from time to time — keep the Meta rate column in line with Meta&apos;s current rate card for your customers&apos; main market.</p>
