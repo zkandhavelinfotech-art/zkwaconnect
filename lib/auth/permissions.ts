@@ -17,12 +17,13 @@ export const atLeast = (role: string | null | undefined, minimum: Role) => RANK[
 type Rule = { prefix: string; read?: Role; write?: Role; skip?: boolean }
 // Longest matching prefix wins. Defaults: anyone can read, agents and above can change things.
 const RULES = [
-  ...["/api/admin", "/api/auth", "/api/profile", "/api/workspaces", "/api/me", "/api/push", "/api/invitations", "/api/webhooks", "/api/v1", "/api/hooks", "/api/public", "/api/cron", "/api/notifications"]
+  ...["/api/admin", "/api/auth", "/api/profile", "/api/workspaces", "/api/me", "/api/push", "/api/invitations", "/api/webhooks", "/api/v1", "/api/hooks", "/api/public", "/api/cron", "/api/notifications", "/api/partner"]
     .map(prefix => ({ prefix, skip: true }) as Rule),
   { prefix: "/api/team", read: "MANAGER", write: "ADMIN" } as Rule,
   { prefix: "/api/billing", read: "ADMIN", write: "ADMIN" } as Rule,
   { prefix: "/api/payments", write: "ADMIN" } as Rule,
   { prefix: "/api/whatsapp/payments/accounts", read: "ADMIN", write: "ADMIN" } as Rule,
+  { prefix: "/api/calls/settings", read: "MANAGER", write: "ADMIN" } as Rule,
   { prefix: "/api/developer", read: "ADMIN", write: "ADMIN" } as Rule,
   { prefix: "/api/integrations", read: "ADMIN", write: "ADMIN" } as Rule,
   { prefix: "/api/settings", write: "ADMIN" } as Rule,
@@ -68,5 +69,5 @@ export const PAGE_MIN_ROLE: Record<string, Role> = {
   "/app/analytics": "MANAGER", "/app/campaigns": "MANAGER", "/app/ads": "MANAGER", "/app/templates": "MANAGER", "/app/automation": "MANAGER",
   "/app/forms": "MANAGER", "/app/contacts/segments": "MANAGER", "/app/leads": "AGENT", "/app/integrations": "ADMIN", "/app/billing": "ADMIN",
   "/app/developers": "ADMIN", "/app/settings": "ADMIN", "/app/meta-account": "MANAGER", "/app/green-tick": "MANAGER", "/app/team": "MANAGER",
-  "/app/inbox/settings": "MANAGER", "/app/payments": "AGENT",
+  "/app/inbox/settings": "MANAGER", "/app/payments": "AGENT", "/app/calls": "AGENT", "/partner": "OWNER",
 }

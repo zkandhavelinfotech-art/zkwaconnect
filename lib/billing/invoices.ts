@@ -23,7 +23,7 @@ export async function createGstInvoice(
   subscriptionId: string | null,
   amount: number,
   description?: string,
-  kind: "SUBSCRIPTION" | "WALLET_TOPUP" = "SUBSCRIPTION",
+  kind: "SUBSCRIPTION" | "WALLET_TOPUP" | "PARTNER_TOPUP" = "SUBSCRIPTION",
 ) {
   const sellerName = process.env.COMPANY_NAME || "ZKandhavel Infotech Pvt. Ltd."
   const sellerGstin = process.env.SELLER_GSTIN || process.env.GSTIN || null

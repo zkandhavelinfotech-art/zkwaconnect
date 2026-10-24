@@ -3,6 +3,7 @@ import { forgetPlans } from "./plans"
 import { forgetPlanCache } from "./limits"
 import { creditWallet } from "@/lib/billing/messaging"
 import { prisma } from "@/lib/db/prisma"
+import { accrueCommission, postLedger } from "@/lib/partners/partners"
 
 export type BillingInterval = "MONTHLY" | "ANNUAL"
 
@@ -27,6 +28,13 @@ export async function activatePaidSubscription(tx: Prisma.TransactionClient, pay
       await creditWallet(tx, { organizationId: payment.organizationId, amount: Number(invoice.amount), type: "TOPUP", reason: `Top-up · invoice ${invoice.invoiceNumber}`, invoiceId: invoice.id })
       return null
     }
+    // Partner wallet top-up (wholesale partners buy client plans from it); credited before GST.
+    if (invoice.kind === "PARTNER_TOPUP") {
+      const partner = await tx.partner.findUnique({ where: { organizationId: payment.organizationId } })
+      if (partner) await postLedger(tx, { partnerId: partner.id, type: "TOPUP", amount: Number(invoice.amount), reference: `topup:${invoice.id}`, description: `Wallet top-up · invoice ${invoice.invoiceNumber}` })
+      return null
+    }
+    await accrueCommission(tx, payment.organizationId, invoice)
   }
   if (!payment.subscriptionId) return null
   const subscription = await tx.subscription.findUnique({ where: { id: payment.subscriptionId } })

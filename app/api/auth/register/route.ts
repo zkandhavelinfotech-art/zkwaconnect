@@ -4,6 +4,8 @@ import { prisma }         from "@/lib/db/prisma"
 import { hashPassword }   from "@/lib/auth/password"
 import { createSession, setActiveWorkspace }  from "@/lib/auth/session"
 import { createWorkspace } from "@/lib/workspaces"
+import { headers } from "next/headers"
+import { brandForHost } from "@/lib/partners/brand"
 
 const schema = z.object({
   name:             z.string().min(2),
@@ -27,6 +29,10 @@ export async function POST(req: Request) {
     const passwordHash = await hashPassword(input.password)
     const user = await prisma.user.create({ data: { email, name: input.name, passwordHash, phone: input.phone || null } })
     const workspace = await createWorkspace(user.id, { name: input.organizationName, country: input.country, timezone: input.timezone, gstin: input.gstin })
+    // Signed up on a partner's address: the workspace becomes that partner's client.
+    const list = await headers()
+    const brand = await brandForHost(list.get("x-forwarded-host") || list.get("host"))
+    if (brand) await prisma.organization.update({ where: { id: workspace.id }, data: { partnerId: brand.partnerId, billingExempt: false } })
 
     await createSession(user.id)
     await setActiveWorkspace(workspace.id)

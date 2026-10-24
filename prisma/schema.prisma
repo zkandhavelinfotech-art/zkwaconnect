@@ -156,6 +156,8 @@ model Organization {
   // DIRECT | PLATFORM_FEE | RESELLER — null means the platform default (set by super admin)
   // Internal workspace (the platform owner's own company or managed clients): all features, no limits, no plan or charges
   billingExempt     Boolean            @default(false)
+  // Client workspace of a partner (agency / reseller); branding and billing follow the partner
+  partnerId         String?
   messagingBillingMode String?
   lowBalanceAlertAt DateTime?
   status    OrganizationStatus @default(TRIAL)
@@ -272,6 +274,7 @@ model PhoneNumber {
   displayName        String?
   phoneNumber        String
   countryCode        String?
+  callingEnabled     Boolean          @default(false)
   status             ConnectionStatus @default(PENDING)
   verificationStatus String?
   qualityRating      String?
@@ -460,6 +463,9 @@ model Contact {
   // Instagram-scoped user id for contacts who message on Instagram (their phone is stored as "ig:<id>")
   instagramId     String?
   optedOutAt      DateTime?
+  // WhatsApp Calling: permission for the business to call this contact (temporary = 7 days from callPermissionUntil)
+  callPermission      String?
+  callPermissionUntil DateTime?
 
   @@unique([organizationId, phone])
   @@index([organizationId, instagramId])
@@ -1073,4 +1079,90 @@ model PaymentAccount {
 
   @@unique([organizationId, provider])
   @@map("payment_accounts")
+}
+
+// WhatsApp Calling (Cloud API): one row per call, inbound (customer calls) or outbound (call-back with permission)
+model Call {
+  id              String    @id @default(cuid())
+  organizationId  String
+  phoneNumberId   String
+  contactId       String?
+  metaCallId      String    @unique
+  direction       String
+  status          String    @default("RINGING")
+  offerSdp        String?   @db.Text
+  answerSdp       String?   @db.Text
+  answeredById    String?
+  startedById     String?
+  answeredAt      DateTime?
+  endedAt         DateTime?
+  durationSeconds Int?
+  error           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, status])
+  @@map("calls")
+}
+
+// Partner programme: agencies / resellers who run client workspaces under their own brand.
+// WHOLESALE: the partner buys client plans from its prepaid wallet at a discount and bills clients itself.
+// COMMISSION: clients pay the platform; the partner earns a % of every plan payment.
+model Partner {
+  id                String    @id @default(cuid())
+  organizationId    String    @unique
+  name              String
+  slug              String    @unique
+  status            String    @default("PENDING")
+  model             String    @default("WHOLESALE")
+  discountPercent   Decimal   @default(20) @db.Decimal(5, 2)
+  commissionPercent Decimal   @default(20) @db.Decimal(5, 2)
+  walletBalance     Decimal   @default(0) @db.Decimal(14, 2)
+  brandName         String?
+  logoPath          String?
+  primaryColor      String?
+  supportEmail      String?
+  supportPhone      String?
+  hidePoweredBy     Boolean   @default(false)
+  customDomain      String?   @unique
+  domainVerifiedAt  DateTime?
+  note              String?
+  approvedAt        DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  members           PartnerMember[]
+  ledger            PartnerLedger[]
+
+  @@map("partners")
+}
+
+model PartnerMember {
+  id        String   @id @default(cuid())
+  partnerId String
+  userId    String
+  role      String   @default("OWNER")
+  createdAt DateTime @default(now())
+  partner   Partner  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@unique([partnerId, userId])
+  @@index([userId])
+  @@map("partner_members")
+}
+
+// Partner money: TOPUP (+), PLAN (− wholesale purchase), COMMISSION (+ earned), PAYOUT (− paid out), ADJUSTMENT (±)
+model PartnerLedger {
+  id             String   @id @default(cuid())
+  partnerId      String
+  organizationId String?
+  type           String
+  amount         Decimal  @db.Decimal(14, 2)
+  balanceAfter   Decimal  @db.Decimal(14, 2)
+  description    String
+  reference      String?  @unique
+  createdAt      DateTime @default(now())
+  partner        Partner  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@index([partnerId, createdAt])
+  @@map("partner_ledger")
 }

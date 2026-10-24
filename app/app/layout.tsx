@@ -6,6 +6,7 @@ import { Logo, LogoIcon } from "@/components/Logo"
 import { ProfileMenu } from "@/components/ProfileMenu"
 import { InstallButton } from "@/components/pwa/Pwa"
 import { NotificationBell } from "@/components/NotificationBell"
+import { CallManager } from "@/components/calls/CallManager"
 import { atLeast, PAGE_MIN_ROLE } from "@/lib/auth/permissions"
 import { featureForPage, type FeatureKey, type PlanSummary } from "@/lib/billing/features"
 import { LockedFeature } from "@/components/billing/LockedFeature"
@@ -20,6 +21,7 @@ const NAV:NavGroup[] = [
   ]},
   { id:"chat", icon:"💬", label:"Live Chat", items:[
     { href:"/app/inbox", icon:"💬", label:"Inbox" },
+    { href:"/app/calls", icon:"📞", label:"Calls" },
   ]},
   { id:"campaigns", icon:"📣", label:"Campaigns", items:[
     { href:"/app/campaigns",  icon:"📣", label:"Broadcasts" },
@@ -48,6 +50,7 @@ const NAV:NavGroup[] = [
     { href:"/app/billing",      icon:"💳", label:"Billing" },
     { href:"/app/green-tick",   icon:"✔️", label:"Green tick" },
     { href:"/app/developers",   icon:"🧩", label:"Developers" },
+    { href:"/partner",          icon:"🤝", label:"Partner programme" },
   ]},
 ]
 
@@ -68,6 +71,8 @@ type Me = {
   workspace:{id:string;name:string;role:string;walletBalance:number;currency:string;count:number}
   plan:{name:string;status:string;interval:string;renewsOn:string|null;trialEndsAt:string|null}|null
   whatsapp:{connected:boolean;phoneNumber:string|null}
+  brand?:{name:string;logoUrl:string|null;primaryColor:string|null;hidePoweredBy:boolean}|null
+  partner?:{status:string;model:string}|null
   access?:{active:boolean;onFree:boolean;internal?:boolean;status:string;endsAt:string|null;planName:string|null;features:FeatureKey[];messagesUsed:number;messagesLimit:number|null;
     nearLimit:boolean;atLimit:boolean;next:{name:string;adds:FeatureKey[]}|null;plans:PlanSummary[]}
 }
@@ -102,6 +107,8 @@ export default function AppLayout({ children }:{ children:React.ReactNode }) {
     fetch("/api/me").then(response => response.ok ? response.json() : null).then(setMe).catch(() => null)
     setReady(true)
   },[])
+  // White-label: the partner's name in the browser tab.
+  useEffect(()=>{ if (me?.brand?.name) document.title = me.brand.name },[me?.brand?.name])
 
   // Keep the current page's group open; close the drawer and flyout after navigating.
   useEffect(()=>{
@@ -207,8 +214,12 @@ export default function AppLayout({ children }:{ children:React.ReactNode }) {
       <aside className={`zk-sidebar${drawer ? " open" : ""}`} aria-label="Main navigation">
         <div style={{padding:compact?"16px 0 12px":"16px 12px 12px 16px",borderBottom:"1px solid rgba(255,255,255,.1)",display:"flex",
           alignItems:"center",justifyContent:compact?"center":"space-between",gap:8,flexDirection:compact?"column":"row"}}>
-          <Link href="/app/dashboard" style={{textDecoration:"none"}} title="ZKWAConnect">
-            {compact ? <LogoIcon size={38} /> : <Logo size={36} showText />}
+          <Link href="/app/dashboard" style={{textDecoration:"none"}} title={me?.brand?.name || "ZKWAConnect"}>
+            {me?.brand ? <span style={{display:"flex",alignItems:"center",gap:8,color:"#fff"}}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                {me.brand.logoUrl ? <img src={me.brand.logoUrl} alt="" height={compact?34:32} style={{borderRadius:6,background:"#fff",maxWidth:compact?38:120,objectFit:"contain"}} /> : <span style={{fontSize:22}}>💬</span>}
+                {!compact && <strong style={{fontFamily:"Sora,sans-serif",fontSize:15}}>{me.brand.name}</strong>}</span>
+              : compact ? <LogoIcon size={38} /> : <Logo size={36} showText />}
           </Link>
           <button type="button" className="zk-collapse" onClick={toggleRail}
             aria-label={compact ? "Expand sidebar" : "Collapse sidebar"} title={compact ? "Expand sidebar" : "Collapse sidebar"}>{compact ? "»" : "«"}</button>
@@ -315,6 +326,7 @@ export default function AppLayout({ children }:{ children:React.ReactNode }) {
             {!me?.access?.internal && <a href="/app/billing" style={{display:"inline-flex",alignItems:"center",gap:6,background:"#25D366",color:"#053d36",fontSize:13,fontWeight:700,
               textDecoration:"none",borderRadius:8,padding:"7px 14px",whiteSpace:"nowrap"}}>💎 {me?.access?.status === "TRIAL" ? "Upgrade" : "Explore Plans"}</a>}
             {me && <NotificationBell />}
+            {me?.access?.features.includes("calling") && <CallManager />}
             <InstallButton />
             {me && <ProfileMenu name={me.user.name} email={me.user.email} workspace={workspace} />}
           </div>

@@ -1,7 +1,7 @@
 "use client"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { LogoLockup } from "@/components/Logo"
+import { BrandMark, brandBackground, useBrand } from "@/components/brand/BrandMark"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -10,6 +10,7 @@ export default function LoginPage() {
   const [needTotp,  setNeedTotp] = useState(false)
   const [loading,   setLoading]  = useState(false)
   const [error,     setError]    = useState("")
+  const brand = useBrand()
 
   const F = (k:string) => (e:React.ChangeEvent<HTMLInputElement>) =>
     setForm(f=>({...f,[k]:e.target.value}))
@@ -34,7 +35,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{ minHeight:"100vh", background:"linear-gradient(135deg,#075E54 0%,#128C7E 45%,#075E54 100%)",
+    <div style={{ minHeight:"100vh", background:brandBackground(brand),
       display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
       padding:20, fontFamily:"DM Sans,sans-serif" }}>
 
@@ -42,7 +43,7 @@ export default function LoginPage() {
         <div style={{ display:"inline-flex", alignItems:"center", gap:12,
           background:"rgba(255,255,255,.12)", border:"1px solid rgba(255,255,255,.2)",
           borderRadius:16, padding:"12px 20px", marginBottom:10 }}>
-          <LogoLockup size={40} />
+          <BrandMark brand={brand} />
         </div>
         <div style={{ fontSize:14, color:"rgba(255,255,255,.7)" }}>Sign in to your workspace</div>
       </div>
@@ -119,10 +120,11 @@ export default function LoginPage() {
         </div>}
       </div>
 
-      <a href="/admin/login" style={{ display:"block", textAlign:"center",
+      {!brand && <a href="/admin/login" style={{ display:"block", textAlign:"center",
         fontSize:11, color:"rgba(255,255,255,.4)", marginTop:16, textDecoration:"none" }}>
         ZKandhavel staff? Admin panel →
-      </a>
+      </a>}
+      {brand && !brand.hidePoweredBy && <div style={{ fontSize:11, color:"rgba(255,255,255,.5)", marginTop:16 }}>Powered by ZKWAConnect</div>}
     </div>
   )
 }

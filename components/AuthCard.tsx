@@ -1,11 +1,13 @@
-import { LogoLockup } from "@/components/Logo"
+"use client"
+import { BrandMark, brandBackground, useBrand } from "@/components/brand/BrandMark"
 
 // Green background + white card used by the sign-in, forgot-password and reset-password pages.
 export function AuthCard({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
-  return <div style={{ minHeight: "100vh", background: "linear-gradient(135deg,#075E54 0%,#128C7E 45%,#075E54 100%)", display: "flex", flexDirection: "column",
+  const brand = useBrand()
+  return <div style={{ minHeight: "100vh", background: brandBackground(brand), display: "flex", flexDirection: "column",
     alignItems: "center", justifyContent: "center", padding: 20, fontFamily: "DM Sans,sans-serif" }}>
     <div style={{ display: "inline-flex", alignItems: "center", gap: 12, background: "rgba(255,255,255,.12)", border: "1px solid rgba(255,255,255,.2)",
-      borderRadius: 16, padding: "12px 20px", marginBottom: 24 }}><LogoLockup size={40} /></div>
+      borderRadius: 16, padding: "12px 20px", marginBottom: 24 }}><BrandMark brand={brand} /></div>
     <div style={{ width: "100%", maxWidth: 420, background: "#fff", borderRadius: 20, padding: "clamp(22px,6vw,36px)", boxShadow: "0 24px 64px rgba(0,0,0,.25)", boxSizing: "border-box" }}>
       <h1 style={{ fontFamily: "Sora,sans-serif", fontSize: 22, fontWeight: 700, color: "#0f172a", margin: "0 0 4px" }}>{title}</h1>
       {subtitle && <p style={{ fontSize: 13, color: "#64748b", margin: "0 0 22px", lineHeight: 1.5 }}>{subtitle}</p>}

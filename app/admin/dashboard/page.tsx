@@ -228,6 +228,10 @@ export default function AdminDashboard() {
             color:"#86efac",borderRadius:6,padding:"7px 12px",fontSize:12,fontWeight:700,textDecoration:"none"}}>
             Plans &amp; features
           </a>
+          <a href="/admin/partners" style={{background:"rgba(37,211,102,.15)",border:"1px solid rgba(37,211,102,.35)",
+            color:"#86efac",borderRadius:6,padding:"7px 12px",fontSize:12,fontWeight:700,textDecoration:"none"}}>
+            🤝 Partners
+          </a>
           <a href="/admin/go-live" style={{background:"rgba(250,204,21,.15)",border:"1px solid rgba(250,204,21,.4)",
             color:"#fde68a",borderRadius:6,padding:"7px 12px",fontSize:12,fontWeight:700,textDecoration:"none"}}>
             🚀 Go-live checklist

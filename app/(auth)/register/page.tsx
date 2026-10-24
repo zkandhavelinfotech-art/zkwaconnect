@@ -1,7 +1,7 @@
 "use client"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { LogoLockup } from "@/components/Logo"
+import { BrandMark, brandBackground, useBrand } from "@/components/brand/BrandMark"
 
 const GSTIN_PATTERN = /^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$/
 
@@ -12,6 +12,7 @@ export default function RegisterPage() {
   const [agreed,   setAgreed]   = useState(false)
   const [loading,  setLoading]  = useState(false)
   const [error,    setError]    = useState("")
+  const brand = useBrand()
 
   const F = (k:keyof typeof form) => (e:React.ChangeEvent<HTMLInputElement>) =>
     setForm(f=>({...f,[k]:k==="gstin"?e.target.value.toUpperCase().replace(/\s/g,""):e.target.value}))
@@ -39,7 +40,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <div style={{ minHeight:"100vh", background:"linear-gradient(135deg,#075E54 0%,#128C7E 45%,#075E54 100%)",
+    <div style={{ minHeight:"100vh", background:brandBackground(brand),
       display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
       padding:20, fontFamily:"DM Sans,sans-serif" }}>
 
@@ -47,7 +48,7 @@ export default function RegisterPage() {
         <a href="/marketing" style={{ display:"inline-flex", alignItems:"center", gap:12, textDecoration:"none",
           background:"rgba(255,255,255,.12)", border:"1px solid rgba(255,255,255,.2)",
           borderRadius:16, padding:"12px 20px", marginBottom:10 }}>
-          <LogoLockup size={40} />
+          <BrandMark brand={brand} />
         </a>
         <div style={{ fontSize:14, color:"rgba(255,255,255,.7)" }}>Official WhatsApp Business API · Free forever plan</div>
       </div>

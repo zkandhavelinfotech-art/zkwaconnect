@@ -34,6 +34,7 @@ type BillingData = {
   billingProfile: BillingProfile
   paymentDetails: { upiId: string; payeeName: string }
   autopay?: boolean
+  managedBy?: { name: string; supportEmail: string | null; supportPhone: string | null } | null
   usage?: { active: boolean; onFree: boolean; internal?: boolean; planName: string | null; planSlug: string | null; features: FeatureKey[]
     limits: { messages: number | null; users: number | null; numbers: number | null }; usage: { messages: number; users: number; invites: number; numbers: number } }
 }
@@ -391,7 +392,10 @@ export default function BillingPage() {
               {option === "MONTHLY" ? "Monthly" : "Yearly · 2 months free"}</button>)}
           </div>}
         </div>
-        {data?.usage?.internal ? <div style={{background:"#eff6ff",border:"1px solid #bfdbfe",borderRadius:10,padding:16,fontSize:13,color:"#1e3a8a"}}>
+        {data?.managedBy ? <div style={{background:"#eff6ff",border:"1px solid #bfdbfe",borderRadius:10,padding:16,fontSize:13,color:"#1e3a8a"}}>
+          🤝 <strong>Your plan is managed by {data.managedBy.name}.</strong> Contact them to change or renew it
+          {data.managedBy.supportEmail ? <> — <a href={`mailto:${data.managedBy.supportEmail}`}>{data.managedBy.supportEmail}</a></> : ""}{data.managedBy.supportPhone ? ` · ${data.managedBy.supportPhone}` : ""}.</div>
+        : data?.usage?.internal ? <div style={{background:"#eff6ff",border:"1px solid #bfdbfe",borderRadius:10,padding:16,fontSize:13,color:"#1e3a8a"}}>
           🏢 <strong>Internal workspace</strong> — this project belongs to ZKandavel Infotech, so every feature is included with no plan, limits or ZKWAConnect charges.
           Meta bills WhatsApp messages to the connected account as usual.</div>
         : data && <PlanCards plans={data.plans as CardPlan[]} period={period} busyId={busyPlan}

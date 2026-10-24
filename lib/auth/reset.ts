@@ -19,7 +19,7 @@ export async function resetChannels() {
 export const maskPhone = (phone: string) => { const digits = phone.replace(/\D/g, ""); return `+${digits.slice(0, 2)} ••••• ${digits.slice(-3)}` }
 
 // Never reveals whether the email has an account; returns which channels were attempted for a real account.
-export async function requestPasswordReset(email: string, origin: string) {
+export async function requestPasswordReset(email: string, origin: string, brandName?: string) {
   const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() }, select: { id: true, name: true, email: true, phone: true, status: true } })
   if (!user || user.status !== "ACTIVE") return { sent: [] as string[] }
   const available = await resetChannels()
@@ -33,8 +33,8 @@ export async function requestPasswordReset(email: string, origin: string) {
   const sent: string[] = []
   if (available.email) {
     const link = `${origin}/reset-password?token=${token}`
-    await sendEmail({ to: user.email, subject: "Reset your ZKWAConnect password", heading: `Hi ${user.name.split(" ")[0] || "there"},`,
-      paragraphs: ["We received a request to reset the password for your ZKWAConnect account.", `This link works once and expires in ${VALID_MINUTES} minutes.`],
+    await sendEmail({ to: user.email, subject: `Reset your ${brandName || "ZKWAConnect"} password`, brandName, heading: `Hi ${user.name.split(" ")[0] || "there"},`,
+      paragraphs: [`We received a request to reset the password for your ${brandName || "ZKWAConnect"} account.`, `This link works once and expires in ${VALID_MINUTES} minutes.`],
       button: { text: "Choose a new password", url: link },
       footer: "If you didn't ask for this, you can ignore this email — your password stays the same." })
       .then(() => sent.push("email")).catch(error => console.error("[auth] reset email failed", error))

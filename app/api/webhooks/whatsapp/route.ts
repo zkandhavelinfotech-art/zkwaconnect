@@ -17,6 +17,7 @@ import { handleInboundMessage } from "@/lib/flows/engine"
 import { findOrCreateConversation } from "@/lib/whatsapp/conversation"
 import { applyTemplateEvent } from "@/lib/whatsapp/template-events"
 import { handleWhatsAppPayStatus } from "@/lib/payments/whatsapp-pay"
+import { handleCallStatus, handleCallsWebhook, handlePermissionReply } from "@/lib/calls/calls"
 
 export const runtime = "nodejs"
 
@@ -37,6 +38,7 @@ type ChangeValue = {
   contacts?:{profile?:{name?:string};wa_id?:string}[]
   messages?:IncomingMessage[]
   statuses?:IncomingStatus[]
+  calls?:Parameters<typeof handleCallsWebhook>[1]["calls"]
 }
 type WebhookBody = { object?:string; entry?:{id?:string;changes?:{field?:string;value?:ChangeValue}[];messaging?:Parameters<typeof handleInstagramEntry>[0]["messaging"]}[] }
 
@@ -175,9 +177,18 @@ export async function POST(request:NextRequest) {
         const phoneNumberId=value.metadata?.phone_number_id
         const phoneNumber=phoneNumberId?await prisma.phoneNumber.findUnique({where:{phoneNumberId},include:{waba:true}}):null
         const organizationId=phoneNumber?.waba.organizationId||null
+        // WhatsApp Calling signalling (connect with SDP offer/answer, terminate).
+        if(change.field==="calls"){
+          if(phoneNumber)await handleCallsWebhook(phoneNumber,value).catch(error=>console.error("[webhook] calls",error))
+          continue
+        }
 
         for(const status of value.statuses||[]){
           // WhatsApp Pay: payment status for an order_details message (not a message delivery status).
+          if((status as {type?:string}).type==="call"){
+            if(organizationId)await handleCallStatus(organizationId,status as {id?:string;status?:string}).catch(error=>console.error("[webhook] call status",error))
+            continue
+          }
           if((status as {type?:string}).type==="payment"){
             if(phoneNumber&&organizationId)await handleWhatsAppPayStatus(organizationId,phoneNumber,status as Parameters<typeof handleWhatsAppPayStatus>[2]).catch(error=>console.error("[webhook] whatsapp pay",error))
             continue
@@ -195,6 +206,9 @@ export async function POST(request:NextRequest) {
             ...(status.status==="read"?{readAt:timestamp(status.timestamp)}:{})}})
         }
         for(const message of value.messages||[]){
+          const permission=(message.interactive as {type?:string;call_permission_reply?:Parameters<typeof handlePermissionReply>[2]}|undefined)
+          if(organizationId&&permission?.type==="call_permission_reply"&&permission.call_permission_reply)
+            await handlePermissionReply(organizationId,message.from,permission.call_permission_reply).catch(error=>console.error("[webhook] call permission",error))
           const profile=value.contacts?.find(contact=>contact.wa_id===message.from)?.profile?.name
           if(phoneNumber&&organizationId)await processMessage(organizationId,phoneNumber,message,profile)
           const existing=await prisma.webhookEvent.findFirst({where:{externalEventId:message.id}})

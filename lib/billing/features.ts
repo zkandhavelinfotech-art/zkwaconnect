@@ -21,8 +21,9 @@ export const FEATURES = {
   integrations:    { label: "Shopify, WooCommerce, Zapier & Google Sheets", group: "Integrations", description: "Order updates, COD confirmation, abandoned carts and no-code automations." },
   api:             { label: "Developer API & webhooks", group: "Integrations", description: "Send messages from your own systems and receive real-time events." },
   instagram:       { label: "Instagram inbox", group: "Integrations", description: "Answer Instagram DMs from the same inbox." },
+  calling:         { label: "WhatsApp Calling", group: "Integrations", description: "Answer customers' WhatsApp calls in the browser and call them back with permission." },
   prioritySupport: { label: "Priority support", group: "Support", description: "Faster answers from our India-based team." },
-  whiteLabel:      { label: "White-label option", group: "Support", description: "Your brand on the platform for your own clients." },
+  whiteLabel:      { label: "White-label partner programme", group: "Support", description: "Run client workspaces under your own brand, logo and web address (partner panel)." },
   dedicatedManager:{ label: "Dedicated manager & SLA", group: "Support", description: "A named account manager and an uptime commitment." },
 } as const
 export type FeatureKey = keyof typeof FEATURES
@@ -31,7 +32,7 @@ export const FEATURE_KEYS = Object.keys(FEATURES) as FeatureKey[]
 const ESSENTIALS: FeatureKey[] = ["whatsappApi", "inbox", "templates", "contacts", "quickReplies", "linkWidget", "greenTick"]
 const STARTER: FeatureKey[] = [...ESSENTIALS, "broadcasts", "segments"]
 const BUSINESS: FeatureKey[] = [...STARTER, "flows", "forms", "inboxAutomation", "clickTracking", "analytics", "commerce", "ads"]
-const PROFESSIONAL: FeatureKey[] = [...BUSINESS, "api", "integrations", "instagram"]
+const PROFESSIONAL: FeatureKey[] = [...BUSINESS, "api", "integrations", "instagram", "calling"]
 const ENTERPRISE: FeatureKey[] = [...PROFESSIONAL, "prioritySupport", "whiteLabel", "dedicatedManager"]
 
 // Starting split (approved 2026-10-20). Super admins can change it per plan afterwards.
@@ -44,7 +45,8 @@ export function featuresOf(plan: { slug: string; features: unknown } | null | un
   if (!plan) return []
   const value = plan.features && typeof plan.features === "object" && !Array.isArray(plan.features) ? plan.features as Record<string, unknown> : {}
   const known = FEATURE_KEYS.filter(key => value[key] === true)
-  if (known.length > 6 || "whatsappApi" in value) return known
+  // Features added after a plan was saved (key missing, not false) follow that plan's default.
+  if (known.length > 6 || "whatsappApi" in value) return [...known, ...(DEFAULT_PLAN_FEATURES[plan.slug] || []).filter(key => !(key in value) && !known.includes(key))]
   return DEFAULT_PLAN_FEATURES[plan.slug] || known
 }
 
@@ -64,12 +66,13 @@ export const FEATURE_API: { prefix: string; feature: FeatureKey; scope: "write" 
   { prefix: "/api/developer", feature: "api", scope: "all" },
   { prefix: "/api/integrations", feature: "integrations", scope: "all" },
   { prefix: "/api/instagram", feature: "instagram", scope: "all" },
+  { prefix: "/api/calls", feature: "calling", scope: "all" },
 ]
 export const FEATURE_PAGES: { prefix: string; feature: FeatureKey }[] = [
   { prefix: "/app/campaigns", feature: "broadcasts" }, { prefix: "/app/contacts/segments", feature: "segments" },
   { prefix: "/app/automation", feature: "flows" }, { prefix: "/app/forms", feature: "forms" }, { prefix: "/app/analytics", feature: "analytics" },
   { prefix: "/app/commerce", feature: "commerce" }, { prefix: "/app/payments", feature: "commerce" }, { prefix: "/app/ads", feature: "ads" },
-  { prefix: "/app/developers", feature: "api" }, { prefix: "/app/integrations", feature: "integrations" },
+  { prefix: "/app/developers", feature: "api" }, { prefix: "/app/integrations", feature: "integrations" }, { prefix: "/app/calls", feature: "calling" },
 ]
 
 const matchPrefix = <T extends { prefix: string }>(rules: T[], path: string) =>

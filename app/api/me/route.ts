@@ -4,6 +4,9 @@ import { planState } from "@/lib/billing/limits"
 import { getSession } from "@/lib/auth/session"
 import { prisma } from "@/lib/db/prisma"
 import { expireLapsedSubscriptions } from "@/lib/billing/activate"
+import { headers } from "next/headers"
+import { brandForHost, brandForOrganization, brandForPartner } from "@/lib/partners/brand"
+import { partnerForUser } from "@/lib/partners/partners"
 
 // Lightweight header data for the app shell (no Meta API calls).
 async function accessSummary(organizationId: string) {
@@ -31,6 +34,11 @@ export async function GET() {
   })
   const org = membership.organization
   const subscription = org.subscriptions[0]
+  // White-label: the client workspace's partner, else the partner whose address this is, else the user's own partner account.
+  const list = await headers()
+  const partner = await partnerForUser(session.user.id)
+  const brand = await brandForOrganization(org.id) || await brandForHost(list.get("x-forwarded-host") || list.get("host"))
+    || (partner && partner.organizationId === org.id ? await brandForPartner(partner.id) : null)
   return NextResponse.json({
     user: { name: session.user.name, email: session.user.email, isPlatformAdmin: session.user.adminRole !== "NONE" },
     workspace: { id: org.id, name: org.name, role: membership.role, walletBalance: Number(org.walletBalance), currency: org.currency,
@@ -39,5 +47,7 @@ export async function GET() {
     plan: subscription ? { name: subscription.plan.name, status: subscription.status, interval: subscription.billingInterval === "ANNUAL" ? "yearly" : "monthly",
       renewsOn: subscription.currentPeriodEnd, trialEndsAt: subscription.trialEndsAt } : null,
     whatsapp: { connected: Boolean(phone), phoneNumber: phone?.phoneNumber || null },
+    brand, partner: partner ? { status: partner.status, model: partner.model } : null,
+    managedBy: org.partnerId ? await prisma.partner.findUnique({ where: { id: org.partnerId }, select: { model: true, brandName: true, name: true, supportEmail: true, supportPhone: true } }) : null,
   })
 }

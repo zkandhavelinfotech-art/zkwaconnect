@@ -280,6 +280,8 @@ export default function InboxPage() {
                 📣 From {detail.adReferral.sourceType==="ad"?"ad":"post"}{detail.adReferral.headline?`: ${detail.adReferral.headline}`:""}</div>}
             </div>
             <div style={{marginLeft:"auto",display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
+              {conversation.channel!=="INSTAGRAM"&&<a href={`/app/calls?contact=${contact!.id}`} title="WhatsApp call" aria-label="WhatsApp call"
+                style={{fontSize:13,border:"1px solid #e2e8f0",borderRadius:6,padding:"4px 8px",background:"#fff",textDecoration:"none"}}>📞</a>}
               <select aria-label="Assign conversation" value={conversation.assignedUser?.id||""} onChange={event=>patch({assignedUserId:event.target.value||null})}
                 style={{fontSize:12,border:"1px solid #e2e8f0",borderRadius:6,padding:"5px 8px",background:"#fff"}}>
                 <option value="">Unassigned</option>{members.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}

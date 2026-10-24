@@ -14,7 +14,7 @@ export function middleware(req: NextRequest) {
     if (!hasSession) return NextResponse.redirect(new URL("/admin/login", req.url))
     return NextResponse.next()
   }
-  if (pathname.startsWith("/app") || pathname.startsWith("/onboarding") || pathname.startsWith("/projects")) {
+  if (pathname.startsWith("/app") || pathname.startsWith("/onboarding") || pathname.startsWith("/projects") || pathname.startsWith("/partner")) {
     if (!hasSession) {
       const url = new URL("/login", req.url)
       url.searchParams.set("from", pathname)
@@ -28,5 +28,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/app/:path*", "/onboarding/:path*", "/projects/:path*", "/admin/:path*", "/login", "/register", "/api/:path*"],
+  matcher: ["/app/:path*", "/onboarding/:path*", "/projects/:path*", "/partner/:path*", "/partner", "/admin/:path*", "/login", "/register", "/api/:path*"],
 }

@@ -1,4 +1,4 @@
-# ZKWAConnect v4.3.0
+# ZKWAConnect v4.4.0
 
 **WhatsApp Business API platform for Indian businesses.** It talks only to Meta's official Cloud API, with no AI and no third-party BSP.
 Built with Next.js 15 · TypeScript · Prisma 7.9.1 · PostgreSQL. It deploys to Railway, Vercel, GoDaddy or HostGator via GitHub Actions.
@@ -19,7 +19,11 @@ Earlier releases (see [CHANGELOG.md](CHANGELOG.md)):
 - **v4.0.7:** legal pages, forgot password, two-factor sign-in and login lockout, cloud media storage, and the go-live checklist.
 - **Before that:** 7-day trial with upgrade reminders, plan features with a Free plan, internal company workspaces, and AiSensy-parity features.
 
-**Next release (v4.4.0):** white-label branding, partner/reseller panel (wholesale or commission, set per partner), and WhatsApp Calling (incoming calls plus call-back).
+## What's new in v4.4.0: partners, white-label and calling
+
+- **WhatsApp Calling:** answer customers' WhatsApp calls in the browser, and call them back after they give permission. The number needs a messaging limit of 2,000+.
+- **Partner programme (`/partner`):** agencies create and manage client workspaces. Each partner is either **wholesale** (wallet with a discount on plans) or **commission** (a share of client payments), set by the super admin.
+- **White-label:** the partner's logo, name and colour on sign-in and inside client workspaces, at `<slug>.PARTNER_BASE_DOMAIN` or the partner's own domain.
 
 ---
 
@@ -80,6 +84,8 @@ In production the demo account is not created, and the admin password comes from
 | `/login` · `/register` · `/forgot-password` | Customer sign-in, sign-up and password reset |
 | `/privacy` · `/terms` · `/refund-policy` · `/data-deletion` | Legal pages (needed for Meta App Review) |
 | `/pay/<code>` | Public UPI payment page sent to a business's customers |
+| `/partner` | Partner panel: clients, wallet or earnings, branding and domain |
+| `/app/calls` | WhatsApp Calls: settings, call a customer, call log |
 | `/projects` | Choose or create a workspace |
 | `/onboarding/*` | Meta → WABA → phone → done |
 | `/app/dashboard` | Dashboard, plan and usage |
@@ -92,7 +98,7 @@ In production the demo account is not created, and the admin password comes from
 | `/app/ads` · `/app/analytics` | Click-to-WhatsApp ads · analytics |
 | `/app/integrations` · `/app/developers` | Shopify, WooCommerce, Zapier, Sheets · API keys and webhooks |
 | `/app/team` · `/app/billing` · `/app/settings` · `/app/profile` | Team and roles · plans, invoices, auto-renew · settings · profile and 2FA |
-| `/admin/dashboard` | Super admin: tenants, payments, plans, messaging charges, **🚀 go-live checklist** |
+| `/admin/dashboard` | Super admin: tenants, payments, plans, messaging charges, partners, **🚀 go-live checklist** |
 | `/tools/*` | Free tools: link generator, button generator, blue tick, ROI calculator |
 
 ---
@@ -103,11 +109,11 @@ Pushing to `main` runs `.github/workflows/deploy.yml`: build → safe `prisma db
 See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for hosting and [docs/GO_LIVE.md](docs/GO_LIVE.md) for Meta approval, email, storage and security.
 
 Webhook URLs to register:
-- **Meta WhatsApp:** `https://<domain>/api/webhooks/whatsapp`. Subscribe to `messages` and `message_template_status_update`.
+- **Meta WhatsApp:** `https://<domain>/api/webhooks/whatsapp`. Subscribe to `messages`, `message_template_status_update` and `calls` (for WhatsApp Calling).
 - **Razorpay:** `https://<domain>/api/webhooks/payments/razorpay`, with events `payment_link.paid` and `subscription.*`. Each workspace that uses its own Razorpay account registers the same URL with its own secret.
 - **Cashfree:** `https://<domain>/api/webhooks/payments/cashfree`.
 - **Meta data deletion:** `https://<domain>/api/meta/data-deletion`.
 
 ---
 
-© 2026 ZKandavel Infotech · ZKWAConnect v4.3.0
+© 2026 ZKandavel Infotech · ZKWAConnect v4.4.0

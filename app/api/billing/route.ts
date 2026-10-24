@@ -9,6 +9,13 @@ import { stateByCode, stateByName } from "@/lib/billing/states"
 import { addInterval, expireLapsedSubscriptions, intervalLabel } from "@/lib/billing/activate"
 import { autopayAvailable } from "@/lib/billing/autopay"
 
+// Client of a wholesale partner: the partner buys and renews the plan, so the client can't buy here.
+async function managedBy(partnerId: string | null) {
+  if (!partnerId) return null
+  const partner = await prisma.partner.findUnique({ where: { id: partnerId }, select: { status: true, model: true, name: true, brandName: true, supportEmail: true, supportPhone: true } })
+  return partner?.status === "ACTIVE" && partner.model === "WHOLESALE" ? { name: partner.brandName || partner.name, supportEmail: partner.supportEmail, supportPhone: partner.supportPhone } : null
+}
+
 async function getOrganization() {
   const session = await getSession()
   const membership = session?.user.memberships.find(item => item.status === "ACTIVE")
@@ -55,6 +62,7 @@ export async function GET() {
         billingPostalCode: organization.billingPostalCode || "",
       },
       autopay: await autopayAvailable(),
+      managedBy: await managedBy(organization.partnerId),
       paymentDetails: {
         upiId: process.env.UPI_ID || "",
         payeeName: process.env.COMPANY_NAME || "ZKandhavel Infotech Pvt. Ltd.",
@@ -113,6 +121,8 @@ export async function POST(request: Request) {
   try {
     const organization = await getOrganization()
     if (!organization) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const manager = await managedBy(organization.partnerId)
+    if (manager) return NextResponse.json({ error: `Your plan is managed by ${manager.name}. Please contact them to change or renew it.` }, { status: 403 })
     if (!organization.billingAddress || !organization.billingCity || !organization.state || !organization.billingPostalCode)
       return NextResponse.json({ error: "Save your complete billing profile before buying a plan." }, { status: 400 })
 

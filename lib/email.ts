@@ -22,11 +22,11 @@ function transporter() {
 const escape = (text: string) => text.replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]!)
 
 // Simple branded email: a heading, paragraphs and an optional button.
-export async function sendEmail(input: { to: string; subject: string; heading: string; paragraphs: string[]; button?: { text: string; url: string }; footer?: string }) {
+export async function sendEmail(input: { to: string; subject: string; heading: string; paragraphs: string[]; button?: { text: string; url: string }; footer?: string; brandName?: string }) {
   if (!emailConfigured()) throw new Error("Email is not set up (SMTP_HOST / SMTP_FROM).")
   const text = [input.heading, "", ...input.paragraphs, ...(input.button ? ["", `${input.button.text}: ${input.button.url}`] : []), ...(input.footer ? ["", input.footer] : [])].join("\n")
   const html = `<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#0f172a">
-  <div style="font-weight:700;font-size:18px;color:#075e54;margin-bottom:18px">ZKWAConnect</div>
+  <div style="font-weight:700;font-size:18px;color:#075e54;margin-bottom:18px">${escape(input.brandName || "ZKWAConnect")}</div>
   <h1 style="font-size:20px;margin:0 0 12px">${escape(input.heading)}</h1>
   ${input.paragraphs.map(item => `<p style="font-size:14px;line-height:1.6;margin:0 0 12px">${escape(item)}</p>`).join("")}
   ${input.button ? `<p style="margin:20px 0"><a href="${escape(input.button.url)}" style="background:#075e54;color:#fff;padding:11px 20px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">${escape(input.button.text)}</a></p>` : ""}

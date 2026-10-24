@@ -1,10 +1,22 @@
 # Changelog
 
-## 4.4.0 — next · Partners & calling (planned)
+## 4.4.0 — 2026-10-24 · Partners, white-label & WhatsApp Calling
 
-- **White-label:** partner branding (name, logo, colours, support contact) on sign-in, the app, emails and invoices. Each partner gets a subdomain, plus an optional own domain.
-- **Partner/reseller panel (`/partner`):** client workspaces, plans, usage and wallets. Wholesale or commission, chosen per partner by super admin.
-- **WhatsApp Calling:** answer customer calls in the browser, call back after the customer grants permission, call logs and missed-call alerts.
+- **WhatsApp Calling (Calls page and a call widget):**
+  - customers tap the call button in the business's WhatsApp chat, the call rings in every open ZKWAConnect tab, and the first agent to answer takes it, talking in the browser over WebRTC;
+  - call-back after the customer accepts a call-permission request (7 days, or permanent);
+  - call log, missed-call alerts, calls recorded in the chat, and a 📞 button in the inbox;
+  - per-number on/off through Meta's settings API, which needs a messaging limit of 2,000+;
+  - it's a new plan feature, "WhatsApp Calling", on Professional and Enterprise by default.
+- **Partner programme (`/partner`):** an agency applies; super admin approves and sets **Wholesale** (wallet, discount %) or **Commission** (% of client plan payments) per partner.
+  - **Clients:** partners create client workspaces with an owner invitation.
+  - **Wholesale:** partners top up the wallet by UPI (GST invoice, approved under Payments) and buy or renew client plans from it. Their clients see "plan managed by …" on Billing.
+  - **Commission:** accrues automatically on every approved plan payment, including Razorpay auto-renewals. Super admin records payouts.
+- **White-label:**
+  - partner name, logo, colour, support contact and a "Powered by" switch, applied to sign-in, sign-up and password pages, reset emails, and the app inside client workspaces;
+  - each partner gets an address `<slug>.PARTNER_BASE_DOMAIN`, plus an optional own domain verified by DNS CNAME;
+  - sign-ups on a partner's address become that partner's clients.
+- **Admin:** Partners page (approve or suspend, programme and %, payouts and adjustments, domain status).
 
 ## 4.3.0 — 2026-10-24 · Payments
 

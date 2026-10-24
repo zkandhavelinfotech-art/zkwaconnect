@@ -3,6 +3,7 @@ import { activatePaidSubscription, addInterval, intervalLabel } from "@/lib/bill
 import { createGstInvoice } from "@/lib/billing/invoices"
 import { forgetPlanCache } from "@/lib/billing/limits"
 import { notifyWorkspace } from "@/lib/payments/notify"
+import { accrueCommission } from "@/lib/partners/partners"
 
 // Automatic plan renewal with Razorpay Subscriptions (the platform's own Razorpay account): the customer approves
 // a UPI AutoPay mandate or card once; every charge arrives as subscription.charged → GST invoice + payment + plan extended.
@@ -106,7 +107,8 @@ export async function handleSubscriptionEvent(event: SubscriptionEvent) {
         await activatePaidSubscription(tx, payment, now)
         await tx.subscription.update({ where: { id: subscription.id }, data: { autoRenew: true } })
       } else {
-        await tx.invoice.update({ where: { id: invoiceId }, data: { status: "PAID", paidAt: now } })
+        const paid = await tx.invoice.update({ where: { id: invoiceId }, data: { status: "PAID", paidAt: now } })
+        await accrueCommission(tx, subscription.organizationId, paid)
         const from = subscription.currentPeriodEnd && subscription.currentPeriodEnd > now ? subscription.currentPeriodEnd : now
         await tx.subscription.update({ where: { id: subscription.id }, data: { status: "ACTIVE", currentPeriodStart: from, currentPeriodEnd: addInterval(from, subscription.billingInterval), autoRenew: true } })
       }

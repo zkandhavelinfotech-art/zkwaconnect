@@ -23,7 +23,7 @@ The background worker (broadcasts, chatbot delays, cart and plan reminders) runs
 4. **Tech Provider**: needed so customers can connect their own numbers through Embedded Signup.
 5. **App Review, advanced access**: `whatsapp_business_management`, `whatsapp_business_messaging` and `business_management`. Add `ads_management`, `pages_show_list` and `instagram_manage_messages` only if you sell Ads or Instagram. Each permission needs a screen recording of ZKWAConnect using it.
 6. **Embedded Signup configuration**: its ID goes in `NEXT_PUBLIC_META_CONFIG_ID`.
-7. **Webhook**: `https://<domain>/api/webhooks/whatsapp`, verify token = `META_VERIFY_TOKEN`. Subscribe to `messages` and `message_template_status_update`.
+7. **Webhook**: `https://<domain>/api/webhooks/whatsapp`, verify token = `META_VERIFY_TOKEN`. Subscribe to `messages`, `message_template_status_update` and, for WhatsApp Calling, `calls`.
 8. **Your own number**: connect the company number in ZKWAConnect and add a payment method in WhatsApp Manager. Create an **Authentication** template (e.g. `zk_login_code`, with a "Copy code" button) and select it under Go-live → WhatsApp verification codes.
 
 ## 3. Media storage
@@ -41,7 +41,18 @@ Uploaded and received files (inbox media, template headers, carousel cards) must
 - **Two-factor sign-in**: Profile → Two-factor sign-in (authenticator app plus 8 recovery codes). Turn it on for every super admin.
 - The public demo account and the "Fill demo credentials" box are off unless `SEED_DEMO=on` / `NEXT_PUBLIC_DEMO_LOGIN=on`.
 
-## 5. Before announcing
+## 5. Partners and white-label (optional)
+
+- **Sub-domains for partners:** set `PARTNER_BASE_DOMAIN=zkwaconnect.in`, add a wildcard DNS record `*.zkwaconnect.in` → your server, and add the wildcard domain on Railway.
+- **A partner's own domain:** the partner adds a CNAME to `PARTNER_CNAME_TARGET` (default: the host of `APP_URL`) and clicks Verify. Then add that domain on Railway so it gets HTTPS.
+- **Approving partners:** under **Admin → 🤝 Partners**, choose Wholesale (discount %) or Commission (%). Wholesale wallet top-ups appear under Payments for approval, like plan payments.
+
+## 6. WhatsApp Calling (optional)
+
+- Meta requires a **messaging limit of 2,000+** on the number, plus the `calls` webhook field.
+- Turn calling on per number under **Calls**. Agents need a browser that allows microphone access (HTTPS) and an open ZKWAConnect tab to hear calls ring.
+
+## 7. Before announcing
 
 - [ ] Every Go-live check is ✅. ⚠️ items are optional.
 - [ ] Test email, storage and a WhatsApp code from the checklist page.
