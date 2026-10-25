@@ -15,11 +15,14 @@ export default function LoginPage() {
   const [loading,   setLoading]  = useState(false)
   const [error,     setError]    = useState("")
   const [remember,  setRemember] = useState(true)
+  const [company,   setCompany]  = useState<{ email:string; exists:boolean; workspaces:string[] }[]>([])
   const brand = useBrand()
 
   // "Remember me": the email is kept on this device and filled in next time (the browser's password manager keeps the password).
   useEffect(() => {
     try { const saved = localStorage.getItem(EMAIL_KEY); if (saved) setForm(f => f.email ? f : { ...f, email: saved }) } catch { /* storage blocked */ }
+    // Local dev only: your company logins (emails only) for quick fill.
+    if (process.env.NODE_ENV === "development") fetch("/api/dev/logins").then(r => r.ok ? r.json() : null).then(d => d && setCompany(d.logins)).catch(() => null)
   }, [])
 
   const F = (k:string) => (e:React.ChangeEvent<HTMLInputElement>) =>
@@ -132,6 +135,16 @@ export default function LoginPage() {
             style={{ marginTop:8, fontSize:11, padding:"4px 12px", background:"#fff",
               border:"1px solid #bbf7d0", borderRadius:6, cursor:"pointer",
               color:"#15803d", fontWeight:600 }}>Fill demo credentials</button>
+          {company.length > 0 && <div style={{ borderTop:"1px solid #bbf7d0", marginTop:12, paddingTop:10 }}>
+            <div style={{ fontSize:12, fontWeight:600, color:"#15803d", marginBottom:6 }}>Your company logins</div>
+            {company.map(c => <button key={c.email} type="button" disabled={!c.exists}
+              onClick={() => { setForm({ email:c.email, password:"" }); setTimeout(() => (document.querySelector("input[name=password]") as HTMLInputElement | null)?.focus(), 0) }}
+              title={c.exists ? "Fills the email — enter your password (or pick it from your browser's saved passwords)" : "Account not created yet — open the invitation link to set the password"}
+              style={{ display:"block", width:"100%", marginTop:6, fontSize:12, padding:"6px 10px", background:"#fff", border:"1px solid #bbf7d0", borderRadius:6,
+                cursor:c.exists ? "pointer" : "not-allowed", color:c.exists ? "#075E54" : "#94a3b8", fontWeight:600, textAlign:"left" }}>
+              {c.email}<span style={{ display:"block", fontSize:10, fontWeight:400, color:"#64748b" }}>{c.exists ? c.workspaces.join(" · ") || "No workspace" : "Not created yet — use the invitation link"}</span></button>)}
+            <div style={{ fontSize:10, color:"#64748b", marginTop:6 }}>Fills the email; type your own password (it isn't shown or stored by the app).</div>
+          </div>}
         </div>}
       </div>
 
