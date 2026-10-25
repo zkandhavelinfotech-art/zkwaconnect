@@ -1,12 +1,12 @@
 @echo off
 setlocal enabledelayedexpansion
-title ZKWAConnect v5.0.0 - Setup Manager
+title ZKWAConnect v5.1.0 - Setup Manager
 
 :MENU
 cls
 echo.
 echo  ╔═══════════════════════════════════════════════════════════╗
-echo  ║   ZKWAConnect v5.0.0  -  Setup Manager                    ║
+echo  ║   ZKWAConnect v5.1.0  -  Setup Manager                    ║
 echo  ║   ZKandavel Infotech  ·  zkwaconnect.in                   ║
 echo  ╚═══════════════════════════════════════════════════════════╝
 echo.
@@ -92,8 +92,8 @@ cls & echo.
 echo  NOTE: migrate dev requires superuser DB access and is for a LOCAL database only.
 echo  For Railway/Neon/GoDaddy use [15] DB Push instead.
 echo.
-set /p MNAME=  Migration name (e.g. zkwa_v500):
-if "!MNAME!"=="" set MNAME=zkwa_v500
+set /p MNAME=  Migration name (e.g. zkwa_v510):
+if "!MNAME!"=="" set MNAME=zkwa_v510
 call npx prisma migrate dev --name !MNAME!
 if errorlevel 1 ( echo  [ERROR] Use [15] DB Push for managed databases & pause & goto MENU )
 call npx prisma generate
@@ -195,7 +195,7 @@ echo. & echo  [OK] DB reset. & pause & goto MENU
 :FRESH
 cls & echo.
 echo  ═══════════════════════════════════════
-echo   FRESH INSTALL - ZKWAConnect v5.0.0
+echo   FRESH INSTALL - ZKWAConnect v5.1.0
 echo  ═══════════════════════════════════════
 echo.
 echo  Steps:

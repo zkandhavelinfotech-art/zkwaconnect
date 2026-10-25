@@ -1,9 +1,13 @@
-# ZKWAConnect v5.0.0
+# ZKWAConnect v5.1.0
 
 **WhatsApp Business API platform for Indian businesses.** It talks only to Meta's official Cloud API, with no AI and no third-party BSP.
 Built with Next.js 15 · TypeScript · Prisma 7.9.1 · PostgreSQL. It deploys to Railway, Vercel, GoDaddy or HostGator via GitHub Actions.
 
 ---
+
+## What's new in v5.1.0: WhatsApp Page Builder
+
+Build a **mini-website, link-in-bio or campaign landing page** (Campaigns → WhatsApp Pages) where every button opens a WhatsApp chat with a pre-filled message. Taps are tracked, chats are attributed to the page, and lead-form sign-ups go straight to Contacts. Pages live at `/p/<name>`. Free: 1 page; paid plans: more.
 
 ## What's new in v5.0.0
 
@@ -86,6 +90,8 @@ In production the demo account is not created, and the admin password comes from
 | `/login` · `/register` · `/forgot-password` | Customer sign-in, sign-up and password reset |
 | `/privacy` · `/terms` · `/refund-policy` · `/data-deletion` | Legal pages (needed for Meta App Review) |
 | `/pay/<code>` | Public UPI payment page sent to a business's customers |
+| `/p/<name>` | Public WhatsApp page (mini-website, link-in-bio, landing page) |
+| `/app/pages` | WhatsApp Page Builder |
 | `/partner` | Partner panel: clients, wallet or earnings, branding and domain |
 | `/app/calls` | WhatsApp Calls: settings, call a customer, call log |
 | `/projects` | Choose or create a workspace |
@@ -118,4 +124,4 @@ Webhook URLs to register:
 
 ---
 
-© 2026 ZKandavel Infotech · ZKWAConnect v5.0.0
+© 2026 ZKandavel Infotech · ZKWAConnect v5.1.0

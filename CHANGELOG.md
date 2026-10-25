@@ -1,5 +1,29 @@
 # Changelog
 
+## 5.1.0 — 2026-10-25 · WhatsApp Page Builder
+
+- **Three page types:** mini-website, link-in-bio and campaign landing pages at `/p/<name>`. On a partner's address they carry the partner's branding automatically.
+- **Every button opens WhatsApp** with a pre-filled message:
+  - the message can start with a keyword to trigger a chatbot flow;
+  - each tap is tracked with a short ref code;
+  - the chat it starts is attributed to that page and button, and the contact is tagged `page:<name>`.
+- **14 section types:**
+  - hero, link buttons, services/offers, products from the WhatsApp catalog ("Order on WhatsApp"), lead form, call-to-action banner;
+  - FAQ, testimonials, gallery, business hours, location, text, WhatsApp QR code, social links;
+  - plus a floating WhatsApp button.
+- **Lead form:** saved to Contacts with WhatsApp opt-in only when ticked, tagged, and the team is notified.
+- **Editor:**
+  - a section list (drag to reorder, hide), a live preview that scrolls normally, and properties on the right;
+  - clicking any part of the preview selects it;
+  - desktop, tablet and mobile views, autosave, and publish / unpublish / duplicate;
+  - image uploads (PNG/JPG/WebP).
+- **10 templates:** clinic, salon, coaching, restaurant, real estate, retail, blank, link-in-bio, offer landing and event landing.
+- **Stats per page:** views, WhatsApp taps and chats started.
+- **Plans:**
+  - Free: 1 page with "Powered by ZKWAConnect";
+  - Starter: 3; Business: 10; Professional: 25; Enterprise and internal workspaces: unlimited.
+  - It's a new plan feature, "WhatsApp page builder", on every plan.
+
 ## 5.0.0 — 2026-10-24 · Payments, partners, calling and v5 merge
 
 This release includes everything below that was planned as 4.3.0 and 4.4.0; those were never released on their own. It also brings in the features of the separate `ZKWAConnect-v5.0.0-RELEASE` package:
