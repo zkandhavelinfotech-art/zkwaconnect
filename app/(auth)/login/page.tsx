@@ -1,7 +1,11 @@
 "use client"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { BrandMark, brandBackground, useBrand } from "@/components/brand/BrandMark"
+
+const EMAIL_KEY = "zk-login-email"
+// Demo box: always on the local dev server; on a production build only if NEXT_PUBLIC_DEMO_LOGIN=on (otherwise the code is removed from the build).
+const SHOW_DEMO = process.env.NODE_ENV === "development" || process.env.NEXT_PUBLIC_DEMO_LOGIN === "on"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -10,7 +14,13 @@ export default function LoginPage() {
   const [needTotp,  setNeedTotp] = useState(false)
   const [loading,   setLoading]  = useState(false)
   const [error,     setError]    = useState("")
+  const [remember,  setRemember] = useState(true)
   const brand = useBrand()
+
+  // "Remember me": the email is kept on this device and filled in next time (the browser's password manager keeps the password).
+  useEffect(() => {
+    try { const saved = localStorage.getItem(EMAIL_KEY); if (saved) setForm(f => f.email ? f : { ...f, email: saved }) } catch { /* storage blocked */ }
+  }, [])
 
   const F = (k:string) => (e:React.ChangeEvent<HTMLInputElement>) =>
     setForm(f=>({...f,[k]:e.target.value}))
@@ -28,6 +38,7 @@ export default function LoginPage() {
       const d = await r.json()
       if (r.status===403 && d.require2FA) { setNeedTotp(true); setError(d.error||"Enter your 2FA code"); setLoading(false); return }
       if (!r.ok) { setError(d.error||"Login failed"); setLoading(false); return }
+      try { if (remember) localStorage.setItem(EMAIL_KEY, form.email); else localStorage.removeItem(EMAIL_KEY) } catch { /* storage blocked */ }
       // Return to the page that sent the user here (e.g. onboarding), but only same-site paths.
       const from = new URLSearchParams(window.location.search).get("from")
       router.push(from && from.startsWith("/") && !from.startsWith("//") ? from : d.redirect||"/app/dashboard")
@@ -58,7 +69,7 @@ export default function LoginPage() {
         <form onSubmit={submit} style={{ display:"flex", flexDirection:"column", gap:0 }}>
           <label className="form-label">Email address</label>
           <input className="form-input" type="email" placeholder="you@company.com"
-            value={form.email} onChange={F("email")} required autoComplete="email"
+            value={form.email} onChange={F("email")} required autoComplete="username" name="email"
             style={{ marginBottom:16 }}
             onFocus={e=>(e.target.style.borderColor="#075E54")}
             onBlur={e=>(e.target.style.borderColor="#e2e8f0")} />
@@ -68,10 +79,14 @@ export default function LoginPage() {
             <a href="/forgot-password" style={{ fontSize:12, color:"#075E54", fontWeight:600, textDecoration:"none" }}>Forgot password?</a>
           </div>
           <input className="form-input" type="password" placeholder="••••••••"
-            value={form.password} onChange={F("password")} required autoComplete="current-password"
+            value={form.password} onChange={F("password")} required autoComplete="current-password" name="password"
             style={{ marginBottom:16 }}
             onFocus={e=>(e.target.style.borderColor="#075E54")}
             onBlur={e=>(e.target.style.borderColor="#e2e8f0")} />
+
+          <label style={{ display:"flex", alignItems:"center", gap:8, fontSize:12, color:"#475569", margin:"-6px 0 14px" }}>
+            <input type="checkbox" checked={remember} onChange={e=>setRemember(e.target.checked)} /> Remember my email on this device
+          </label>
 
           {needTotp && (
             <>
@@ -107,9 +122,9 @@ export default function LoginPage() {
           </a>
         </div>
 
-        {process.env.NEXT_PUBLIC_DEMO_LOGIN === "on" && <div style={{ marginTop:16, background:"#f0fdf4", border:"1px solid #bbf7d0",
+        {SHOW_DEMO && <div style={{ marginTop:16, background:"#f0fdf4", border:"1px solid #bbf7d0",
           borderRadius:10, padding:14, textAlign:"center" }}>
-          <div style={{ fontSize:12, fontWeight:600, color:"#15803d", marginBottom:6 }}>Demo account</div>
+          <div style={{ fontSize:12, fontWeight:600, color:"#15803d", marginBottom:6 }}>Demo account{process.env.NODE_ENV === "development" ? " (local only)" : ""}</div>
           <div style={{ fontFamily:"monospace", fontSize:13, color:"#075E54", lineHeight:1.8 }}>
             demo@zkwaconnect.in / demo1234
           </div>

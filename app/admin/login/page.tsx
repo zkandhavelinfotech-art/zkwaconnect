@@ -1,6 +1,11 @@
 "use client"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+
+const EMAIL_KEY = "zk-admin-email"
+// Super-admin quick fill: ONLY on the local dev server (`npm run dev`). In a production build this whole block, including the
+// password, is removed from the code, so it can never reach the live site.
+const LOCAL_ADMIN = process.env.NODE_ENV === "development" ? { email: "admin@zkwaconnect.in", password: "admin2026!" } : null
 
 export default function AdminLoginPage() {
   const router = useRouter()
@@ -9,7 +14,9 @@ export default function AdminLoginPage() {
   const [needTotp,setNeedTotp]= useState(false)
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState("")
+  const [remember,setRemember]=useState(true)
   const F=(k:string)=>(e:React.ChangeEvent<HTMLInputElement>)=>setForm(f=>({...f,[k]:e.target.value}))
+  useEffect(()=>{ try { const saved=localStorage.getItem(EMAIL_KEY); if(saved) setForm(f=>f.email?f:{...f,email:saved}) } catch { /* storage blocked */ } },[])
 
   async function submit(e:React.FormEvent) {
     e.preventDefault()
@@ -21,6 +28,7 @@ export default function AdminLoginPage() {
       const d=await r.json()
       if(r.status===403&&d.require2FA){setNeedTotp(true);setError(d.error);setLoading(false);return}
       if(!r.ok){setError(d.error||"Login failed");setLoading(false);return}
+      try { if(remember) localStorage.setItem(EMAIL_KEY,form.email); else localStorage.removeItem(EMAIL_KEY) } catch { /* storage blocked */ }
       router.push("/admin/dashboard")
     } catch{setError("Network error");setLoading(false)}
   }
@@ -58,13 +66,16 @@ export default function AdminLoginPage() {
             <div>
               <label className="form-label">Admin Email</label>
               <input className="form-input" type="email" value={form.email}
-                onChange={F("email")} required autoComplete="email"/>
+                onChange={F("email")} required autoComplete="username" name="email"/>
             </div>
             <div>
               <label className="form-label">Password</label>
               <input className="form-input" type="password" value={form.password}
-                onChange={F("password")} required autoComplete="current-password"/>
+                onChange={F("password")} required autoComplete="current-password" name="password"/>
             </div>
+            <label style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:"#475569"}}>
+              <input type="checkbox" checked={remember} onChange={e=>setRemember(e.target.checked)}/> Remember my email on this device
+            </label>
             {needTotp&&<div>
               <label className="form-label">Authenticator code</label>
               <input className="form-input" inputMode="numeric" autoComplete="one-time-code" autoFocus value={totp} maxLength={11}
@@ -78,6 +89,13 @@ export default function AdminLoginPage() {
               {loading?"Signing in…":needTotp?"Verify & sign in":"Sign in to Admin Panel"}
             </button>
           </form>
+          {LOCAL_ADMIN && <div style={{marginTop:14,background:"#fffbeb",border:"1px solid #fde68a",borderRadius:10,padding:12,textAlign:"center"}}>
+            <div style={{fontSize:12,fontWeight:700,color:"#92400e",marginBottom:4}}>Local super admin (development only)</div>
+            <div style={{fontFamily:"monospace",fontSize:12,color:"#78350f"}}>{LOCAL_ADMIN.email} / {LOCAL_ADMIN.password}</div>
+            <button type="button" onClick={()=>setForm({email:LOCAL_ADMIN.email,password:LOCAL_ADMIN.password})}
+              style={{marginTop:8,fontSize:11,padding:"4px 12px",background:"#fff",border:"1px solid #fde68a",borderRadius:6,cursor:"pointer",color:"#92400e",fontWeight:700}}>Fill super admin credentials</button>
+            <div style={{fontSize:10,color:"#a16207",marginTop:6}}>Hidden on the live site. Change this password before going live.</div>
+          </div>}
           <div style={{textAlign:"center",fontSize:12,color:"#94a3b8",marginTop:14}}>
             <a href="/login" style={{color:"#075E54",fontWeight:600}}>← Product login</a> · <a href="/forgot-password" style={{color:"#075E54",fontWeight:600}}>Forgot password?</a>
           </div>
