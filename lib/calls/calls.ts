@@ -91,8 +91,9 @@ export async function answerCall(organizationId: string, callId: string, userId:
   const claimed = await prisma.call.updateMany({ where: { id: callId, organizationId, direction: "INBOUND", status: "RINGING", answeredById: null }, data: { answeredById: userId } })
   if (!claimed.count) throw new Error("This call was already answered or has ended.")
   const call = await prisma.call.findUniqueOrThrow({ where: { id: callId } })
-  const { phone, token } = await phoneAndToken(organizationId, call.phoneNumberId)
   try {
+    // Any failure (no token, Meta error) releases the call so another agent can still answer it.
+    const { phone, token } = await phoneAndToken(organizationId, call.phoneNumberId)
     const session = { sdp_type: "answer", sdp }
     await callsApi(phone.phoneNumberId, token, { call_id: call.metaCallId, action: "pre_accept", session })
     await callsApi(phone.phoneNumberId, token, { call_id: call.metaCallId, action: "accept", session, biz_opaque_callback_data: call.id })
