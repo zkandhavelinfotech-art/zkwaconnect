@@ -1166,3 +1166,45 @@ model PartnerLedger {
   @@index([partnerId, createdAt])
   @@map("partner_ledger")
 }
+
+// WhatsApp Page Builder: mini-websites, link-in-bio pages and campaign landing pages where every button opens a
+// WhatsApp chat with the business. Public at /p/<slug>. Sections are JSON (draft) and published copies.
+model SitePage {
+  id                String    @id @default(cuid())
+  organizationId    String
+  type              String    @default("SITE")
+  slug              String    @unique
+  title             String
+  status            String    @default("DRAFT")
+  whatsappNumber    String?
+  theme             Json
+  sections          Json
+  publishedTheme    Json?
+  publishedSections Json?
+  seoTitle          String?
+  seoDescription    String?
+  views             Int       @default(0)
+  publishedAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([organizationId, createdAt])
+  @@map("site_pages")
+}
+
+// A tap on a page's WhatsApp button. The short ref travels in the pre-filled message, so the chat it starts is attributed to it.
+model PageClick {
+  id             String    @id @default(cuid())
+  organizationId String
+  pageId         String
+  sectionId      String
+  label          String?
+  ref            String    @unique
+  contactId      String?
+  chattedAt      DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([pageId, createdAt])
+  @@index([organizationId, createdAt])
+  @@map("page_clicks")
+}

@@ -8,7 +8,7 @@ import { AwsClient } from "aws4fetch"
 //  • Otherwise the server's disk: STORAGE_DIR (e.g. a Railway volume mounted at /data), default ./storage.
 // Reads fall back to the disk, so files saved before switching to a bucket keep working.
 
-export type Folder = "inbox-media" | "template-media" | "brand-assets"
+export type Folder = "inbox-media" | "template-media" | "brand-assets" | "page-assets"
 
 const localRoot = () => path.resolve(process.env.STORAGE_DIR || path.join(process.cwd(), "storage"))
 

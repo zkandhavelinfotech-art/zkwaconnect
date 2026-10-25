@@ -28,6 +28,7 @@ const NAV:NavGroup[] = [
     { href:"/app/ads/create", icon:"✨", label:"Create New Ad" },
     { href:"/app/ads",        icon:"📢", label:"Ads Manager" },
     { href:"/app/templates",  icon:"📋", label:"Templates" },
+    { href:"/app/pages",      icon:"🌐", label:"WhatsApp Pages" },
   ]},
   { id:"flows", icon:"🔀", label:"Flows", items:[
     { href:"/app/automation", icon:"🔀", label:"Flow Builder" },

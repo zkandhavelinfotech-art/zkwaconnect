@@ -9,6 +9,7 @@ export const FEATURES = {
   quickReplies:    { label: "Quick replies & internal notes", group: "Essentials", description: "Saved answers and private team notes in every chat." },
   linkWidget:      { label: "WhatsApp link, QR & website button", group: "Essentials", description: "Let customers start a chat from your site, ads or print." },
   greenTick:       { label: "Green tick application help", group: "Essentials", description: "Check eligibility and apply for the verified badge." },
+  pages:           { label: "WhatsApp page builder", group: "Essentials", description: "Mini-website, link-in-bio and landing pages where every button opens a WhatsApp chat (Free: 1 page)." },
   broadcasts:      { label: "Broadcasts & scheduling", group: "Marketing", description: "Send personalised templates to thousands, now or later, with delivery reports." },
   segments:        { label: "Saved segments", group: "Marketing", description: "Reusable audiences built from tags, fields and activity." },
   clickTracking:   { label: "Click tracking & retargeting", group: "Marketing", description: "See who clicked your links and re-target readers, repliers and clickers." },
@@ -29,7 +30,7 @@ export const FEATURES = {
 export type FeatureKey = keyof typeof FEATURES
 export const FEATURE_KEYS = Object.keys(FEATURES) as FeatureKey[]
 
-const ESSENTIALS: FeatureKey[] = ["whatsappApi", "inbox", "templates", "contacts", "quickReplies", "linkWidget", "greenTick"]
+const ESSENTIALS: FeatureKey[] = ["whatsappApi", "inbox", "templates", "contacts", "quickReplies", "linkWidget", "greenTick", "pages"]
 const STARTER: FeatureKey[] = [...ESSENTIALS, "broadcasts", "segments"]
 const BUSINESS: FeatureKey[] = [...STARTER, "flows", "forms", "inboxAutomation", "clickTracking", "analytics", "commerce", "ads"]
 const PROFESSIONAL: FeatureKey[] = [...BUSINESS, "api", "integrations", "instagram", "calling"]
@@ -67,12 +68,13 @@ export const FEATURE_API: { prefix: string; feature: FeatureKey; scope: "write" 
   { prefix: "/api/integrations", feature: "integrations", scope: "all" },
   { prefix: "/api/instagram", feature: "instagram", scope: "all" },
   { prefix: "/api/calls", feature: "calling", scope: "all" },
+  { prefix: "/api/pages", feature: "pages", scope: "write" },
 ]
 export const FEATURE_PAGES: { prefix: string; feature: FeatureKey }[] = [
   { prefix: "/app/campaigns", feature: "broadcasts" }, { prefix: "/app/contacts/segments", feature: "segments" },
   { prefix: "/app/automation", feature: "flows" }, { prefix: "/app/forms", feature: "forms" }, { prefix: "/app/analytics", feature: "analytics" },
   { prefix: "/app/commerce", feature: "commerce" }, { prefix: "/app/payments", feature: "commerce" }, { prefix: "/app/ads", feature: "ads" },
-  { prefix: "/app/developers", feature: "api" }, { prefix: "/app/integrations", feature: "integrations" }, { prefix: "/app/calls", feature: "calling" },
+  { prefix: "/app/developers", feature: "api" }, { prefix: "/app/integrations", feature: "integrations" }, { prefix: "/app/calls", feature: "calling" }, { prefix: "/app/pages", feature: "pages" },
 ]
 
 const matchPrefix = <T extends { prefix: string }>(rules: T[], path: string) =>

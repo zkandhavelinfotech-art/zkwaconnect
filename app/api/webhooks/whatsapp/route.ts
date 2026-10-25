@@ -18,6 +18,7 @@ import { findOrCreateConversation } from "@/lib/whatsapp/conversation"
 import { applyTemplateEvent } from "@/lib/whatsapp/template-events"
 import { handleWhatsAppPayStatus } from "@/lib/payments/whatsapp-pay"
 import { handleCallStatus, handleCallsWebhook, handlePermissionReply } from "@/lib/calls/calls"
+import { attributePageRef } from "@/lib/pages/pages"
 
 export const runtime = "nodejs"
 
@@ -92,6 +93,8 @@ async function processMessage(organizationId:string,phoneNumber:NonNullable<Awai
   }})
   await prisma.conversation.update({where:{id:conversation.id},data:{lastMessageAt:timestamp(message.timestamp),unreadCount:{increment:1}}})
   if(message.type!=="request_welcome")await markBroadcastReply(contact.id,timestamp(message.timestamp))
+  // Chat started from a WhatsApp page button: "(ref XXXXXX)" in the pre-filled message.
+  if(body.includes("(ref "))await attributePageRef(organizationId,contact.id,body).catch(error=>console.error("[webhook] page ref",error))
   if(message.type!=="request_welcome")notifyNewMessage(organizationId,conversation.id,contact.name||`+${contact.phone}`,body||(message.type==="order"?"🛒 New order":`[${message.type}]`))
     .catch(error=>console.error("[push]",error))
   if(referral)await prisma.adReferral.create({data:{organizationId,contactId:contact.id,conversationId:conversation.id,messageId:message.id,

@@ -24,6 +24,7 @@ const RULES = [
   { prefix: "/api/payments", write: "ADMIN" } as Rule,
   { prefix: "/api/whatsapp/payments/accounts", read: "ADMIN", write: "ADMIN" } as Rule,
   { prefix: "/api/calls/settings", read: "MANAGER", write: "ADMIN" } as Rule,
+  { prefix: "/api/pages", read: "MANAGER", write: "MANAGER" } as Rule,
   { prefix: "/api/developer", read: "ADMIN", write: "ADMIN" } as Rule,
   { prefix: "/api/integrations", read: "ADMIN", write: "ADMIN" } as Rule,
   { prefix: "/api/settings", write: "ADMIN" } as Rule,
@@ -69,5 +70,5 @@ export const PAGE_MIN_ROLE: Record<string, Role> = {
   "/app/analytics": "MANAGER", "/app/campaigns": "MANAGER", "/app/ads": "MANAGER", "/app/templates": "MANAGER", "/app/automation": "MANAGER",
   "/app/forms": "MANAGER", "/app/contacts/segments": "MANAGER", "/app/leads": "AGENT", "/app/integrations": "ADMIN", "/app/billing": "ADMIN",
   "/app/developers": "ADMIN", "/app/settings": "ADMIN", "/app/meta-account": "MANAGER", "/app/green-tick": "MANAGER", "/app/team": "MANAGER",
-  "/app/inbox/settings": "MANAGER", "/app/payments": "AGENT", "/app/calls": "AGENT", "/partner": "OWNER",
+  "/app/inbox/settings": "MANAGER", "/app/payments": "AGENT", "/app/calls": "AGENT", "/app/pages": "MANAGER", "/partner": "OWNER",
 }
