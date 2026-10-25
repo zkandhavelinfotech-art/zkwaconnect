@@ -9,3 +9,6 @@ dist/
 .env.backup
 storage/
 tsconfig.tsbuildinfo
+
+# Local-only quick-fill passwords for the login page (npm run dev). Never commit.
+.dev-logins.json
