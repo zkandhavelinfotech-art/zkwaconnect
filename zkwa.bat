@@ -167,8 +167,8 @@ echo. & echo  [OK] Build successful. & pause & goto MENU
 
 :DEV
 cls & echo. & echo  Starting dev server... & echo.
-echo  App:   http://localhost:3000
-echo  Admin: http://localhost:3000/admin/login
+echo  App:   http://localhost:3002
+echo  Admin: http://localhost:3002/admin/login
 echo.
 call npm run dev
 goto MENU
