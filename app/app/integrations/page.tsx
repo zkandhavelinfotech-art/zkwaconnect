@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react"
 
 type AutomationKey = "orderConfirmation" | "codConfirmation" | "shipped" | "cancelled" | "abandonedCart"
 type Automation = { enabled: boolean; templateId?: string; variables: string[]; delayMinutes?: number }
-type Integration = { id: string; type: "SHOPIFY" | "WOOCOMMERCE" | "INBOUND_HOOK"; name: string; status: string; url: string; lastEventAt: string | null; lastError: string | null
+type Integration = { id: string; type: "SHOPIFY" | "WOOCOMMERCE" | "ZKCOMMERCE" | "INBOUND_HOOK"; name: string; status: string; url: string; lastEventAt: string | null; lastError: string | null
   stats: Record<string, number>; config: { shopDomain?: string; siteUrl?: string; storeName?: string; phoneNumberId?: string; countryCode: string; abandonedNeedsConsent: boolean
     automations: Partial<Record<AutomationKey, Automation>>; webhookError: string | null } }
 type Template = { id: string; name: string; language: string; category: string | null; content: string | null; variables: number; quickReplies: number }
@@ -83,7 +83,7 @@ function StoreCard({ item, data, onChange, call }: { item: Integration; data: Da
   return <section style={card}>
     <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", alignItems: "flex-start" }}>
       <div>
-        <h3 style={{ fontFamily: "Sora,sans-serif", fontSize: 15, margin: 0 }}>{item.type === "SHOPIFY" ? "🛍️" : "🟣"} {item.name}</h3>
+        <h3 style={{ fontFamily: "Sora,sans-serif", fontSize: 15, margin: 0 }}>{item.type === "ZKCOMMERCE" ? "🛒" : item.type === "SHOPIFY" ? "🛍️" : "🟣"} {item.name}</h3>
         <div style={{ fontSize: 12, color: "#64748b", marginTop: 3 }}>{item.config.shopDomain || item.config.siteUrl} · last event {item.lastEventAt ? new Date(item.lastEventAt).toLocaleString("en-IN") : "none yet"}
           {Object.keys(item.stats).length > 0 && ` · 30 days: ${Object.entries(item.stats).map(([status, count]) => `${count} ${status === "CHECKOUT" ? "abandoned" : status.toLowerCase()}`).join(", ")}`}</div>
       </div>
@@ -137,7 +137,8 @@ function StoreCard({ item, data, onChange, call }: { item: Integration; data: Da
 
 export default function IntegrationsPage() {
   const [data, setData] = useState<Data | null>(null)
-  const [open, setOpen] = useState<"" | "shopify" | "woo" | "sheets">("")
+  const [open, setOpen] = useState<"" | "zkc" | "shopify" | "woo" | "sheets">("")
+  const [zkc, setZkc] = useState({ siteUrl: "http://localhost:3000", storeName: "ZKCommerce Store", apiKey: "" })
   const [shopify, setShopify] = useState({ shopDomain: "", accessToken: "", apiSecret: "" })
   const [woo, setWoo] = useState({ siteUrl: "", consumerKey: "", consumerSecret: "" })
   const [sheetUrl, setSheetUrl] = useState("")
@@ -181,6 +182,25 @@ export default function IntegrationsPage() {
 
     <h2 style={{ fontFamily: "Sora,sans-serif", fontSize: 16, margin: "0 0 10px" }}>🛒 Stores</h2>
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,300px),1fr))", gap: 12, marginBottom: 18 }}>
+      <section style={{ ...card, marginBottom: 0, borderTop: "3px solid #075e54" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "0 0 4px" }}>
+          <h3 style={{ margin: 0, fontSize: 15 }}>🛒 ZKCommerce</h3>
+          <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 4, background: "#dcfce7", color: "#166534" }}>NATIVE</span>
+        </div>
+        <p style={{ fontSize: 12, color: "#64748b", margin: "0 0 10px" }}>Fast Indian e-commerce. Instant order alerts, COD WhatsApp confirmation and cart recovery.</p>
+        {open !== "zkc" ? <button onClick={() => setOpen("zkc")} style={primary}>Connect ZKCommerce</button> : <form onSubmit={async event => { event.preventDefault(); if (await call("POST", { type: "ZKCOMMERCE", ...zkc })) { setOpen(""); load() } }}>
+          <ol style={{ fontSize: 12, color: "#334155", paddingLeft: 0, listStyle: "none" }}>
+            {step(1, <>ZKCommerce → <em>Store Builder → Settings → WhatsApp sender</em>.</>)}
+            {step(2, <>Select <strong>ZKWAConnect</strong> as provider, and copy your API key from <a href="/app/developers" target="_blank" style={{ color: "#075e54", fontWeight: 700 }}>Developers → Keys</a>.</>)}
+            {step(3, <>Enter your ZKCommerce store URL (e.g. <code>http://localhost:3000</code> or your live store domain) below.</>)}
+          </ol>
+          <div style={{ display: "grid", gap: 8 }}>
+            <input required placeholder="http://localhost:3000 or https://your-store.in" value={zkc.siteUrl} onChange={event => setZkc({ ...zkc, siteUrl: event.target.value })} style={input} />
+            <input placeholder="Store name (optional)" value={zkc.storeName} onChange={event => setZkc({ ...zkc, storeName: event.target.value })} style={input} />
+            <input required type="password" placeholder="API key or webhook secret (starts with zkwa_...)" value={zkc.apiKey} onChange={event => setZkc({ ...zkc, apiKey: event.target.value })} style={input} />
+            <span style={{ display: "flex", gap: 6 }}><button disabled={busy} type="submit" style={primary}>{busy ? "Connecting…" : "Connect"}</button><button type="button" onClick={() => setOpen("")} style={ghost}>Cancel</button></span>
+          </div></form>}
+      </section>
       <section style={{ ...card, marginBottom: 0 }}>
         <h3 style={{ margin: "0 0 4px", fontSize: 15 }}>🛍️ Shopify</h3>
         <p style={{ fontSize: 12, color: "#64748b", margin: "0 0 10px" }}>Orders, COD confirmation, shipping updates and abandoned checkouts.</p>

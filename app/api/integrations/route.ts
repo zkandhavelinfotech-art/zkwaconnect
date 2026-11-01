@@ -37,6 +37,12 @@ export async function GET(request: Request) {
 }
 
 const createSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("ZKCOMMERCE"),
+    siteUrl: z.string().trim().min(3),
+    storeName: z.string().trim().max(100).optional(),
+    apiKey: z.string().trim().min(4, "Enter your ZKCommerce API key or webhook secret.")
+  }),
   z.object({ type: z.literal("SHOPIFY"), shopDomain: z.string().min(3), accessToken: z.string().trim().regex(/^shpat_[\w]+$/, "Admin API access token starts with shpat_."),
     apiSecret: z.string().trim().min(10, "Paste the app's API secret key.") }),
   z.object({ type: z.literal("WOOCOMMERCE"), siteUrl: z.string().trim().url().startsWith("https://", "Your store must use https://."),
@@ -58,12 +64,22 @@ export async function POST(request: Request) {
       await prisma.webhookEndpoint.create({ data: { organizationId, url: `${input.webAppUrl}?token=${input.token}`, secret: newSecret(), events: input.events, description: "Google Sheets" } })
       return NextResponse.json({ ok: true, message: "Google Sheet connected. New events appear as rows within a few seconds." }, { status: 201 })
     }
-    if (await prisma.integration.count({ where: { organizationId, type: { in: ["SHOPIFY", "WOOCOMMERCE"] } } }) >= 5) throw new Error("Up to 5 connected stores.")
-    const config = storeConfigSchema.parse(input.type === "SHOPIFY" ? { shopDomain: shopDomainOf(input.shopDomain) || "" } : { siteUrl: input.siteUrl.replace(/\/$/, "") })
+    if (await prisma.integration.count({ where: { organizationId, type: { in: ["SHOPIFY", "WOOCOMMERCE", "ZKCOMMERCE"] } } }) >= 10) throw new Error("Up to 10 connected stores.")
+    const config = storeConfigSchema.parse(
+      input.type === "SHOPIFY"
+        ? { shopDomain: shopDomainOf(input.shopDomain) || "" }
+        : input.type === "ZKCOMMERCE"
+        ? { siteUrl: input.siteUrl.replace(/\/$/, ""), storeName: input.storeName || "ZKCommerce" }
+        : { siteUrl: input.siteUrl.replace(/\/$/, "") }
+    )
     if (input.type === "SHOPIFY" && !config.shopDomain) throw new Error("Enter your store's myshopify.com address, e.g. my-store.myshopify.com.")
-    const secrets = input.type === "SHOPIFY" ? { accessToken: input.accessToken, apiSecret: input.apiSecret, webhookSecret: "" }
-      : { consumerKey: input.consumerKey, consumerSecret: input.consumerSecret, webhookSecret: crypto.randomBytes(24).toString("base64url") }
-    const integration = await prisma.integration.create({ data: { organizationId, type: input.type, name: config.shopDomain || config.siteUrl || input.type, config: config as Prisma.InputJsonValue,
+    const secrets =
+      input.type === "SHOPIFY"
+        ? { accessToken: input.accessToken, apiSecret: input.apiSecret, webhookSecret: "" }
+        : input.type === "ZKCOMMERCE"
+        ? { apiKey: input.apiKey, webhookSecret: input.apiKey }
+        : { consumerKey: input.consumerKey, consumerSecret: input.consumerSecret, webhookSecret: crypto.randomBytes(24).toString("base64url") }
+    const integration = await prisma.integration.create({ data: { organizationId, type: input.type, name: config.storeName || config.shopDomain || config.siteUrl || input.type, config: config as Prisma.InputJsonValue,
       secretEncrypted: sealSecrets(secrets), status: "ACTIVE" } })
     try {
       const result = await connectStore(input.type, config, secrets, `${baseUrl(request)}/api/integrations/${integration.id}/webhook`)

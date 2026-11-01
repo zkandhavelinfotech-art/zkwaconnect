@@ -33,7 +33,7 @@ export const storeConfigSchema = z.object({
   webhookIds: z.array(z.union([z.string(), z.number()])).default([]), webhookError: z.string().nullable().default(null),
 })
 export type StoreConfig = z.infer<typeof storeConfigSchema>
-type Secrets = { accessToken?: string; apiSecret?: string; consumerKey?: string; consumerSecret?: string; webhookSecret: string }
+type Secrets = { accessToken?: string; apiSecret?: string; consumerKey?: string; consumerSecret?: string; apiKey?: string; webhookSecret: string }
 
 export const readConfig = (value: unknown) => storeConfigSchema.parse(value || {})
 export const sealSecrets = (secrets: Secrets) => encryptMetaToken(JSON.stringify(secrets))
@@ -46,6 +46,16 @@ function safeEqual(a: string, b: string) {
 }
 // Shopify: base64 HMAC-SHA256 of the raw body with the app's API secret. WooCommerce: same, with the webhook secret.
 export function verifyStoreSignature(type: string, secrets: Secrets, rawBody: string, headers: Headers) {
+  if (type === "ZKCOMMERCE") {
+    const authHeader = headers.get("authorization") || ""
+    if (secrets.apiKey && (authHeader === `Bearer ${secrets.apiKey}` || authHeader === secrets.apiKey)) return true
+    if (secrets.webhookSecret && headers.get("x-webhook-secret") === secrets.webhookSecret) return true
+    const given = headers.get("x-zkc-signature") || headers.get("x-zkwa-signature") || ""
+    const key = secrets.webhookSecret || secrets.apiKey
+    if (!key || !given) return false
+    return safeEqual(crypto.createHmac("sha256", key).update(rawBody, "utf8").digest("base64"), given) ||
+           safeEqual(crypto.createHmac("sha256", key).update(rawBody, "utf8").digest("hex"), given)
+  }
   const key = type === "SHOPIFY" ? secrets.apiSecret : secrets.webhookSecret
   const given = headers.get(type === "SHOPIFY" ? "x-shopify-hmac-sha256" : "x-wc-webhook-signature") || headers.get("x-zkwa-signature") || ""
   if (!key || !given) return false
@@ -65,6 +75,14 @@ async function storeFetch<T>(url: string, init: RequestInit & { auth: Record<str
   return (text ? JSON.parse(text) : {}) as T
 }
 export function storeApi(type: string, config: StoreConfig, secrets: Secrets) {
+  if (type === "ZKCOMMERCE") {
+    const base = (config.siteUrl || "http://localhost:3000").replace(/\/+$/, "")
+    const auth: Record<string, string> = secrets.apiKey ? { Authorization: `Bearer ${secrets.apiKey}` } : {}
+    return {
+      get: <T>(path: string) => storeFetch<T>(`${base}${path}`, { auth }),
+      send: <T>(method: string, path: string, body?: unknown) => storeFetch<T>(`${base}${path}`, { method, auth, body: body ? JSON.stringify(body) : undefined }),
+    }
+  }
   if (type === "SHOPIFY") {
     const base = `https://${config.shopDomain}/admin/api/${API_VERSION}`
     const auth = { "X-Shopify-Access-Token": secrets.accessToken || "" }
@@ -82,6 +100,14 @@ export const WOO_TOPICS = ["order.created", "order.updated"]
 export async function connectStore(type: string, config: StoreConfig, secrets: Secrets, webhookUrl: string) {
   const api = storeApi(type, config, secrets)
   let storeName: string
+  if (type === "ZKCOMMERCE") {
+    storeName = config.storeName || "ZKCommerce Store"
+    try {
+      const info = await api.get<{ store_name?: string; store?: { store_name?: string } }>("/api/settings").catch(() => null)
+      if (info?.store?.store_name || info?.store_name) storeName = info.store?.store_name || info.store_name || storeName
+    } catch { /* Local or firewalled store is fine */ }
+    return { storeName, webhookIds: ["zkc-live"], webhookError: null }
+  }
   if (type === "SHOPIFY") storeName = (await api.get<{ shop: { name: string } }>("/shop.json")).shop.name
   else { const status = await api.get<{ environment?: { site_url?: string }; settings?: { title?: string } }>("/system_status"); storeName = status.settings?.title || status.environment?.site_url || config.siteUrl || "WooCommerce" }
   const webhookIds: (string | number)[] = []
@@ -136,6 +162,47 @@ function wooOrder(o: Any): Normalized {
     items: (o.line_items || []).map((item: Any) => ({ sku: String(item.sku || item.product_id), name: item.name, quantity: Number(item.quantity) || 1, price: Number(item.price) || 0 })),
     name: [billing.first_name, billing.last_name].filter(Boolean).join(" ") || null, firstName: billing.first_name || null,
     phone: billing.phone || shipping.phone || null, email: billing.email || null, trackingNumber: typeof tracking === "string" ? tracking : null, acceptsMarketing: false }
+}
+function zkcommerceOrder(o: Any): Normalized {
+  const address = typeof o.shipping_address === "object" ? o.shipping_address : typeof o.address === "object" ? o.address : {}
+  const cod = o.payment_method === "cod" || /cash on delivery|\bcod\b/i.test(String(o.payment_method || ""))
+  const statusMap: Record<string, string> = {
+    new: "NEW", pending: "NEW", confirmed: "CONFIRMED", processing: "PROCESSING",
+    paid: "PAID", shipped: "SHIPPED", delivered: "DELIVERED", cancelled: "CANCELLED", failed: "CANCELLED"
+  }
+  const status = statusMap[String(o.status || "").toLowerCase()] || (o.payment_status === "paid" ? "PAID" : "NEW")
+  const rawItems = Array.isArray(o.items) ? o.items : Array.isArray(o.items_json) ? o.items_json : []
+  const items: OrderItem[] = rawItems.map((item: Any) => ({
+    sku: String(item.sku || item.product_id || item.id || ""),
+    name: String(item.name || item.title || "Item"),
+    quantity: Number(item.quantity) || 1,
+    price: Number(item.price) || 0
+  }))
+  const fullName = o.customer_name || o.name || [address.first_name, address.last_name].filter(Boolean).join(" ") || null
+  const first = fullName ? fullName.split(" ")[0] : null
+  const phone = o.customer_phone || o.phone || address.phone || null
+  const email = o.customer_email || o.email || address.email || null
+  const trackingNumber = o.tracking_number || o.courier_tracking || null
+  const trackingUrl = o.tracking_url || null
+  return {
+    externalId: String(o.id || o.order_number || ""),
+    orderNumber: o.order_number ? (String(o.order_number).startsWith("#") ? o.order_number : `#${o.order_number}`) : `#${o.id}`,
+    status,
+    paymentMethod: cod ? "COD" : o.payment_method === "razorpay" ? "Razorpay (Online)" : o.payment_method || "Online",
+    cod,
+    currency: o.currency || "INR",
+    total: Number(o.total_amount || o.total) || 0,
+    items,
+    name: fullName,
+    firstName: first,
+    phone,
+    email,
+    trackingNumber,
+    trackingUrl,
+    checkoutToken: o.checkout_token || o.token || null,
+    checkoutUrl: o.checkout_url || null,
+    acceptsMarketing: Boolean(o.accepts_marketing ?? true)
+  }
 }
 function customCart(c: Any): Normalized {
   return { externalId: `checkout:${c.id || c.token || crypto.createHash("sha1").update(`${c.phone}${c.checkout_url}`).digest("hex").slice(0, 16)}`, orderNumber: "Cart", status: "CHECKOUT",
@@ -222,15 +289,18 @@ export async function processStoreEvent(integrationId: string, topic: string, pa
       await prisma.order.update({ where: { id: order.id }, data: { remindAt: order.remindAt || new Date(Date.now() + (automation.delayMinutes || 60) * 60_000) } })
     return "cart saved"
   }
-  if (topic === "fulfillments/create") {
-    const order = await prisma.order.findUnique({ where: { organizationId_source_externalId: { organizationId: integration.organizationId, source: "SHOPIFY", externalId: String(payload.order_id) } } })
+  if (topic === "fulfillments/create" || topic === "orders/fulfilled" || topic === "order.shipped" || topic === "shipment.created") {
+    const orderId = payload.order_id || payload.id
+    const order = await prisma.order.findUnique({ where: { organizationId_source_externalId: { organizationId: integration.organizationId, source: integration.type, externalId: String(orderId) } } })
     if (!order) return "unknown order"
-    const updated = await prisma.order.update({ where: { id: order.id }, data: { status: "SHIPPED", trackingNumber: payload.tracking_number || order.trackingNumber, trackingUrl: payload.tracking_url || order.trackingUrl } })
+    const trackingNumber = payload.tracking_number || payload.courier_tracking || order.trackingNumber
+    const trackingUrl = payload.tracking_url || order.trackingUrl
+    const updated = await prisma.order.update({ where: { id: order.id }, data: { status: "SHIPPED", trackingNumber, trackingUrl } })
     await emitEvent(integration.organizationId, "order.updated", orderEvent(updated, itemsOf(updated.items)))
     await sendAutomation(integration.id, order.id, "shipped").catch(error => noteError(integration.id, error))
     return "shipped"
   }
-  const normalized = integration.type === "SHOPIFY" ? shopifyOrder(payload) : wooOrder(payload)
+  const normalized = integration.type === "SHOPIFY" ? shopifyOrder(payload) : integration.type === "ZKCOMMERCE" ? zkcommerceOrder(payload) : wooOrder(payload)
   const { order, created, previousStatus } = await upsertOrder(integration, normalized, config.countryCode)
   // A completed order closes its abandoned checkout (counted as recovered if we had reminded the customer).
   if (normalized.checkoutToken) {
@@ -285,7 +355,9 @@ export async function handleCodReply(organizationId: string, payload: string) {
     const sync = integration.type === "SHOPIFY"
       ? api.get<{ order: { tags: string } }>(`/orders/${order.externalId}.json?fields=tags`).then(result => api.send("PUT", `/orders/${order.externalId}.json`,
           { order: { id: Number(order.externalId), tags: [result.order.tags, confirmed ? "cod-confirmed" : "cod-cancelled"].filter(Boolean).join(", ") } }))
-      : api.send("PUT", `/orders/${order.externalId}`, confirmed ? { customer_note: "COD confirmed on WhatsApp" } : { status: "cancelled" })
+      : integration.type === "WOOCOMMERCE"
+      ? api.send("PUT", `/orders/${order.externalId}`, confirmed ? { customer_note: "COD confirmed on WhatsApp" } : { status: "cancelled" })
+      : api.send("PATCH", `/api/orders/${order.externalId}`, { status: confirmed ? "confirmed" : "cancelled", note: `COD ${confirmed ? "confirmed" : "cancelled"} via WhatsApp` })
     await sync.catch(error => noteError(integration.id, `Couldn't update the order in the store: ${(error as Error).message}`))
   }
   return confirmed ? "confirmed" : "cancelled"
