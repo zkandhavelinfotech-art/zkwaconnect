@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="160" viewBox="0 0 640 160">
+  <!-- Icon square -->
+  <rect x="0" y="0" width="160" height="160" rx="32" fill="#075E54"/>
+  <rect x="0" y="0" width="160" height="88" rx="32" fill="#128C7E"/>
+  <rect x="0" y="56" width="160" height="32" fill="#128C7E"/>
+  <circle cx="138" cy="22" r="48" fill="none" stroke="#0A7A6E" stroke-width="10"/>
+  <circle cx="24" cy="138" r="32" fill="none" stroke="#0A7A6E" stroke-width="7"/>
+  <text x="18" y="112" font-family="Arial,Helvetica,sans-serif" font-size="88" font-weight="700" fill="#FFFFFF">Z</text>
+  <text x="80" y="112" font-family="Arial,Helvetica,sans-serif" font-size="88" font-weight="700" fill="#25D366">K</text>
+  <!-- Double tick small -->
+  <path d="M38 136 L58 156 L96 118" fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"/>
+  <path d="M64 136 L84 156 L122 118" fill="none" stroke="#25D366" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Band -->
+  <rect x="0" y="132" width="160" height="28" fill="#054840"/>
+  <rect x="0" y="140" width="160" height="20" rx="18" fill="#054840"/>
+  <rect x="0" y="132" width="160" height="10" fill="#054840"/>
+  <text x="80" y="156" font-family="Arial,Helvetica,sans-serif" font-size="10" font-weight="700" fill="#25D366" text-anchor="middle" letter-spacing="2">API</text>
+
+  <!-- Wordmark -->
+  <text x="186" y="74" font-family="Arial,Helvetica,sans-serif" font-size="52" font-weight="700" fill="#075E54" letter-spacing="-1">ZKWAConnect</text>
+  <text x="188" y="112" font-family="Arial,Helvetica,sans-serif" font-size="22" font-weight="400" fill="#128C7E" letter-spacing="1">WhatsApp Business API</text>
+  <!-- Tagline -->
+  <text x="188" y="144" font-family="Arial,Helvetica,sans-serif" font-size="14" font-weight="400" fill="#25D366" letter-spacing=".5">by ZKandhavel Infotech Pvt. Ltd.</text>
+</svg>

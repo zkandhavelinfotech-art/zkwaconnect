@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Facebook Login · ZKWAConnect v3.3</title>
+  <meta name="theme-color" content="#075E54"/>
+  <link rel="icon" href="/icons/favicon.ico"/>
+  <link rel="apple-touch-icon" href="/icons/zkwaconnect-icon-192.png"/>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+  /* ── v3.3 Brand System ──────────────────────────────── */
+  :root{
+    --ink:#0f172a;
+    --brand:#16a34a;
+    --brand-mid:#15803d;
+    --brand-dark:#075E54;
+    --brand-wh:#25D366;
+    --accent:#1d4ed8;
+    --accent-lt:#eff6ff;
+    --warm:#f8fafc;
+    --surface:#ffffff;
+    --muted:#64748b;
+    --border:#e2e8f0;
+    --border-dark:rgba(255,255,255,.12);
+    --r:14px;--rs:8px;
+    --font-display:'Sora',sans-serif;
+    --font-body:'DM Sans',sans-serif;
+    --font-mono:'JetBrains Mono',monospace;
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--font-body);color:var(--ink);background:var(--warm);overflow-x:hidden}
+  a{text-decoration:none;color:inherit}
+
+  /* ── Announcement bar ────────────────────────────────── */
+  .ann{background:#075E54;color:#fff;text-align:center;font-size:13px;
+    font-family:var(--font-body);font-weight:500;position:sticky;top:0;z-index:9998;
+    letter-spacing:.01em;height:40px;display:flex;align-items:center;
+    justify-content:center;padding:0 20px}
+  .ann a{color:#25D366;font-weight:700;text-decoration:underline}
+
+  /* ── Nav ─────────────────────────────────────────────── */
+  .nav{position:sticky;top:40px;z-index:9999;background:rgba(7,94,84,.97);
+    backdrop-filter:blur(14px);border-bottom:1px solid var(--border-dark);
+    height:64px;display:flex;align-items:center;padding:0 5%}
+  .nav-inner{display:flex;align-items:center;gap:12px;width:100%;max-width:1280px;margin:0 auto}
+  .nav-brand{display:flex;align-items:center;gap:10px;flex:1}
+  .nav-logo{width:38px;height:38px;background:linear-gradient(145deg,#128C7E 0%,#075E54 100%);
+    border-radius:10px;display:flex;align-items:center;justify-content:center;
+    flex-shrink:0;position:relative;overflow:hidden;border:1.5px solid rgba(255,255,255,.15)}
+  .nav-logo-zk{font-family:Arial,sans-serif;font-size:14px;font-weight:800;
+    letter-spacing:-.5px;display:flex;gap:0}
+  .nav-logo-zk .z{color:#fff}
+  .nav-logo-zk .k{color:#25D366}
+  .nav-logo-tick{position:absolute;bottom:3px;right:3px;font-size:8px;color:#25D366;line-height:1}
+  .nav-name{font-family:var(--font-display);font-size:17px;font-weight:700;color:#fff;line-height:1}
+  .nav-name span{color:#25D366}
+  .nav-tagline{font-size:9px;font-weight:500;color:rgba(255,255,255,.45);
+    text-transform:uppercase;letter-spacing:.12em;margin-top:2px}
+  .nav-links{display:flex;align-items:center;gap:2px}
+  .nav-link{padding:7px 13px;font-size:13px;font-weight:500;color:rgba(255,255,255,.7);
+    border-radius:var(--rs);transition:all .15s;cursor:pointer;font-family:var(--font-body)}
+  .nav-link:hover{background:rgba(255,255,255,.08);color:#fff}
+  .nav-link.active{color:#25D366;background:rgba(37,211,102,.1)}
+  .nav-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+  .btn-ghost-wh{padding:7px 18px;font-size:13px;font-weight:600;color:#fff;
+    border:1px solid rgba(255,255,255,.25);border-radius:var(--rs);cursor:pointer;
+    background:transparent;font-family:var(--font-body);transition:all .15s}
+  .btn-ghost-wh:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.4)}
+  .btn-cta-sm{padding:8px 20px;font-size:13px;font-weight:700;color:#fff;
+    background:var(--brand);border:none;border-radius:var(--rs);cursor:pointer;
+    font-family:var(--font-display);transition:all .15s;white-space:nowrap}
+  .btn-cta-sm:hover{background:var(--brand-mid);transform:translateY(-1px)}
+
+  /* ── Page hero ─────────────────────────────────────────── */
+  .page-hero{background:linear-gradient(135deg,#075E54 0%,#128C7E 50%,#075E54 100%);
+    padding:60px 5% 50px;position:relative;overflow:hidden}
+  .page-hero::before{content:'';position:absolute;inset:0;
+    background:radial-gradient(ellipse 70% 80% at 80% 50%,rgba(255,255,255,.05) 0%,transparent 60%);
+    pointer-events:none}
+  .page-hero-inner{max-width:900px;margin:0 auto;position:relative;z-index:1}
+  .page-hero-eyebrow{display:inline-flex;align-items:center;gap:8px;
+    background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);
+    border-radius:20px;padding:5px 14px;font-size:12px;font-weight:600;
+    color:rgba(255,255,255,.9);margin-bottom:16px;letter-spacing:.06em;text-transform:uppercase}
+  .page-hero h1{font-family:var(--font-display);font-size:clamp(28px,4vw,48px);
+    font-weight:800;color:#fff;margin-bottom:12px;letter-spacing:-1px;line-height:1.1}
+  .page-hero h1 .hl{color:#25D366}
+  .page-hero-sub{font-size:16px;color:rgba(255,255,255,.7);line-height:1.6;max-width:600px}
+  .page-hero-badges{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
+  .hero-badge{display:inline-flex;align-items:center;gap:6px;
+    background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);
+    border-radius:20px;padding:4px 12px;font-size:11px;font-weight:600;
+    color:rgba(255,255,255,.85);font-family:var(--font-body)}
+  .hero-badge-dot{width:6px;height:6px;border-radius:50%;background:#25D366;flex-shrink:0}
+
+  /* ── Page layout ──────────────────────────────────────── */
+  .page-body{max-width:1100px;margin:0 auto;padding:40px 5% 80px}
+  .page-body-wide{max-width:1280px;margin:0 auto;padding:40px 5% 80px}
+
+  /* ── Cards ─────────────────────────────────────────────── */
+  .card{background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:24px;
+    box-shadow:0 1px 4px rgba(0,0,0,.04)}
+  .card-sm{background:#fff;border:1px solid var(--border);border-radius:10px;padding:16px}
+  .card-accent{background:#fff;border:1px solid var(--border);border-radius:var(--r);
+    padding:24px;border-top:3px solid var(--brand-dark)}
+  .card-head{font-family:var(--font-display);font-size:16px;font-weight:700;
+    color:var(--ink);margin-bottom:6px}
+  .card-sub{font-size:13px;color:var(--muted);line-height:1.6}
+
+  /* ── Badges / tags ─────────────────────────────────────── */
+  .badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;
+    font-size:11px;font-weight:600}
+  .badge-green{background:#dcfce7;color:#15803d}
+  .badge-blue{background:#dbeafe;color:#1d4ed8}
+  .badge-yellow{background:#fef9c3;color:#ca8a04}
+  .badge-red{background:#fee2e2;color:#dc2626}
+  .badge-purple{background:#f3e8ff;color:#7c3aed}
+  .badge-slate{background:#f1f5f9;color:#64748b}
+  .badge-wa{background:#dcfce7;color:#075E54}
+
+  /* ── Steps ─────────────────────────────────────────────── */
+  .steps{display:flex;flex-direction:column;gap:0;position:relative}
+  .step{display:flex;gap:20px;position:relative;padding-bottom:32px}
+  .step:last-child{padding-bottom:0}
+  .step-num{width:36px;height:36px;border-radius:50%;background:var(--brand-dark);
+    color:#fff;display:flex;align-items:center;justify-content:center;
+    font-family:var(--font-display);font-size:14px;font-weight:700;flex-shrink:0;z-index:1}
+  .step-line{position:absolute;left:18px;top:36px;bottom:0;width:1px;background:var(--border)}
+  .step:last-child .step-line{display:none}
+  .step-body{flex:1;padding-top:6px}
+  .step-title{font-family:var(--font-display);font-size:15px;font-weight:700;
+    color:var(--ink);margin-bottom:6px}
+  .step-desc{font-size:13px;color:var(--muted);line-height:1.65}
+
+  /* ── Grid helpers ──────────────────────────────────────── */
+  .grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+  .grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+  .grid-4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+  @media(max-width:768px){.grid-2,.grid-3,.grid-4{grid-template-columns:1fr}}
+
+  /* ── Form elements ─────────────────────────────────────── */
+  .form-group{margin-bottom:16px}
+  .form-label{display:block;font-size:12px;font-weight:600;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+  .form-input{width:100%;border:1.5px solid var(--border);border-radius:var(--rs);
+    padding:10px 14px;font-size:14px;color:var(--ink);font-family:var(--font-body);
+    background:#fff;transition:border .15s;outline:none}
+  .form-input:focus{border-color:var(--brand-dark)}
+  .form-select{width:100%;border:1.5px solid var(--border);border-radius:var(--rs);
+    padding:10px 14px;font-size:14px;color:var(--ink);font-family:var(--font-body);
+    background:#fff;cursor:pointer;outline:none}
+  .form-hint{font-size:11px;color:var(--muted);margin-top:5px;line-height:1.5}
+
+  /* ── Buttons ───────────────────────────────────────────── */
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    font-family:var(--font-display);font-weight:700;border-radius:var(--rs);
+    cursor:pointer;transition:all .15s;border:none;white-space:nowrap}
+  .btn-primary{background:var(--brand-dark);color:#fff;padding:11px 24px;font-size:14px}
+  .btn-primary:hover{background:#0A7A6E;transform:translateY(-1px);
+    box-shadow:0 6px 18px rgba(7,94,84,.3)}
+  .btn-secondary{background:#fff;color:var(--ink);padding:10px 22px;font-size:14px;
+    border:1.5px solid var(--border)}
+  .btn-secondary:hover{background:var(--warm);border-color:#cbd5e1}
+  .btn-brand{background:#25D366;color:#fff;padding:11px 24px;font-size:14px}
+  .btn-brand:hover{background:#1ebe58;transform:translateY(-1px)}
+  .btn-danger{background:#ef4444;color:#fff;padding:11px 24px;font-size:14px}
+  .btn-sm{padding:7px 16px;font-size:13px}
+  .btn-full{width:100%;justify-content:center}
+
+  /* ── Table ─────────────────────────────────────────────── */
+  .tbl{width:100%;border-collapse:collapse;font-size:13px}
+  .tbl th{text-align:left;font-size:11px;font-weight:600;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.06em;padding:10px 14px;
+    background:var(--warm);border-bottom:1px solid var(--border)}
+  .tbl td{padding:12px 14px;border-bottom:1px solid var(--border);color:var(--ink)}
+  .tbl tr:hover td{background:var(--warm)}
+  .tbl-mono{font-family:var(--font-mono);font-size:12px}
+
+  /* ── Alerts ─────────────────────────────────────────────── */
+  .alert{border-radius:var(--rs);padding:14px 16px;font-size:13px;line-height:1.6;
+    display:flex;align-items:flex-start;gap:10px;margin-bottom:16px}
+  .alert-info{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af}
+  .alert-success{background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d}
+  .alert-warning{background:#fffbeb;border:1px solid #fde68a;color:#b45309}
+  .alert-danger{background:#fef2f2;border:1px solid #fecaca;color:#991b1b}
+  .alert-wa{background:#f0fdf4;border:1px solid #86efac;color:#075E54}
+
+  /* ── Footer ─────────────────────────────────────────────── */
+  footer{background:#0f172a;color:rgba(255,255,255,.7);padding:40px 5% 24px;
+    font-size:13px;font-family:var(--font-body)}
+  .foot-inner{max-width:1280px;margin:0 auto}
+  .foot-brand{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+  .foot-logo{width:32px;height:32px;background:linear-gradient(145deg,#128C7E,#075E54);
+    border-radius:8px;display:flex;align-items:center;justify-content:center;
+    font-size:12px;font-weight:800;position:relative;overflow:hidden}
+  .foot-logo .z{color:#fff}.foot-logo .k{color:#25D366}
+  .foot-name{font-family:var(--font-display);font-size:16px;font-weight:700;color:#fff}
+  .foot-name span{color:#25D366}
+  .foot-divider{border:none;border-top:1px solid rgba(255,255,255,.1);margin:20px 0 12px}
+  .foot-bottom{display:flex;align-items:center;justify-content:space-between;
+    flex-wrap:wrap;gap:8px;font-size:12px;color:rgba(255,255,255,.4)}
+  .foot-ver{background:rgba(37,211,102,.15);color:#25D366;border-radius:20px;
+    padding:2px 10px;font-size:11px;font-weight:600}
+</style>
+</head>
+<body>
+
+<!-- Announcement bar -->
+<div class="ann">🚀 ZKWAConnect v3.3 is live · Audit logs · Flow Builder · .NET API all live · <a href="/auth/register">Start free trial →</a></div>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="/" style="display:flex;align-items:center;gap:10px;flex:1">
+      <div class="nav-logo">
+        <div class="nav-logo-zk"><span class="z">Z</span><span class="k">K</span></div>
+        <span class="nav-logo-tick">✓</span>
+      </div>
+      <div>
+        <div class="nav-name">ZKWA<span>Connect</span></div>
+        <div class="nav-tagline">Business API Platform</div>
+      </div>
+    </a>
+    <div class="nav-links"><a class="nav-link" href="/">Marketing</a><a class="nav-link" href="/whatsapp-setup">WA Setup</a><a class="nav-link" href="/whatsapp-manager">WA Manager</a><a class="nav-link" href="/wa-settings">Settings</a><a class="nav-link active" href="/fb-login">FB Login</a><a class="nav-link" href="/phone-registration">Phone Reg</a></div>
+    <div class="nav-actions">
+      <a class="btn-ghost-wh btn btn-sm" href="/auth/login">Sign In</a>
+      <a class="btn-cta-sm btn btn-sm" href="/auth/register">Start Free Trial</a>
+    </div>
+  </div>
+</nav>
+
+<!-- Page hero -->
+<div class="page-hero">
+  <div class="page-hero-inner">
+    <div class="page-hero-eyebrow">📘 Step 1 of 4 · Facebook OAuth</div>
+    <h1>Connect your <span class="hl">Facebook Business</span> account</h1>
+    <p class="page-hero-sub">Link your Meta Business Manager to ZKWAConnect using secure OAuth 2.0. Takes under 2 minutes.</p>
+    <div class="page-hero-badges"><span class="hero-badge"><span class="hero-badge-dot"></span>Meta Official Login</span><span class="hero-badge"><span class="hero-badge-dot"></span>API v20.0</span><span class="hero-badge"><span class="hero-badge-dot"></span>OAuth 2.0</span><span class="hero-badge"><span class="hero-badge-dot"></span>Encrypted storage</span></div>
+  </div>
+</div>
+
+<!-- Body -->
+<div class="page-body">
+
+<div class="grid-2" style="gap:32px;align-items:start">
+  <!-- Left: Steps -->
+  <div>
+    <div class="card" style="margin-bottom:20px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <span style="font-size:28px">📘</span>
+        <div>
+          <div class="card-head">Connect Facebook Account</div>
+          <div class="card-sub">Link your Meta Business Manager to enable WhatsApp Business API</div>
+        </div>
+      </div>
+      <div class="alert alert-info">
+        <span>ℹ️</span>
+        <div>You need a <strong>Meta Business Manager account</strong> and a <strong>verified business</strong> to use the WhatsApp Business API. Personal Facebook accounts cannot be used.</div>
+      </div>
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-line"></div>
+        <div class="step-body">
+          <div class="step-title">Click "Login with Facebook" below</div>
+          <div class="step-desc">You will be redirected to Meta's secure OAuth page. ZKWAConnect uses the official Meta Business Login flow — we never store your Facebook password.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-line"></div>
+        <div class="step-body">
+          <div class="step-title">Grant required permissions</div>
+          <div class="step-desc">Accept the following permissions when Meta prompts: <strong>whatsapp_business_management</strong>, <strong>whatsapp_business_messaging</strong>, <strong>business_management</strong>. All three are required for ZKWAConnect to work.</div>
+          <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px">
+            <span class="badge badge-wa">whatsapp_business_management</span>
+            <span class="badge badge-wa">whatsapp_business_messaging</span>
+            <span class="badge badge-blue">business_management</span>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-line"></div>
+        <div class="step-body">
+          <div class="step-title">Select your Business Manager</div>
+          <div class="step-desc">If you have multiple Meta Business Managers, select the one that owns your WhatsApp Business Account (WABA). If you don't have a WABA yet, you can create one in the next step.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-line"></div>
+        <div class="step-body">
+          <div class="step-title">Authorize ZKWAConnect</div>
+          <div class="step-desc">Click "Continue" to complete OAuth. You will be returned to ZKWAConnect automatically. Your access token is encrypted and stored securely — it is never exposed in the UI.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-line"></div>
+        <div class="step-body">
+          <div class="step-title">Complete WhatsApp setup</div>
+          <div class="step-desc">After login, you will be redirected to <strong>WhatsApp Setup</strong> to create your WABA and register your phone number.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: Login card -->
+  <div>
+    <div class="card" style="text-align:center;padding:36px">
+      <div style="width:64px;height:64px;background:linear-gradient(145deg,#128C7E,#075E54);
+        border-radius:16px;display:flex;align-items:center;justify-content:center;
+        margin:0 auto 16px;font-size:28px">
+        <span style="font-family:Arial;font-size:22px;font-weight:800;display:flex;">
+          <span style="color:#fff;">Z</span><span style="color:#25D366;">K</span>
+        </span>
+      </div>
+      <div style="font-family:var(--font-display);font-size:20px;font-weight:700;
+        color:var(--ink);margin-bottom:6px">Connect with Facebook</div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:24px;line-height:1.6">
+        Link your Meta Business Manager account to enable WhatsApp Business API messaging.
+      </p>
+
+      <!-- Facebook OAuth button -->
+      <button onclick="fbOAuth()" style="width:100%;display:flex;align-items:center;
+        justify-content:center;gap:12px;background:#1877F2;color:#fff;border:none;
+        border-radius:10px;padding:14px 24px;font-size:15px;font-weight:700;
+        font-family:var(--font-display);cursor:pointer;transition:all .2s;margin-bottom:16px"
+        onmouseover="this.style.background='#166FE5'" onmouseout="this.style.background='#1877F2'">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
+          <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+        </svg>
+        Continue with Facebook
+      </button>
+
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+        <span style="font-size:12px;color:var(--muted)">secure OAuth 2.0</span>
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)">
+          <span style="color:#25D366;font-size:14px">✓</span> Official Meta Business Login
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)">
+          <span style="color:#25D366;font-size:14px">✓</span> Encrypted token storage
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)">
+          <span style="color:#25D366;font-size:14px">✓</span> WhatsApp API v20.0
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)">
+          <span style="color:#25D366;font-size:14px">✓</span> Revocable at any time in Meta settings
+        </div>
+      </div>
+    </div>
+
+    <!-- Requirements card -->
+    <div class="card" style="margin-top:16px">
+      <div style="font-family:var(--font-display);font-size:14px;font-weight:700;
+        margin-bottom:12px;color:var(--ink)">Prerequisites checklist</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div class="form-group" style="margin:0">
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;color:var(--ink)">
+            <input type="checkbox" style="width:16px;height:16px;accent-color:var(--brand-dark)"/>
+            Meta Business Manager account created
+          </label>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;color:var(--ink)">
+            <input type="checkbox" style="width:16px;height:16px;accent-color:var(--brand-dark)"/>
+            Business verified in Meta Business Manager
+          </label>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;color:var(--ink)">
+            <input type="checkbox" style="width:16px;height:16px;accent-color:var(--brand-dark)"/>
+            Phone number ready (not registered on WhatsApp)
+          </label>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;color:var(--ink)">
+            <input type="checkbox" style="width:16px;height:16px;accent-color:var(--brand-dark)"/>
+            Business display name decided
+          </label>
+        </div>
+      </div>
+      <div class="alert alert-warning" style="margin-top:14px;margin-bottom:0">
+        <span>⚠️</span>
+        <div>If your phone number is currently active on WhatsApp personal or WhatsApp Business App, you <strong>must delete that account first</strong> before using it with the API.</div>
+      </div>
+    </div>
+
+    <!-- API Version -->
+    <div class="card-sm" style="margin-top:12px;display:flex;align-items:center;
+      justify-content:space-between;background:var(--warm)">
+      <span style="font-size:12px;color:var(--muted)">Using Meta API version</span>
+      <span class="badge badge-wa" style="font-family:var(--font-mono)">v20.0</span>
+    </div>
+  </div>
+</div>
+
+<script>
+function fbOAuth() {
+  const appId = document.querySelector('meta[name="meta-app-id"]')?.content || 'YOUR_META_APP_ID';
+  const redirect = encodeURIComponent(window.location.origin + '/api/v1/auth/fb/callback');
+  const scope = 'whatsapp_business_management,whatsapp_business_messaging,business_management';
+  const state = crypto.randomUUID();
+  sessionStorage.setItem('fb_oauth_state', state);
+  window.location.href = `https://www.facebook.com/v20.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirect}&scope=${scope}&state=${state}&response_type=code`;
+}
+</script>
+
+</div>
+
+<footer>
+  <div class="foot-inner">
+    <div class="foot-brand">
+      <div class="foot-logo"><span class="z">Z</span><span class="k">K</span></div>
+      <div class="foot-name">ZKWA<span>Connect</span></div>
+    </div>
+    <div style="font-size:12px;color:rgba(255,255,255,.45);margin-bottom:16px">
+      WhatsApp Business API Platform · ZKandhavel Infotech Pvt. Ltd.
+    </div>
+    <hr class="foot-divider"/>
+    <div class="foot-bottom">
+      <div>© 2026 ZKandhavel Infotech Pvt. Ltd. · All rights reserved</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="foot-ver">v3.3.0</span>
+        <a href="/auth/login" style="color:rgba(255,255,255,.5)">App Login</a>
+        <a href="/" style="color:rgba(255,255,255,.5)">Marketing Site</a>
+        <a href="#" style="color:rgba(255,255,255,.5)">Privacy</a>
+        <a href="#" style="color:rgba(255,255,255,.5)">Terms</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

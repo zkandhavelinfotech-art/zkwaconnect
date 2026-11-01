@@ -1,0 +1,379 @@
+<!DOCTYPE html><html lang="en"><head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>WhatsApp Setup · ZKWAConnect v3.3</title>
+  <meta name="theme-color" content="#075E54"/><link rel="icon" href="/icons/favicon.ico"/>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"><style>
+  /* ── v3.3 Brand System ──────────────────────────────── */
+  :root{
+    --ink:#0f172a;
+    --brand:#16a34a;
+    --brand-mid:#15803d;
+    --brand-dark:#075E54;
+    --brand-wh:#25D366;
+    --accent:#1d4ed8;
+    --accent-lt:#eff6ff;
+    --warm:#f8fafc;
+    --surface:#ffffff;
+    --muted:#64748b;
+    --border:#e2e8f0;
+    --border-dark:rgba(255,255,255,.12);
+    --r:14px;--rs:8px;
+    --font-display:'Sora',sans-serif;
+    --font-body:'DM Sans',sans-serif;
+    --font-mono:'JetBrains Mono',monospace;
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--font-body);color:var(--ink);background:var(--warm);overflow-x:hidden}
+  a{text-decoration:none;color:inherit}
+
+  /* ── Announcement bar ────────────────────────────────── */
+  .ann{background:#075E54;color:#fff;text-align:center;font-size:13px;
+    font-family:var(--font-body);font-weight:500;position:sticky;top:0;z-index:9998;
+    letter-spacing:.01em;height:40px;display:flex;align-items:center;
+    justify-content:center;padding:0 20px}
+  .ann a{color:#25D366;font-weight:700;text-decoration:underline}
+
+  /* ── Nav ─────────────────────────────────────────────── */
+  .nav{position:sticky;top:40px;z-index:9999;background:rgba(7,94,84,.97);
+    backdrop-filter:blur(14px);border-bottom:1px solid var(--border-dark);
+    height:64px;display:flex;align-items:center;padding:0 5%}
+  .nav-inner{display:flex;align-items:center;gap:12px;width:100%;max-width:1280px;margin:0 auto}
+  .nav-brand{display:flex;align-items:center;gap:10px;flex:1}
+  .nav-logo{width:38px;height:38px;background:linear-gradient(145deg,#128C7E 0%,#075E54 100%);
+    border-radius:10px;display:flex;align-items:center;justify-content:center;
+    flex-shrink:0;position:relative;overflow:hidden;border:1.5px solid rgba(255,255,255,.15)}
+  .nav-logo-zk{font-family:Arial,sans-serif;font-size:14px;font-weight:800;
+    letter-spacing:-.5px;display:flex;gap:0}
+  .nav-logo-zk .z{color:#fff}
+  .nav-logo-zk .k{color:#25D366}
+  .nav-logo-tick{position:absolute;bottom:3px;right:3px;font-size:8px;color:#25D366;line-height:1}
+  .nav-name{font-family:var(--font-display);font-size:17px;font-weight:700;color:#fff;line-height:1}
+  .nav-name span{color:#25D366}
+  .nav-tagline{font-size:9px;font-weight:500;color:rgba(255,255,255,.45);
+    text-transform:uppercase;letter-spacing:.12em;margin-top:2px}
+  .nav-links{display:flex;align-items:center;gap:2px}
+  .nav-link{padding:7px 13px;font-size:13px;font-weight:500;color:rgba(255,255,255,.7);
+    border-radius:var(--rs);transition:all .15s;cursor:pointer;font-family:var(--font-body)}
+  .nav-link:hover{background:rgba(255,255,255,.08);color:#fff}
+  .nav-link.active{color:#25D366;background:rgba(37,211,102,.1)}
+  .nav-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+  .btn-ghost-wh{padding:7px 18px;font-size:13px;font-weight:600;color:#fff;
+    border:1px solid rgba(255,255,255,.25);border-radius:var(--rs);cursor:pointer;
+    background:transparent;font-family:var(--font-body);transition:all .15s}
+  .btn-ghost-wh:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.4)}
+  .btn-cta-sm{padding:8px 20px;font-size:13px;font-weight:700;color:#fff;
+    background:var(--brand);border:none;border-radius:var(--rs);cursor:pointer;
+    font-family:var(--font-display);transition:all .15s;white-space:nowrap}
+  .btn-cta-sm:hover{background:var(--brand-mid);transform:translateY(-1px)}
+
+  /* ── Page hero ─────────────────────────────────────────── */
+  .page-hero{background:linear-gradient(135deg,#075E54 0%,#128C7E 50%,#075E54 100%);
+    padding:60px 5% 50px;position:relative;overflow:hidden}
+  .page-hero::before{content:'';position:absolute;inset:0;
+    background:radial-gradient(ellipse 70% 80% at 80% 50%,rgba(255,255,255,.05) 0%,transparent 60%);
+    pointer-events:none}
+  .page-hero-inner{max-width:900px;margin:0 auto;position:relative;z-index:1}
+  .page-hero-eyebrow{display:inline-flex;align-items:center;gap:8px;
+    background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);
+    border-radius:20px;padding:5px 14px;font-size:12px;font-weight:600;
+    color:rgba(255,255,255,.9);margin-bottom:16px;letter-spacing:.06em;text-transform:uppercase}
+  .page-hero h1{font-family:var(--font-display);font-size:clamp(28px,4vw,48px);
+    font-weight:800;color:#fff;margin-bottom:12px;letter-spacing:-1px;line-height:1.1}
+  .page-hero h1 .hl{color:#25D366}
+  .page-hero-sub{font-size:16px;color:rgba(255,255,255,.7);line-height:1.6;max-width:600px}
+  .page-hero-badges{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
+  .hero-badge{display:inline-flex;align-items:center;gap:6px;
+    background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);
+    border-radius:20px;padding:4px 12px;font-size:11px;font-weight:600;
+    color:rgba(255,255,255,.85);font-family:var(--font-body)}
+  .hero-badge-dot{width:6px;height:6px;border-radius:50%;background:#25D366;flex-shrink:0}
+
+  /* ── Page layout ──────────────────────────────────────── */
+  .page-body{max-width:1100px;margin:0 auto;padding:40px 5% 80px}
+  .page-body-wide{max-width:1280px;margin:0 auto;padding:40px 5% 80px}
+
+  /* ── Cards ─────────────────────────────────────────────── */
+  .card{background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:24px;
+    box-shadow:0 1px 4px rgba(0,0,0,.04)}
+  .card-sm{background:#fff;border:1px solid var(--border);border-radius:10px;padding:16px}
+  .card-accent{background:#fff;border:1px solid var(--border);border-radius:var(--r);
+    padding:24px;border-top:3px solid var(--brand-dark)}
+  .card-head{font-family:var(--font-display);font-size:16px;font-weight:700;
+    color:var(--ink);margin-bottom:6px}
+  .card-sub{font-size:13px;color:var(--muted);line-height:1.6}
+
+  /* ── Badges / tags ─────────────────────────────────────── */
+  .badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;
+    font-size:11px;font-weight:600}
+  .badge-green{background:#dcfce7;color:#15803d}
+  .badge-blue{background:#dbeafe;color:#1d4ed8}
+  .badge-yellow{background:#fef9c3;color:#ca8a04}
+  .badge-red{background:#fee2e2;color:#dc2626}
+  .badge-purple{background:#f3e8ff;color:#7c3aed}
+  .badge-slate{background:#f1f5f9;color:#64748b}
+  .badge-wa{background:#dcfce7;color:#075E54}
+
+  /* ── Steps ─────────────────────────────────────────────── */
+  .steps{display:flex;flex-direction:column;gap:0;position:relative}
+  .step{display:flex;gap:20px;position:relative;padding-bottom:32px}
+  .step:last-child{padding-bottom:0}
+  .step-num{width:36px;height:36px;border-radius:50%;background:var(--brand-dark);
+    color:#fff;display:flex;align-items:center;justify-content:center;
+    font-family:var(--font-display);font-size:14px;font-weight:700;flex-shrink:0;z-index:1}
+  .step-line{position:absolute;left:18px;top:36px;bottom:0;width:1px;background:var(--border)}
+  .step:last-child .step-line{display:none}
+  .step-body{flex:1;padding-top:6px}
+  .step-title{font-family:var(--font-display);font-size:15px;font-weight:700;
+    color:var(--ink);margin-bottom:6px}
+  .step-desc{font-size:13px;color:var(--muted);line-height:1.65}
+
+  /* ── Grid helpers ──────────────────────────────────────── */
+  .grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+  .grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+  .grid-4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+  @media(max-width:768px){.grid-2,.grid-3,.grid-4{grid-template-columns:1fr}}
+
+  /* ── Form elements ─────────────────────────────────────── */
+  .form-group{margin-bottom:16px}
+  .form-label{display:block;font-size:12px;font-weight:600;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+  .form-input{width:100%;border:1.5px solid var(--border);border-radius:var(--rs);
+    padding:10px 14px;font-size:14px;color:var(--ink);font-family:var(--font-body);
+    background:#fff;transition:border .15s;outline:none}
+  .form-input:focus{border-color:var(--brand-dark)}
+  .form-select{width:100%;border:1.5px solid var(--border);border-radius:var(--rs);
+    padding:10px 14px;font-size:14px;color:var(--ink);font-family:var(--font-body);
+    background:#fff;cursor:pointer;outline:none}
+  .form-hint{font-size:11px;color:var(--muted);margin-top:5px;line-height:1.5}
+
+  /* ── Buttons ───────────────────────────────────────────── */
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    font-family:var(--font-display);font-weight:700;border-radius:var(--rs);
+    cursor:pointer;transition:all .15s;border:none;white-space:nowrap}
+  .btn-primary{background:var(--brand-dark);color:#fff;padding:11px 24px;font-size:14px}
+  .btn-primary:hover{background:#0A7A6E;transform:translateY(-1px);
+    box-shadow:0 6px 18px rgba(7,94,84,.3)}
+  .btn-secondary{background:#fff;color:var(--ink);padding:10px 22px;font-size:14px;
+    border:1.5px solid var(--border)}
+  .btn-secondary:hover{background:var(--warm);border-color:#cbd5e1}
+  .btn-brand{background:#25D366;color:#fff;padding:11px 24px;font-size:14px}
+  .btn-brand:hover{background:#1ebe58;transform:translateY(-1px)}
+  .btn-danger{background:#ef4444;color:#fff;padding:11px 24px;font-size:14px}
+  .btn-sm{padding:7px 16px;font-size:13px}
+  .btn-full{width:100%;justify-content:center}
+
+  /* ── Table ─────────────────────────────────────────────── */
+  .tbl{width:100%;border-collapse:collapse;font-size:13px}
+  .tbl th{text-align:left;font-size:11px;font-weight:600;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.06em;padding:10px 14px;
+    background:var(--warm);border-bottom:1px solid var(--border)}
+  .tbl td{padding:12px 14px;border-bottom:1px solid var(--border);color:var(--ink)}
+  .tbl tr:hover td{background:var(--warm)}
+  .tbl-mono{font-family:var(--font-mono);font-size:12px}
+
+  /* ── Alerts ─────────────────────────────────────────────── */
+  .alert{border-radius:var(--rs);padding:14px 16px;font-size:13px;line-height:1.6;
+    display:flex;align-items:flex-start;gap:10px;margin-bottom:16px}
+  .alert-info{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af}
+  .alert-success{background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d}
+  .alert-warning{background:#fffbeb;border:1px solid #fde68a;color:#b45309}
+  .alert-danger{background:#fef2f2;border:1px solid #fecaca;color:#991b1b}
+  .alert-wa{background:#f0fdf4;border:1px solid #86efac;color:#075E54}
+
+  /* ── Footer ─────────────────────────────────────────────── */
+  footer{background:#0f172a;color:rgba(255,255,255,.7);padding:40px 5% 24px;
+    font-size:13px;font-family:var(--font-body)}
+  .foot-inner{max-width:1280px;margin:0 auto}
+  .foot-brand{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+  .foot-logo{width:32px;height:32px;background:linear-gradient(145deg,#128C7E,#075E54);
+    border-radius:8px;display:flex;align-items:center;justify-content:center;
+    font-size:12px;font-weight:800;position:relative;overflow:hidden}
+  .foot-logo .z{color:#fff}.foot-logo .k{color:#25D366}
+  .foot-name{font-family:var(--font-display);font-size:16px;font-weight:700;color:#fff}
+  .foot-name span{color:#25D366}
+  .foot-divider{border:none;border-top:1px solid rgba(255,255,255,.1);margin:20px 0 12px}
+  .foot-bottom{display:flex;align-items:center;justify-content:space-between;
+    flex-wrap:wrap;gap:8px;font-size:12px;color:rgba(255,255,255,.4)}
+  .foot-ver{background:rgba(37,211,102,.15);color:#25D366;border-radius:20px;
+    padding:2px 10px;font-size:11px;font-weight:600}
+</style></head><body>
+<div class="ann">🚀 ZKWAConnect v3.3 · Flow Builder · Audit logs · .NET API all live · <a href="/auth/register">Start free trial →</a></div><nav class="nav"><div class="nav-inner">
+    <a class="nav-brand" href="/" style="display:flex;align-items:center;gap:10px;flex:1">
+      <div class="nav-logo"><div class="nav-logo-zk"><span class="z">Z</span><span class="k">K</span></div><span class="nav-logo-tick">✓</span></div>
+      <div><div class="nav-name">ZKWA<span>Connect</span></div><div class="nav-tagline">Business API Platform</div></div>
+    </a>
+    <div class="nav-links"><a class="nav-link" href="//">/</a><a class="nav-link active" href="/whatsapp-setup">WA Setup</a><a class="nav-link" href="/whatsapp-manager">WA Manager</a><a class="nav-link" href="/wa-settings">Settings</a><a class="nav-link" href="/fb-login">FB Login</a><a class="nav-link" href="/phone-registration">Phone Reg</a></div>
+    <div class="nav-actions">
+      <a class="btn-ghost-wh btn btn-sm" href="/auth/login">Sign In</a>
+      <a class="btn-cta-sm btn btn-sm" href="/auth/register">Free Trial</a>
+    </div>
+  </div></nav><div class="page-hero"><div class="page-hero-inner">
+  <div class="page-hero-eyebrow">🔧 Step 2 of 4 · WABA Setup Wizard</div><h1>Set up your <span class="hl">WhatsApp Business</span> account</h1><p class="page-hero-sub">Create your WABA, register your phone number, and configure webhooks — all in one guided wizard.</p>
+  <div class="page-hero-badges"><span class="hero-badge"><span class="hero-badge-dot"></span>4-step wizard</span><span class="hero-badge"><span class="hero-badge-dot"></span>Meta API v20.0</span><span class="hero-badge"><span class="hero-badge-dot"></span>Auto webhook</span><span class="hero-badge"><span class="hero-badge-dot"></span>India ready</span></div>
+</div></div>
+<div class="page-body">
+<div class="alert alert-wa" style="margin-bottom:24px">
+  <span>⚡</span>
+  <div>This wizard walks you through the <strong>4-step process</strong> to connect your business to the WhatsApp Business API. Complete each step in order. Your progress is saved automatically.</div>
+</div>
+
+<!-- Progress tracker -->
+<div style="display:flex;align-items:center;margin-bottom:32px;gap:0">
+  <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+    <div style="width:40px;height:40px;border-radius:50%;background:var(--brand-dark);
+      color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-family:var(--font-display)">✓</div>
+    <div style="font-size:11px;font-weight:600;color:var(--brand-dark)">FB Login</div>
+  </div>
+  <div style="flex:1;height:2px;background:var(--brand-dark)"></div>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+    <div style="width:40px;height:40px;border-radius:50%;background:var(--brand-dark);
+      color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-family:var(--font-display)">2</div>
+    <div style="font-size:11px;font-weight:600;color:var(--brand-dark)">Create WABA</div>
+  </div>
+  <div style="flex:1;height:2px;background:var(--border)"></div>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+    <div style="width:40px;height:40px;border-radius:50%;background:var(--border);
+      color:var(--muted);display:flex;align-items:center;justify-content:center;font-weight:700;font-family:var(--font-display)">3</div>
+    <div style="font-size:11px;font-weight:600;color:var(--muted)">Phone Reg</div>
+  </div>
+  <div style="flex:1;height:2px;background:var(--border)"></div>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+    <div style="width:40px;height:40px;border-radius:50%;background:var(--border);
+      color:var(--muted);display:flex;align-items:center;justify-content:center;font-weight:700;font-family:var(--font-display)">4</div>
+    <div style="font-size:11px;font-weight:600;color:var(--muted)">Webhook</div>
+  </div>
+</div>
+
+<div class="grid-2" style="gap:28px;align-items:start">
+  <div>
+    <div class="card card-accent" style="margin-bottom:20px">
+      <div style="display:flex;align-items:center;gap:3px;margin-bottom:6px">
+        <span class="badge badge-green">Step 1 Complete</span>
+      </div>
+      <div class="card-head">Facebook Account Connected</div>
+      <div class="card-sub">Your Meta Business Manager is linked. Now create your WhatsApp Business Account (WABA).</div>
+      <div style="margin-top:14px;display:flex;align-items:center;gap:10px;padding:12px;
+        background:var(--warm);border-radius:var(--rs)">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="#1877F2"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--ink)">Demo User</div>
+          <div style="font-size:12px;color:var(--muted)">Meta Business Manager · Verified</div>
+        </div>
+        <span class="badge badge-green" style="margin-left:auto">✓ Connected</span>
+      </div>
+    </div>
+
+    <!-- Step 2: Create WABA -->
+    <div class="card" style="border-top:3px solid #1d4ed8;margin-bottom:20px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+        <div style="width:28px;height:28px;border-radius:50%;background:#1d4ed8;
+          color:#fff;display:flex;align-items:center;justify-content:center;
+          font-weight:700;font-size:13px;font-family:var(--font-display)">2</div>
+        <div class="card-head" style="margin:0">Create WhatsApp Business Account</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">WABA Display Name</label>
+        <input class="form-input" placeholder="Acme Business Services"/>
+        <div class="form-hint">This appears in your WhatsApp profile. Subject to Meta approval.</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Business Category</label>
+        <select class="form-select">
+          <option>Select category…</option>
+          <option>Automotive</option><option>Education</option>
+          <option>Finance</option><option>Food &amp; Grocery</option>
+          <option>Healthcare</option><option>Professional Services</option>
+          <option>Retail</option><option>Technology</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Business Country</label>
+        <select class="form-select">
+          <option selected>🇮🇳 India</option><option>🇸🇬 Singapore</option>
+          <option>🇦🇪 UAE</option><option>🇺🇸 United States</option>
+        </select>
+      </div>
+      <button class="btn btn-primary">Create WABA Account →</button>
+    </div>
+
+    <!-- Step 3 & 4 preview -->
+    <div class="card-sm" style="background:var(--warm);opacity:.6">
+      <div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:4px">Step 3 — Phone Registration</div>
+      <div style="font-size:12px;color:var(--muted)">Register and verify your business phone number via SMS OTP</div>
+    </div>
+    <div style="height:8px"></div>
+    <div class="card-sm" style="background:var(--warm);opacity:.6">
+      <div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:4px">Step 4 — Webhook Setup</div>
+      <div style="font-size:12px;color:var(--muted)">Configure Meta webhook to receive incoming messages in ZKWAConnect</div>
+    </div>
+  </div>
+
+  <div>
+    <!-- What you get card -->
+    <div class="card" style="margin-bottom:20px">
+      <div class="card-head" style="margin-bottom:14px">What you get after setup</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;gap:12px;align-items:flex-start">
+          <span style="font-size:20px">💬</span>
+          <div><div style="font-size:13px;font-weight:600;color:var(--ink)">Live Inbox</div>
+            <div style="font-size:12px;color:var(--muted)">Receive and reply to WhatsApp messages in real-time</div></div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-start">
+          <span style="font-size:20px">📣</span>
+          <div><div style="font-size:13px;font-weight:600;color:var(--ink)">Broadcast Campaigns</div>
+            <div style="font-size:12px;color:var(--muted)">Send template messages to thousands of contacts</div></div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-start">
+          <span style="font-size:20px">⚡</span>
+          <div><div style="font-size:13px;font-weight:600;color:var(--ink)">Flow Automation (NEW v3.3)</div>
+            <div style="font-size:12px;color:var(--muted)">Visual drag-drop automation for auto-replies and routing</div></div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-start">
+          <span style="font-size:20px">🎯</span>
+          <div><div style="font-size:13px;font-weight:600;color:var(--ink)">Lead Pipeline</div>
+            <div style="font-size:12px;color:var(--muted)">Auto-classify inbound leads and track through pipeline</div></div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-start">
+          <span style="font-size:20px">🧾</span>
+          <div><div style="font-size:13px;font-weight:600;color:var(--ink)">GST Billing</div>
+            <div style="font-size:12px;color:var(--muted)">Auto-generated CGST/SGST/IGST invoices via Razorpay</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Meta requirements -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-head" style="margin-bottom:12px">Meta Requirements</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:8px 0;border-bottom:1px solid var(--border)">
+          <span>Meta Business Manager</span><span class="badge badge-green">Required</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:8px 0;border-bottom:1px solid var(--border)">
+          <span>Business Verification</span><span class="badge badge-yellow">Recommended</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:8px 0;border-bottom:1px solid var(--border)">
+          <span>Phone number (not on WA)</span><span class="badge badge-green">Required</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:8px 0">
+          <span>Display name approved</span><span class="badge badge-blue">Auto-submitted</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- API version -->
+    <div class="card-sm" style="background:var(--warm);display:flex;align-items:center;justify-content:space-between">
+      <span style="font-size:12px;color:var(--muted)">Using Meta Graph API</span>
+      <span class="badge badge-wa" style="font-family:var(--font-mono)">v20.0</span>
+    </div>
+  </div>
+</div>
+</div><footer><div class="foot-inner">
+  <div class="foot-brand"><div class="foot-logo"><span class="z">Z</span><span class="k">K</span></div><div class="foot-name">ZKWA<span>Connect</span></div></div>
+  <div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:14px">WhatsApp Business API Platform · ZKandhavel Infotech Pvt. Ltd.</div>
+  <hr class="foot-divider"/>
+  <div class="foot-bottom">
+    <div>© 2026 ZKandhavel Infotech Pvt. Ltd. All rights reserved</div>
+    <div style="display:flex;align-items:center;gap:10px"><span class="foot-ver">v3.3.0</span><a href="/auth/login" style="color:rgba(255,255,255,.4)">App</a><a href="/" style="color:rgba(255,255,255,.4)">Home</a></div>
+  </div>
+</div></footer></body></html>

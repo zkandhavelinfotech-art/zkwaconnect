@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Phone Registration · ZKWAConnect v3.3</title>
+  <meta name="theme-color" content="#075E54"/>
+  <link rel="icon" href="/icons/favicon.ico"/>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"><style>
+  /* ── v3.3 Brand System ──────────────────────────────── */
+  :root{
+    --ink:#0f172a;
+    --brand:#16a34a;
+    --brand-mid:#15803d;
+    --brand-dark:#075E54;
+    --brand-wh:#25D366;
+    --accent:#1d4ed8;
+    --accent-lt:#eff6ff;
+    --warm:#f8fafc;
+    --surface:#ffffff;
+    --muted:#64748b;
+    --border:#e2e8f0;
+    --border-dark:rgba(255,255,255,.12);
+    --r:14px;--rs:8px;
+    --font-display:'Sora',sans-serif;
+    --font-body:'DM Sans',sans-serif;
+    --font-mono:'JetBrains Mono',monospace;
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--font-body);color:var(--ink);background:var(--warm);overflow-x:hidden}
+  a{text-decoration:none;color:inherit}
+
+  /* ── Announcement bar ────────────────────────────────── */
+  .ann{background:#075E54;color:#fff;text-align:center;font-size:13px;
+    font-family:var(--font-body);font-weight:500;position:sticky;top:0;z-index:9998;
+    letter-spacing:.01em;height:40px;display:flex;align-items:center;
+    justify-content:center;padding:0 20px}
+  .ann a{color:#25D366;font-weight:700;text-decoration:underline}
+
+  /* ── Nav ─────────────────────────────────────────────── */
+  .nav{position:sticky;top:40px;z-index:9999;background:rgba(7,94,84,.97);
+    backdrop-filter:blur(14px);border-bottom:1px solid var(--border-dark);
+    height:64px;display:flex;align-items:center;padding:0 5%}
+  .nav-inner{display:flex;align-items:center;gap:12px;width:100%;max-width:1280px;margin:0 auto}
+  .nav-brand{display:flex;align-items:center;gap:10px;flex:1}
+  .nav-logo{width:38px;height:38px;background:linear-gradient(145deg,#128C7E 0%,#075E54 100%);
+    border-radius:10px;display:flex;align-items:center;justify-content:center;
+    flex-shrink:0;position:relative;overflow:hidden;border:1.5px solid rgba(255,255,255,.15)}
+  .nav-logo-zk{font-family:Arial,sans-serif;font-size:14px;font-weight:800;
+    letter-spacing:-.5px;display:flex;gap:0}
+  .nav-logo-zk .z{color:#fff}
+  .nav-logo-zk .k{color:#25D366}
+  .nav-logo-tick{position:absolute;bottom:3px;right:3px;font-size:8px;color:#25D366;line-height:1}
+  .nav-name{font-family:var(--font-display);font-size:17px;font-weight:700;color:#fff;line-height:1}
+  .nav-name span{color:#25D366}
+  .nav-tagline{font-size:9px;font-weight:500;color:rgba(255,255,255,.45);
+    text-transform:uppercase;letter-spacing:.12em;margin-top:2px}
+  .nav-links{display:flex;align-items:center;gap:2px}
+  .nav-link{padding:7px 13px;font-size:13px;font-weight:500;color:rgba(255,255,255,.7);
+    border-radius:var(--rs);transition:all .15s;cursor:pointer;font-family:var(--font-body)}
+  .nav-link:hover{background:rgba(255,255,255,.08);color:#fff}
+  .nav-link.active{color:#25D366;background:rgba(37,211,102,.1)}
+  .nav-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+  .btn-ghost-wh{padding:7px 18px;font-size:13px;font-weight:600;color:#fff;
+    border:1px solid rgba(255,255,255,.25);border-radius:var(--rs);cursor:pointer;
+    background:transparent;font-family:var(--font-body);transition:all .15s}
+  .btn-ghost-wh:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.4)}
+  .btn-cta-sm{padding:8px 20px;font-size:13px;font-weight:700;color:#fff;
+    background:var(--brand);border:none;border-radius:var(--rs);cursor:pointer;
+    font-family:var(--font-display);transition:all .15s;white-space:nowrap}
+  .btn-cta-sm:hover{background:var(--brand-mid);transform:translateY(-1px)}
+
+  /* ── Page hero ─────────────────────────────────────────── */
+  .page-hero{background:linear-gradient(135deg,#075E54 0%,#128C7E 50%,#075E54 100%);
+    padding:60px 5% 50px;position:relative;overflow:hidden}
+  .page-hero::before{content:'';position:absolute;inset:0;
+    background:radial-gradient(ellipse 70% 80% at 80% 50%,rgba(255,255,255,.05) 0%,transparent 60%);
+    pointer-events:none}
+  .page-hero-inner{max-width:900px;margin:0 auto;position:relative;z-index:1}
+  .page-hero-eyebrow{display:inline-flex;align-items:center;gap:8px;
+    background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);
+    border-radius:20px;padding:5px 14px;font-size:12px;font-weight:600;
+    color:rgba(255,255,255,.9);margin-bottom:16px;letter-spacing:.06em;text-transform:uppercase}
+  .page-hero h1{font-family:var(--font-display);font-size:clamp(28px,4vw,48px);
+    font-weight:800;color:#fff;margin-bottom:12px;letter-spacing:-1px;line-height:1.1}
+  .page-hero h1 .hl{color:#25D366}
+  .page-hero-sub{font-size:16px;color:rgba(255,255,255,.7);line-height:1.6;max-width:600px}
+  .page-hero-badges{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
+  .hero-badge{display:inline-flex;align-items:center;gap:6px;
+    background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);
+    border-radius:20px;padding:4px 12px;font-size:11px;font-weight:600;
+    color:rgba(255,255,255,.85);font-family:var(--font-body)}
+  .hero-badge-dot{width:6px;height:6px;border-radius:50%;background:#25D366;flex-shrink:0}
+
+  /* ── Page layout ──────────────────────────────────────── */
+  .page-body{max-width:1100px;margin:0 auto;padding:40px 5% 80px}
+  .page-body-wide{max-width:1280px;margin:0 auto;padding:40px 5% 80px}
+
+  /* ── Cards ─────────────────────────────────────────────── */
+  .card{background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:24px;
+    box-shadow:0 1px 4px rgba(0,0,0,.04)}
+  .card-sm{background:#fff;border:1px solid var(--border);border-radius:10px;padding:16px}
+  .card-accent{background:#fff;border:1px solid var(--border);border-radius:var(--r);
+    padding:24px;border-top:3px solid var(--brand-dark)}
+  .card-head{font-family:var(--font-display);font-size:16px;font-weight:700;
+    color:var(--ink);margin-bottom:6px}
+  .card-sub{font-size:13px;color:var(--muted);line-height:1.6}
+
+  /* ── Badges / tags ─────────────────────────────────────── */
+  .badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;
+    font-size:11px;font-weight:600}
+  .badge-green{background:#dcfce7;color:#15803d}
+  .badge-blue{background:#dbeafe;color:#1d4ed8}
+  .badge-yellow{background:#fef9c3;color:#ca8a04}
+  .badge-red{background:#fee2e2;color:#dc2626}
+  .badge-purple{background:#f3e8ff;color:#7c3aed}
+  .badge-slate{background:#f1f5f9;color:#64748b}
+  .badge-wa{background:#dcfce7;color:#075E54}
+
+  /* ── Steps ─────────────────────────────────────────────── */
+  .steps{display:flex;flex-direction:column;gap:0;position:relative}
+  .step{display:flex;gap:20px;position:relative;padding-bottom:32px}
+  .step:last-child{padding-bottom:0}
+  .step-num{width:36px;height:36px;border-radius:50%;background:var(--brand-dark);
+    color:#fff;display:flex;align-items:center;justify-content:center;
+    font-family:var(--font-display);font-size:14px;font-weight:700;flex-shrink:0;z-index:1}
+  .step-line{position:absolute;left:18px;top:36px;bottom:0;width:1px;background:var(--border)}
+  .step:last-child .step-line{display:none}
+  .step-body{flex:1;padding-top:6px}
+  .step-title{font-family:var(--font-display);font-size:15px;font-weight:700;
+    color:var(--ink);margin-bottom:6px}
+  .step-desc{font-size:13px;color:var(--muted);line-height:1.65}
+
+  /* ── Grid helpers ──────────────────────────────────────── */
+  .grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+  .grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+  .grid-4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+  @media(max-width:768px){.grid-2,.grid-3,.grid-4{grid-template-columns:1fr}}
+
+  /* ── Form elements ─────────────────────────────────────── */
+  .form-group{margin-bottom:16px}
+  .form-label{display:block;font-size:12px;font-weight:600;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+  .form-input{width:100%;border:1.5px solid var(--border);border-radius:var(--rs);
+    padding:10px 14px;font-size:14px;color:var(--ink);font-family:var(--font-body);
+    background:#fff;transition:border .15s;outline:none}
+  .form-input:focus{border-color:var(--brand-dark)}
+  .form-select{width:100%;border:1.5px solid var(--border);border-radius:var(--rs);
+    padding:10px 14px;font-size:14px;color:var(--ink);font-family:var(--font-body);
+    background:#fff;cursor:pointer;outline:none}
+  .form-hint{font-size:11px;color:var(--muted);margin-top:5px;line-height:1.5}
+
+  /* ── Buttons ───────────────────────────────────────────── */
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    font-family:var(--font-display);font-weight:700;border-radius:var(--rs);
+    cursor:pointer;transition:all .15s;border:none;white-space:nowrap}
+  .btn-primary{background:var(--brand-dark);color:#fff;padding:11px 24px;font-size:14px}
+  .btn-primary:hover{background:#0A7A6E;transform:translateY(-1px);
+    box-shadow:0 6px 18px rgba(7,94,84,.3)}
+  .btn-secondary{background:#fff;color:var(--ink);padding:10px 22px;font-size:14px;
+    border:1.5px solid var(--border)}
+  .btn-secondary:hover{background:var(--warm);border-color:#cbd5e1}
+  .btn-brand{background:#25D366;color:#fff;padding:11px 24px;font-size:14px}
+  .btn-brand:hover{background:#1ebe58;transform:translateY(-1px)}
+  .btn-danger{background:#ef4444;color:#fff;padding:11px 24px;font-size:14px}
+  .btn-sm{padding:7px 16px;font-size:13px}
+  .btn-full{width:100%;justify-content:center}
+
+  /* ── Table ─────────────────────────────────────────────── */
+  .tbl{width:100%;border-collapse:collapse;font-size:13px}
+  .tbl th{text-align:left;font-size:11px;font-weight:600;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.06em;padding:10px 14px;
+    background:var(--warm);border-bottom:1px solid var(--border)}
+  .tbl td{padding:12px 14px;border-bottom:1px solid var(--border);color:var(--ink)}
+  .tbl tr:hover td{background:var(--warm)}
+  .tbl-mono{font-family:var(--font-mono);font-size:12px}
+
+  /* ── Alerts ─────────────────────────────────────────────── */
+  .alert{border-radius:var(--rs);padding:14px 16px;font-size:13px;line-height:1.6;
+    display:flex;align-items:flex-start;gap:10px;margin-bottom:16px}
+  .alert-info{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af}
+  .alert-success{background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d}
+  .alert-warning{background:#fffbeb;border:1px solid #fde68a;color:#b45309}
+  .alert-danger{background:#fef2f2;border:1px solid #fecaca;color:#991b1b}
+  .alert-wa{background:#f0fdf4;border:1px solid #86efac;color:#075E54}
+
+  /* ── Footer ─────────────────────────────────────────────── */
+  footer{background:#0f172a;color:rgba(255,255,255,.7);padding:40px 5% 24px;
+    font-size:13px;font-family:var(--font-body)}
+  .foot-inner{max-width:1280px;margin:0 auto}
+  .foot-brand{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+  .foot-logo{width:32px;height:32px;background:linear-gradient(145deg,#128C7E,#075E54);
+    border-radius:8px;display:flex;align-items:center;justify-content:center;
+    font-size:12px;font-weight:800;position:relative;overflow:hidden}
+  .foot-logo .z{color:#fff}.foot-logo .k{color:#25D366}
+  .foot-name{font-family:var(--font-display);font-size:16px;font-weight:700;color:#fff}
+  .foot-name span{color:#25D366}
+  .foot-divider{border:none;border-top:1px solid rgba(255,255,255,.1);margin:20px 0 12px}
+  .foot-bottom{display:flex;align-items:center;justify-content:space-between;
+    flex-wrap:wrap;gap:8px;font-size:12px;color:rgba(255,255,255,.4)}
+  .foot-ver{background:rgba(37,211,102,.15);color:#25D366;border-radius:20px;
+    padding:2px 10px;font-size:11px;font-weight:600}
+</style>
+</head><body>
+<div class="ann">🚀 ZKWAConnect v3.3 · Audit logs · Flow Builder · .NET API all live · <a href="/auth/register">Start free trial →</a></div><nav class="nav"><div class="nav-inner">
+    <a class="nav-brand" href="/" style="display:flex;align-items:center;gap:10px;flex:1">
+      <div class="nav-logo"><div class="nav-logo-zk"><span class="z">Z</span><span class="k">K</span></div><span class="nav-logo-tick">✓</span></div>
+      <div><div class="nav-name">ZKWA<span>Connect</span></div><div class="nav-tagline">Business API Platform</div></div>
+    </a>
+    <div class="nav-links"><a class="nav-link" href="//">/</a><a class="nav-link" href="/whatsapp-setup">WA Setup</a><a class="nav-link" href="/whatsapp-manager">WA Manager</a><a class="nav-link" href="/wa-settings">Settings</a><a class="nav-link" href="/fb-login">FB Login</a><a class="nav-link active" href="/phone-registration">Phone Reg</a></div>
+    <div class="nav-actions">
+      <a class="btn-ghost-wh btn btn-sm" href="/auth/login">Sign In</a>
+      <a class="btn-cta-sm btn btn-sm" href="/auth/register">Free Trial</a>
+    </div>
+  </div></nav><div class="page-hero"><div class="page-hero-inner">
+  <div class="page-hero-eyebrow">📱 Step 3 of 4 · Phone Registration</div>
+  <h1>Register your <span class="hl">WhatsApp phone number</span></h1>
+  <p class="page-hero-sub">Verify and activate your business phone number on WhatsApp Business API. OTP verification via SMS or voice call.</p>
+  <div class="page-hero-badges"><span class="hero-badge"><span class="hero-badge-dot"></span>Meta API v20.0</span><span class="hero-badge"><span class="hero-badge-dot"></span>SMS + Voice OTP</span><span class="hero-badge"><span class="hero-badge-dot"></span>Tier auto-upgrade</span><span class="hero-badge"><span class="hero-badge-dot"></span>India +91 ready</span></div>
+</div></div>
+<div class="page-body">
+<div class="grid-2" style="gap:32px;align-items:start">
+  <div>
+    <div class="alert alert-wa" style="margin-bottom:20px">
+      <span>📱</span>
+      <div><strong>Before you begin:</strong> The phone number must not be registered on any WhatsApp account (personal or Business App). If it is, delete that account first via WhatsApp app → Settings → Account → Delete account.</div>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div><div class="step-line"></div>
+        <div class="step-body">
+          <div class="step-title">Select your WABA account</div>
+          <div class="step-desc">Choose the WhatsApp Business Account (WABA) you created in the previous step. Your phone number will be registered under this WABA.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div><div class="step-line"></div>
+        <div class="step-body">
+          <div class="step-title">Enter your phone number</div>
+          <div class="step-desc">Enter the full number with country code (e.g. +91 99876 54321). Supported: Mobile numbers, landlines (with voice OTP), VoIP numbers (Twilio, etc.).</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div><div class="step-line"></div>
+        <div class="step-body">
+          <div class="step-title">Choose verification method</div>
+          <div class="step-desc">Meta will send a 6-digit OTP via <strong>SMS</strong> or <strong>Voice call</strong>. Select the method that works for your number type.</div>
+          <div style="display:flex;gap:8px;margin-top:10px">
+            <span class="badge badge-wa">SMS OTP</span>
+            <span class="badge badge-blue">Voice OTP</span>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div><div class="step-line"></div>
+        <div class="step-body">
+          <div class="step-title">Enter 6-digit OTP</div>
+          <div class="step-desc">Enter the code received. OTP is valid for 10 minutes. If not received after 60 seconds, click "Resend".</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">5</div><div class="step-line"></div>
+        <div class="step-body">
+          <div class="step-title">Number activated ✅</div>
+          <div class="step-desc">Your phone number is now registered on the WhatsApp Business API. It will appear in ZKWAConnect Settings → WABA Accounts with status <span class="badge badge-wa">Active</span>.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <!-- Registration form -->
+    <div class="card">
+      <div class="card-head" style="margin-bottom:20px">Register Phone Number</div>
+      <div class="form-group">
+        <label class="form-label">WABA Account</label>
+        <select class="form-select">
+          <option>Select your WhatsApp Business Account…</option>
+          <option>Demo Business (ID: 106240309139059)</option>
+        </select>
+        <div class="form-hint">Created in WhatsApp Setup → Create WABA step</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Country Code</label>
+        <select class="form-select">
+          <option value="+91">🇮🇳 +91 India</option>
+          <option value="+1">🇺🇸 +1 United States</option>
+          <option value="+44">🇬🇧 +44 United Kingdom</option>
+          <option value="+65">🇸🇬 +65 Singapore</option>
+          <option value="+60">🇲🇾 +60 Malaysia</option>
+          <option value="+971">🇦🇪 +971 UAE</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Phone Number</label>
+        <input class="form-input" type="tel" placeholder="99876 54321" style="font-family:var(--font-mono);font-size:16px;letter-spacing:1px"/>
+        <div class="form-hint">Enter without country code · Digits only · Do NOT include the + or country code here</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Display Name (shown to WhatsApp users)</label>
+        <input class="form-input" placeholder="Acme Business Services" maxlength="256"/>
+        <div class="form-hint">Must match your business name. Max 256 chars. Subject to Meta approval.</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Verification Method</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px">
+          <label style="display:flex;align-items:center;gap:10px;padding:12px 14px;
+            border:1.5px solid var(--brand-dark);border-radius:var(--rs);cursor:pointer;
+            background:#f0fdf4;font-size:13px;font-weight:600;color:var(--brand-dark)">
+            <input type="radio" name="method" value="sms" checked style="accent-color:var(--brand-dark)"/> SMS OTP
+          </label>
+          <label style="display:flex;align-items:center;gap:10px;padding:12px 14px;
+            border:1.5px solid var(--border);border-radius:var(--rs);cursor:pointer;
+            font-size:13px;font-weight:600;color:var(--ink)">
+            <input type="radio" name="method" value="voice" style="accent-color:var(--brand-dark)"/> Voice Call
+          </label>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-full" style="margin-bottom:12px">Send Verification Code</button>
+      <div style="display:none" id="otp-section">
+        <div class="form-group">
+          <label class="form-label">6-Digit OTP</label>
+          <input class="form-input" type="text" inputmode="numeric" maxlength="6"
+            placeholder="· · · · · ·" style="text-align:center;font-family:var(--font-mono);
+            font-size:28px;letter-spacing:12px"/>
+          <div class="form-hint" style="text-align:center">OTP valid for 10 minutes · <a href="#" style="color:var(--brand-dark)">Resend OTP</a></div>
+        </div>
+        <button class="btn btn-brand btn-full">Verify &amp; Activate Number</button>
+      </div>
+    </div>
+
+    <!-- Current registered numbers -->
+    <div class="card" style="margin-top:16px">
+      <div class="card-head" style="margin-bottom:14px">Currently Registered Numbers</div>
+      <table class="tbl">
+        <thead><tr><th>Number</th><th>Display Name</th><th>Tier</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="tbl-mono">+91 98765 43210</td>
+            <td>Demo Business</td>
+            <td><span class="badge badge-blue">Tier 1 · 1k/day</span></td>
+            <td><span class="badge badge-green">✓ Active</span></td>
+          </tr>
+        </tbody>
+      </table>
+      <div style="margin-top:12px;font-size:12px;color:var(--muted)">
+        📈 Tier limits increase automatically as you send more messages and maintain quality.
+        Tier 1 → 1,000/day · Tier 2 → 10,000/day · Tier 3 → 100,000/day
+      </div>
+    </div>
+
+    <!-- API version badge -->
+    <div class="card-sm" style="margin-top:12px;display:flex;align-items:center;
+      justify-content:space-between;background:var(--warm)">
+      <span style="font-size:12px;color:var(--muted)">Meta Graph API</span>
+      <span class="badge badge-wa" style="font-family:var(--font-mono)">v20.0</span>
+    </div>
+  </div>
+</div>
+</div>
+<footer><div class="foot-inner">
+  <div class="foot-brand">
+    <div class="foot-logo"><span class="z">Z</span><span class="k">K</span></div>
+    <div class="foot-name">ZKWA<span>Connect</span></div>
+  </div>
+  <div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:14px">WhatsApp Business API Platform · ZKandhavel Infotech Pvt. Ltd.</div>
+  <hr class="foot-divider"/>
+  <div class="foot-bottom">
+    <div>© 2026 ZKandhavel Infotech Pvt. Ltd. All rights reserved</div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <span class="foot-ver">v3.3.0</span>
+      <a href="/auth/login" style="color:rgba(255,255,255,.4)">App</a>
+      <a href="/" style="color:rgba(255,255,255,.4)">Home</a>
+      <a href="#" style="color:rgba(255,255,255,.4)">Privacy</a>
+    </div>
+  </div>
+</div></footer></body></html>
