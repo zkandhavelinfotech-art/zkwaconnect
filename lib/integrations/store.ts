@@ -28,6 +28,8 @@ const automationSchema = z.object({ enabled: z.boolean().default(false), templat
 export const storeConfigSchema = z.object({
   shopDomain: z.string().optional(), siteUrl: z.string().optional(), storeName: z.string().optional(), phoneNumberId: z.string().optional(),
   countryCode: z.string().regex(/^\d{1,4}$/).default("91"), abandonedNeedsConsent: z.boolean().default(true),
+  merchantNotifyNumber: z.string().optional(),
+  merchantNotifyEnabled: z.boolean().default(false),
   automations: z.object({ orderConfirmation: automationSchema, codConfirmation: automationSchema, shipped: automationSchema, cancelled: automationSchema, abandonedCart: automationSchema })
     .partial().default({}),
   webhookIds: z.array(z.union([z.string(), z.number()])).default([]), webhookError: z.string().nullable().default(null),
@@ -255,6 +257,56 @@ export async function sendAutomation(integrationId: string, orderId: string, key
   return true
 }
 
+// Sends an immediate WhatsApp notification to the merchant's WhatsApp Business number
+export async function sendMerchantOrderAlert(integrationId: string, orderId: string) {
+  const integration = await prisma.integration.findUnique({ where: { id: integrationId } })
+  if (!integration) return false
+  const config = readConfig(integration.config)
+  if (!config.merchantNotifyEnabled || !config.merchantNotifyNumber) return false
+
+  const order = await prisma.order.findUnique({ where: { id: orderId } })
+  if (!order) return false
+
+  const phone = await prisma.phoneNumber.findFirst({
+    where: { status: "CONNECTED", waba: { organizationId: integration.organizationId, status: "CONNECTED" }, ...(config.phoneNumberId ? { id: config.phoneNumberId } : {}) }
+  })
+  if (!phone || !phone.phoneNumberId) return false
+  const token = await getMetaAccessToken(integration.organizationId)
+  if (!token) return false
+
+  const merchantPhone = normalizePhone(config.merchantNotifyNumber, config.countryCode || "91")
+  if (!merchantPhone) return false
+
+  const merchantContact = await prisma.contact.upsert({
+    where: { organizationId_phone: { organizationId: integration.organizationId, phone: merchantPhone } },
+    create: { organizationId: integration.organizationId, phone: merchantPhone, name: "Store Owner", tags: ["admin", "merchant"] },
+    update: {}
+  })
+
+  const conversation = await findOrCreateConversation({ organizationId: integration.organizationId, phoneNumberId: phone.id, contactId: merchantContact.id, reopen: false })
+  const items = itemsOf(order.items)
+  const itemsSummary = items.map((x, i) => `${i + 1}. ${x.name || 'Item'} × ${x.quantity || 1} — ₹${x.price || 0}`).join("\n")
+
+  const alertText = `🚨 *New Order Alert: #${order.orderNumber}*\n\n` +
+    `👤 *Customer:* ${order.customerName || 'Customer'} (${order.customerPhone || 'N/A'})\n` +
+    `💰 *Total:* ₹${order.total} (${order.paymentMethod === 'cod' ? 'Cash on Delivery' : 'Paid Online'})\n\n` +
+    `📦 *Items:*\n${itemsSummary}\n\n` +
+    `📍 *Status:* ${order.status}`
+
+  try {
+    await sendAndRecord(
+      { accessToken: token, metaPhoneNumberId: phone.phoneNumberId, to: merchantPhone, conversationId: conversation.id },
+      { type: "text", text: { preview_url: false, body: alertText } },
+      alertText,
+      { source: "MERCHANT_ORDER_ALERT", orderId: order.id, integrationId: integration.id }
+    )
+    return true
+  } catch (err) {
+    console.error('[sendMerchantOrderAlert Error]', err)
+    return false
+  }
+}
+
 // ---------- processing store events ----------
 async function upsertOrder(integration: { id: string; organizationId: string; type: string }, normalized: Normalized, countryCode: string) {
   const phone = normalized.phone ? normalizePhone(normalized.phone, countryCode) : null
@@ -311,6 +363,9 @@ export async function processStoreEvent(integrationId: string, topic: string, pa
     await emitEvent(integration.organizationId, "order.created", orderEvent(order, itemsOf(order.items)))
     const key: AutomationKey = normalized.cod && config.automations.codConfirmation?.enabled ? "codConfirmation" : "orderConfirmation"
     await sendAutomation(integration.id, order.id, key).catch(error => noteError(integration.id, error))
+    if (config.merchantNotifyEnabled && config.merchantNotifyNumber) {
+      await sendMerchantOrderAlert(integration.id, order.id).catch(error => noteError(integration.id, error))
+    }
   } else if (order.status !== previousStatus) {
     await emitEvent(integration.organizationId, "order.updated", orderEvent(order, itemsOf(order.items)))
     if (order.status === "CANCELLED") await sendAutomation(integration.id, order.id, "cancelled").catch(error => noteError(integration.id, error))

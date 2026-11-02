@@ -5,6 +5,7 @@ type AutomationKey = "orderConfirmation" | "codConfirmation" | "shipped" | "canc
 type Automation = { enabled: boolean; templateId?: string; variables: string[]; delayMinutes?: number }
 type Integration = { id: string; type: "SHOPIFY" | "WOOCOMMERCE" | "ZKCOMMERCE" | "INBOUND_HOOK"; name: string; status: string; url: string; lastEventAt: string | null; lastError: string | null
   stats: Record<string, number>; config: { shopDomain?: string; siteUrl?: string; storeName?: string; phoneNumberId?: string; countryCode: string; abandonedNeedsConsent: boolean
+    merchantNotifyNumber?: string; merchantNotifyEnabled?: boolean
     automations: Partial<Record<AutomationKey, Automation>>; webhookError: string | null } }
 type Template = { id: string; name: string; language: string; category: string | null; content: string | null; variables: number; quickReplies: number }
 type Data = { integrations: Integration[]; templates: Template[]; phones: { id: string; phoneNumber: string; displayName: string | null }[]
@@ -78,6 +79,8 @@ function StoreCard({ item, data, onChange, call }: { item: Integration; data: Da
   const [automations, setAutomations] = useState(item.config.automations)
   const [phoneId, setPhoneId] = useState(item.config.phoneNumberId || "")
   const [consent, setConsent] = useState(item.config.abandonedNeedsConsent)
+  const [merchantNotifyEnabled, setMerchantNotifyEnabled] = useState(item.config.merchantNotifyEnabled ?? true)
+  const [merchantNotifyNumber, setMerchantNotifyNumber] = useState(item.config.merchantNotifyNumber || "917539972026")
   const set = (key: AutomationKey, patch: Partial<Automation>) => setAutomations(current => ({ ...current, [key]: { enabled: false, variables: [], ...current[key], ...patch } }))
   const keys = Object.keys(data.automations) as AutomationKey[]
   return <section style={card}>
@@ -131,7 +134,27 @@ function StoreCard({ item, data, onChange, call }: { item: Integration; data: Da
           {key === "codConfirmation" && <div style={{ fontSize: 11, color: "#64748b" }}>Use a template with two quick-reply buttons, e.g. “Confirm order” and “Cancel order”. The reply updates the order here and in your store.</div>}
         </div>}
       </div> })}</div>
-    <button onClick={async () => { if (await call("PATCH", { id: item.id, automations, phoneNumberId: phoneId, abandonedNeedsConsent: consent })) onChange() }} style={{ ...primary, marginTop: 12 }}>Save automations</button>
+    <div style={{ border: `1px solid ${merchantNotifyEnabled ? "#38bdf8" : "#e2e8f0"}`, borderRadius: 8, padding: 12, background: merchantNotifyEnabled ? "#f0f9ff" : "#fff", marginTop: 12 }}>
+      <label style={{ display: "flex", gap: 8, alignItems: "center", fontWeight: 700, fontSize: 13, cursor: "pointer", color: "#0369a1" }}>
+        <input type="checkbox" checked={merchantNotifyEnabled} onChange={event => setMerchantNotifyEnabled(event.target.checked)} />
+        🔔 Option 2: Instant WhatsApp Alert to Store Owner / Merchant Number
+      </label>
+      <div style={{ fontSize: 11, color: "#64748b", margin: "3px 0 8px 22px" }}>
+        Automatically pings the merchant&apos;s WhatsApp Business number with customer name, phone, address, and items as soon as an order is placed.
+      </div>
+      {merchantNotifyEnabled && (
+        <div style={{ marginLeft: 22, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "#334155" }}>Merchant WhatsApp Number:</span>
+          <input
+            placeholder="e.g. 917539972026"
+            value={merchantNotifyNumber}
+            onChange={event => setMerchantNotifyNumber(event.target.value)}
+            style={{ ...input, width: 200 }}
+          />
+        </div>
+      )}
+    </div>
+    <button onClick={async () => { if (await call("PATCH", { id: item.id, automations, phoneNumberId: phoneId, abandonedNeedsConsent: consent, merchantNotifyEnabled, merchantNotifyNumber })) onChange() }} style={{ ...primary, marginTop: 12 }}>Save automations</button>
   </section>
 }
 

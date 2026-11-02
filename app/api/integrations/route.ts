@@ -102,12 +102,15 @@ export async function PATCH(request: Request) {
     if (!integration) return NextResponse.json({ error: "Integration not found." }, { status: 404 })
     const current = readConfig(integration.config)
     const patch = z.object({ status: z.enum(["ACTIVE", "PAUSED"]).optional(), automations: storeConfigSchema.shape.automations.optional(),
-      phoneNumberId: z.string().optional(), countryCode: z.string().regex(/^\d{1,4}$/).optional(), abandonedNeedsConsent: z.boolean().optional() }).parse(body)
+      phoneNumberId: z.string().optional(), countryCode: z.string().regex(/^\d{1,4}$/).optional(), abandonedNeedsConsent: z.boolean().optional(),
+      merchantNotifyNumber: z.string().optional(), merchantNotifyEnabled: z.boolean().optional() }).parse(body)
     for (const [key, automation] of Object.entries(patch.automations || {}))
       if (automation?.enabled && !automation.templateId) throw new Error(`Pick a template for “${AUTOMATIONS[key as keyof typeof AUTOMATIONS].label}” or turn it off.`)
     await prisma.integration.update({ where: { id: integration.id }, data: { ...(patch.status ? { status: patch.status } : {}), lastError: null,
       config: { ...current, ...(patch.automations ? { automations: patch.automations } : {}), ...(patch.phoneNumberId !== undefined ? { phoneNumberId: patch.phoneNumberId || undefined } : {}),
-        ...(patch.countryCode ? { countryCode: patch.countryCode } : {}), ...(patch.abandonedNeedsConsent !== undefined ? { abandonedNeedsConsent: patch.abandonedNeedsConsent } : {}) } as Prisma.InputJsonValue } })
+        ...(patch.countryCode ? { countryCode: patch.countryCode } : {}), ...(patch.abandonedNeedsConsent !== undefined ? { abandonedNeedsConsent: patch.abandonedNeedsConsent } : {}),
+        ...(patch.merchantNotifyNumber !== undefined ? { merchantNotifyNumber: patch.merchantNotifyNumber || undefined } : {}),
+        ...(patch.merchantNotifyEnabled !== undefined ? { merchantNotifyEnabled: patch.merchantNotifyEnabled } : {}) } as Prisma.InputJsonValue } })
     return NextResponse.json({ ok: true, message: "Saved." })
   } catch (error) { return fail(error) }
 }
