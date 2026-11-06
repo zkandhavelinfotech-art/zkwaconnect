@@ -22,3 +22,4 @@ content = content.replace(/provider\s*=\s*"(postgresql|mysql)"/, `provider = "${
 fs.writeFileSync(schemaPath, content, "utf8")
 console.log(`✅ Prisma schema database provider switched to: ${provider.toUpperCase()}`)
 console.log(`Run 'npx prisma generate' or 'npm run db:generate' to update the client.`)
+

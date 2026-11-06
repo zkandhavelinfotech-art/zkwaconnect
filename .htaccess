@@ -1,0 +1,14 @@
+# ============================================================
+# ZKWAConnect v6 — Apache / GoDaddy Reverse Proxy & Routing
+# ============================================================
+
+RewriteEngine On
+
+# 1. Reverse Proxy to Node.js backend running on port 3002
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ http://127.0.0.1:3002/$1 [P,L]
+
+# 2. Preserve Host headers for multi-domain routing
+RequestHeader set X-Forwarded-Proto "https" env=HTTPS
+ProxyPreserveHost On

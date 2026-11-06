@@ -18,7 +18,9 @@
     "db:validate": "prisma validate",
     "db:format": "prisma format",
     "db:status": "prisma migrate status",
-    "db:switch": "node scripts/db-switch.mjs"
+    "db:switch": "node scripts/db-switch.mjs",
+    "release:zip": "node scripts/package-release.mjs --env=live",
+    "release:zip:dev": "node scripts/package-release.mjs --env=dev"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.9.1",

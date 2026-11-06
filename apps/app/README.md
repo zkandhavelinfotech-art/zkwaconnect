@@ -28,3 +28,4 @@
    - `NEXT_PUBLIC_API_URL`: `https://api.zkwaconnect.in/api/v1`
    - `NEXT_PUBLIC_MARKETING_URL`: `https://zkwaconnect.in`
    - `META_APP_ID`, `META_APP_SECRET`: Your Meta Cloud API credentials
+

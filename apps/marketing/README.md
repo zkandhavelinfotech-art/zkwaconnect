@@ -22,3 +22,4 @@
    - `NEXT_PUBLIC_APP_URL`: `https://app.zkwaconnect.in`
    - `NEXT_PUBLIC_API_URL`: `https://api.zkwaconnect.in/api/v1`
    - `NEXTAUTH_SECRET`: Random 32+ character string
+

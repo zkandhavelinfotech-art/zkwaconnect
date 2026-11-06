@@ -29,3 +29,4 @@
    - `DATABASE_URL`: Your MySQL connection string (`mysql://user:pass@host:3306/zkwaconnect`)
    - `NEXT_PUBLIC_APP_URL`: `https://app.zkwaconnect.in`
    - `META_APP_ID`, `META_APP_SECRET`: Your Meta Cloud API credentials
+

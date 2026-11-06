@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ZKWAConnect v6 — Universal Publish & Deployment Portal</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <style>
     :root {
       --primary: #075e54;
@@ -54,6 +55,47 @@
       max-width: 1100px;
       margin: 28px auto;
       padding: 0 20px;
+    }
+    .env-banner {
+      background: #ffffff;
+      border: 2px solid var(--primary);
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+    }
+    .env-toggle {
+      display: inline-flex;
+      background: #e2e8f0;
+      border-radius: 8px;
+      padding: 3px;
+      gap: 4px;
+    }
+    .env-btn {
+      border: none;
+      background: transparent;
+      padding: 8px 18px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #475569;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .env-btn.active.live {
+      background: #dc2626;
+      color: #ffffff;
+      box-shadow: 0 2px 4px rgba(220,38,38,0.2);
+    }
+    .env-btn.active.dev {
+      background: #16a34a;
+      color: #ffffff;
+      box-shadow: 0 2px 4px rgba(22,163,74,0.2);
     }
     .grid-3 {
       display: grid;
@@ -130,7 +172,6 @@
       line-height: 1.6;
       margin: 12px 0;
     }
-    .form-group { margin-bottom: 14px; }
     label {
       display: block;
       font-size: 12.5px;
@@ -166,6 +207,10 @@
       border: 1px solid #cbd5e1;
     }
     .btn-secondary:hover { background: #e2e8f0; }
+    .btn-live { background: #dc2626; color: #fff; }
+    .btn-live:hover { background: #b91c1c; }
+    .btn-dev { background: #16a34a; color: #fff; }
+    .btn-dev:hover { background: #15803d; }
   </style>
 </head>
 <body>
@@ -175,18 +220,66 @@
         <div class="badge">ZKWAConnect v6 Architecture</div>
         <h1 style="font-size:26px;font-weight:800">Publish & Deployment Portal</h1>
         <p style="font-size:13.5px;opacity:0.9;margin-top:4px">
-          Deploy Marketing Website, Customer WhatsApp Platform, and REST API across 3 separate domains with native MySQL support.
+          Build, configure, and download ready-to-deploy ZIP packages for Live &amp; Dev environments.
         </p>
       </div>
-      <div>
-        <button onclick="downloadEnvFile()" class="btn" style="background:#fff;color:var(--primary)">
-          💾 Download .env (MySQL)
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button onclick="downloadActiveEnv()" class="btn" style="background:#fff;color:var(--primary)">
+          💾 Download .env (<span id="btnEnvModeText">Live</span>)
+        </button>
+        <button onclick="downloadZipBundle()" class="btn" style="background:var(--accent);color:#064e3b">
+          📦 Download Config ZIP
         </button>
       </div>
     </div>
   </header>
 
   <div class="container">
+    <!-- Active Environment Switcher Banner -->
+    <div class="env-banner">
+      <div>
+        <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px">Active Configuration Profile</div>
+        <div style="font-size:17px;font-weight:800;color:var(--text);margin-top:2px" id="activeEnvTitle">
+          🔴 Live / Production Mode (zkwaconnect.in)
+        </div>
+        <div style="font-size:12.5px;color:var(--text-muted);margin-top:4px" id="activeEnvSubtext">
+          Targeting production domains with live MySQL database credentials and SSL/HTTPS.
+        </div>
+      </div>
+      <div class="env-toggle">
+        <button id="btnLive" class="env-btn active live" onclick="setEnvironment('live')">
+          🔴 Live / Production
+        </button>
+        <button id="btnDev" class="env-btn" onclick="setEnvironment('dev')">
+          🟢 Dev / Localhost
+        </button>
+      </div>
+    </div>
+
+    <!-- Ready-to-Deploy ZIP Download Section -->
+    <div class="card" style="border: 2px solid #25d366; background: #f0fdf4; margin-bottom: 24px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px">
+        <div>
+          <span class="badge" style="background:#25d366;color:#064e3b">Instant ZIP Release</span>
+          <h3 style="color:#064e3b;font-size:18px">📦 Standalone Deployment Packages (ZIP)</h3>
+          <p style="margin:4px 0 0;color:#166534;font-size:13px">
+            Contains the complete application source code, <code>schema-mysql.sql</code>, server configs, and pre-configured <code>.env</code>.
+          </p>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <a href="../release/ZKWAConnect-v6.0.0-DEPLOY-LIVE.zip" download="ZKWAConnect-v6.0.0-DEPLOY-LIVE.zip" class="btn btn-live">
+            📥 Download LIVE Deployment ZIP (1.66 MB)
+          </a>
+          <a href="../release/ZKWAConnect-v6.0.0-DEPLOY-DEV.zip" download="ZKWAConnect-v6.0.0-DEPLOY-DEV.zip" class="btn btn-dev">
+            📥 Download DEV Deployment ZIP (1.66 MB)
+          </a>
+        </div>
+      </div>
+      <div style="margin-top:12px;font-size:12px;color:#15803d;border-top:1px dashed #86efac;padding-top:10px">
+        ⚡ <b>Need to re-pack?</b> Run <code>npm run release:zip</code> or double-click <code>zkwa-build-zip.bat</code> in the root folder anytime!
+      </div>
+    </div>
+
     <!-- 3 App Architecture Overview -->
     <h2 style="font-size:19px;margin-bottom:14px;color:var(--text)">1. Project Multi-Domain Architecture</h2>
     <div class="grid-3">
@@ -194,11 +287,11 @@
       <div class="card" style="border-top:4px solid #0284c7">
         <span class="badge" style="background:#e0f2fe;color:#0369a1">Source: apps/marketing</span>
         <h3>🌐 Marketing Webapp</h3>
-        <div class="domain-tag">zkwaconnect.in</div>
+        <div class="domain-tag" id="domainMarketing">https://zkwaconnect.in</div>
         <p>Public SaaS website, pricing calculator, feature showcase, and Product Owner <b>Super Admin Portal</b> (/admin).</p>
         <ul style="font-size:12px;color:var(--text-muted);margin-left:18px;margin-bottom:14px">
           <li>Self-serve customer registration</li>
-          <li>Super Admin tenant & revenue management</li>
+          <li>Super Admin tenant &amp; revenue management</li>
           <li>Partner and agency commission auditing</li>
         </ul>
         <span style="font-size:11.5px;color:#0369a1;font-weight:700">Root Directory: apps/marketing</span>
@@ -208,12 +301,12 @@
       <div class="card" style="border-top:4px solid #16a34a">
         <span class="badge" style="background:#dcfce7;color:#15803d">Source: apps/app</span>
         <h3>📱 WhatsApp Business Platform</h3>
-        <div class="domain-tag">app.zkwaconnect.in</div>
+        <div class="domain-tag" id="domainApp">https://app.zkwaconnect.in</div>
         <p>Customer login (/login), Team Inbox, Broadcast Campaigns, Contacts CRM, WhatsApp Forms, and Integrations.</p>
         <ul style="font-size:12px;color:var(--text-muted);margin-left:18px;margin-bottom:14px">
           <li>1st-Class ZKCommerce, Shopify, WooCommerce</li>
           <li>Meta Cloud API live webhook listeners</li>
-          <li>UPI QR automated wallet & credit top-ups</li>
+          <li>UPI QR automated wallet &amp; credit top-ups</li>
         </ul>
         <span style="font-size:11.5px;color:#15803d;font-weight:700">Root Directory: apps/app</span>
       </div>
@@ -221,11 +314,11 @@
       <!-- App 3: REST API -->
       <div class="card" style="border-top:4px solid #9333ea">
         <span class="badge" style="background:#f3e8ff;color:#7e22ce">Source: apps/api</span>
-        <h3>⚡ Public REST API & Webhooks</h3>
-        <div class="domain-tag">api.zkwaconnect.in/api/v1</div>
+        <h3>⚡ Public REST API &amp; Webhooks</h3>
+        <div class="domain-tag" id="domainApi">https://api.zkwaconnect.in/api/v1</div>
         <p>High-performance backend API for external apps (ZKLeadFlowCRM, ZKCMS) with HMAC-SHA256 authentication.</p>
         <ul style="font-size:12px;color:var(--text-muted);margin-left:18px;margin-bottom:14px">
-          <li>/api/v1/messages/send & /template</li>
+          <li>/api/v1/messages/send &amp; /template</li>
           <li>OWASP signed request verification</li>
           <li>Native MySQL database persistence</li>
         </ul>
@@ -236,9 +329,9 @@
     <!-- Deployment Target Guides -->
     <h2 style="font-size:19px;margin-bottom:14px;color:var(--text)">2. Server Deployment Targets</h2>
     <div class="tabs">
-      <button class="tab-btn active" onclick="switchTab('godaddy')">📦 GoDaddy / cPanel (PHP & MySQL)</button>
+      <button class="tab-btn active" onclick="switchTab('godaddy')">📦 GoDaddy / cPanel (PHP &amp; MySQL)</button>
       <button class="tab-btn" onclick="switchTab('vps')">🚀 VPS / Ubuntu / PM2 / NGINX</button>
-      <button class="tab-btn" onclick="switchTab('docker')">🐳 Docker & Docker Compose</button>
+      <button class="tab-btn" onclick="switchTab('docker')">🐳 Docker &amp; Docker Compose</button>
       <button class="tab-btn" onclick="switchTab('vercel')">☁️ Vercel / Cloud PaaS (3 GitHub Sources)</button>
       <button class="tab-btn" onclick="switchTab('mysql')">🗄️ MySQL Database Setup</button>
     </div>
@@ -251,6 +344,7 @@
         <ol style="font-size:13px;margin-left:20px;line-height:1.8;color:#334155">
           <li><b>Create MySQL Database in cPanel:</b> Name it <code>zkwaconnect_db</code>, create a database user, and assign ALL PRIVILEGES.</li>
           <li><b>Import Schema:</b> Open <b>phpMyAdmin</b>, select your database, and import <code>prisma/schema-mysql.sql</code>.</li>
+          <li><b>Extract Deployment ZIP:</b> Extract the downloaded <code>ZKWAConnect-v6.0.0-DEPLOY-LIVE.zip</code> into your application directory.</li>
           <li><b>Configure Subdomains in cPanel:</b>
             <ul style="margin-left:20px">
               <li><code>zkwaconnect.in</code> → Document Root: <code>public_html</code></li>
@@ -260,8 +354,11 @@
           </li>
           <li><b>Setup Node.js App in cPanel:</b> Select Node.js version 20+, App Root: <code>/home/user/zkwaconnect</code>, Application Startup File: <code>server.js</code>.</li>
         </ol>
-        <div style="margin-top:16px">
+        <div style="margin-top:16px;display:flex;gap:10px">
           <button onclick="downloadApacheHtaccess()" class="btn">Download GoDaddy .htaccess</button>
+          <a href="../release/ZKWAConnect-v6.0.0-DEPLOY-LIVE.zip" download="ZKWAConnect-v6.0.0-DEPLOY-LIVE.zip" class="btn btn-secondary">
+            Download Deployment ZIP
+          </a>
         </div>
       </div>
     </div>
@@ -269,9 +366,9 @@
     <!-- TAB 2: VPS / NGINX -->
     <div id="tab-vps" class="tab-content">
       <div class="card">
-        <h3>Deploying on Ubuntu / VPS with NGINX & PM2</h3>
+        <h3>Deploying on Ubuntu / VPS with NGINX &amp; PM2</h3>
         <p>Run all 3 applications simultaneously using PM2 process manager and NGINX domain routing.</p>
-        <pre><code># 1. Clone repository
+        <pre><code id="vpsScriptPreview"># 1. Extract ZIP or Clone repository
 git clone https://github.com/zkandhavelinfotech-art/zkwaconnect.git
 cd zkwaconnect && git checkout v6.0
 
@@ -284,11 +381,10 @@ mysql -u zkwaconnect -p zkwaconnect < prisma/schema-mysql.sql
 # 4. Install & Build
 npm install
 npm run db:switch mysql
-npx prisma generate --schema=prisma/schema.mysql.prisma
 npm run build
 
 # 5. Start with PM2
-pm2 start server.js --name "zkwaconnect-unified" -i max
+pm2 start ecosystem.config.js --env production
 pm2 save && pm2 startup</code></pre>
         <button onclick="downloadNginxConf()" class="btn">Download NGINX VirtualHost Config</button>
       </div>
@@ -346,7 +442,7 @@ docker-compose up -d --build</code></pre>
     <!-- TAB 5: MySQL Database Setup -->
     <div id="tab-mysql" class="tab-content">
       <div class="card">
-        <h3>MySQL 8.0 & MariaDB Database Setup</h3>
+        <h3>MySQL 8.0 &amp; MariaDB Database Setup</h3>
         <p>ZKWAConnect v6 supports native MySQL! All 52 tables with foreign keys and enums are ready.</p>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">
           <div>
@@ -367,17 +463,20 @@ docker-compose up -d --build</code></pre>
           </div>
           <div style="grid-column:span 2">
             <label>Database Name</label>
-            <input id="dbName" value="zkwaconnect" oninput="updateEnvPreview()">
+            <input id="dbName" value="zkwaconnect_prod" oninput="updateEnvPreview()">
           </div>
         </div>
-        <label>Generated DATABASE_URL for .env:</label>
-        <pre><code id="envUrlPreview">mysql://root:password@localhost:3306/zkwaconnect</code></pre>
-        <div style="display:flex;gap:10px;margin-top:14px">
+        <label>Generated DATABASE_URL for .env (<span id="envPreviewLabel">Live</span>):</label>
+        <pre><code id="envUrlPreview">mysql://root:password@localhost:3306/zkwaconnect_prod</code></pre>
+        <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
           <a href="../prisma/schema-mysql.sql" download="schema-mysql.sql" class="btn">
             📥 Download schema-mysql.sql (phpMyAdmin Import)
           </a>
-          <button onclick="downloadEnvFile()" class="btn btn-secondary">
-            Save to .env
+          <button onclick="downloadActiveEnv()" class="btn btn-secondary">
+            Download .env (<span id="btnEnvSubText">Live</span>)
+          </button>
+          <button onclick="downloadZipBundle()" class="btn" style="background:#25d366;color:#064e3b">
+            📦 Download Config ZIP
           </button>
         </div>
       </div>
@@ -385,6 +484,43 @@ docker-compose up -d --build</code></pre>
   </div>
 
   <script>
+    let currentEnv = 'live';
+
+    function setEnvironment(env) {
+      currentEnv = env;
+      const isLive = (env === 'live');
+
+      // Update button classes
+      document.getElementById('btnLive').className = 'env-btn' + (isLive ? ' active live' : '');
+      document.getElementById('btnDev').className = 'env-btn' + (!isLive ? ' active dev' : '');
+
+      // Update Header Text
+      document.getElementById('btnEnvModeText').textContent = isLive ? 'Live' : 'Dev';
+      document.getElementById('btnEnvSubText').textContent = isLive ? 'Live' : 'Dev';
+      document.getElementById('envPreviewLabel').textContent = isLive ? 'Live' : 'Dev';
+
+      // Update Banner Text
+      const title = document.getElementById('activeEnvTitle');
+      const sub = document.getElementById('activeEnvSubtext');
+      if (isLive) {
+        title.innerHTML = '🔴 Live / Production Mode (zkwaconnect.in)';
+        sub.textContent = 'Targeting production domains with live MySQL database credentials and SSL/HTTPS.';
+        document.getElementById('domainMarketing').textContent = 'https://zkwaconnect.in';
+        document.getElementById('domainApp').textContent = 'https://app.zkwaconnect.in';
+        document.getElementById('domainApi').textContent = 'https://api.zkwaconnect.in/api/v1';
+        document.getElementById('dbName').value = 'zkwaconnect_prod';
+      } else {
+        title.innerHTML = '🟢 Dev / Localhost Mode (localhost:3002)';
+        sub.textContent = 'Targeting local development on ports 3000-3002 with local MySQL credentials.';
+        document.getElementById('domainMarketing').textContent = 'http://localhost:3000';
+        document.getElementById('domainApp').textContent = 'http://localhost:3001';
+        document.getElementById('domainApi').textContent = 'http://localhost:3002/api/v1';
+        document.getElementById('dbName').value = 'zkwaconnect_dev';
+      }
+
+      updateEnvPreview();
+    }
+
     function switchTab(id) {
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
       document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -403,6 +539,46 @@ docker-compose up -d --build</code></pre>
       return url;
     }
 
+    function generateEnvText() {
+      const dbUrl = updateEnvPreview();
+      const isLive = (currentEnv === 'live');
+      if (isLive) {
+        return `# ZKWAConnect v6 — Live / Production Environment
+NODE_ENV="production"
+PORT=3002
+
+# MySQL Production Database Connection (GoDaddy / AWS RDS / Live VPS)
+DATABASE_URL="${dbUrl}"
+
+# Production Domains
+NEXT_PUBLIC_APP_URL="https://app.zkwaconnect.in"
+NEXT_PUBLIC_API_URL="https://api.zkwaconnect.in/api/v1"
+NEXT_PUBLIC_MARKETING_URL="https://zkwaconnect.in"
+
+# Master Security Secrets
+NEXTAUTH_SECRET="zkwa_live_master_jwt_secret_32chars_long!"
+ENCRYPTION_KEY="zkwa_live_encryption_master_key_32chars!"
+`;
+      } else {
+        return `# ZKWAConnect v6 — Development / Localhost Environment
+NODE_ENV="development"
+PORT=3002
+
+# MySQL Localhost Database Connection (XAMPP / Local MySQL)
+DATABASE_URL="${dbUrl}"
+
+# Development URLs
+NEXT_PUBLIC_APP_URL="http://localhost:3002"
+NEXT_PUBLIC_API_URL="http://localhost:3002/api/v1"
+NEXT_PUBLIC_MARKETING_URL="http://localhost:3002"
+
+# Local Secrets
+NEXTAUTH_SECRET="zkwa_dev_master_secret_key_32chars!"
+ENCRYPTION_KEY="zkwa_dev_encryption_key_32chars_long!"
+`;
+      }
+    }
+
     function downloadFile(filename, text) {
       const el = document.createElement('a');
       el.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
@@ -413,44 +589,30 @@ docker-compose up -d --build</code></pre>
       document.body.removeChild(el);
     }
 
-    function downloadEnvFile() {
-      const dbUrl = updateEnvPreview();
-      const content = `# ZKWAConnect v6 MySQL Configuration
-DATABASE_URL="${dbUrl}"
-NEXT_PUBLIC_APP_URL="https://app.zkwaconnect.in"
-NEXT_PUBLIC_API_URL="https://api.zkwaconnect.in/api/v1"
-NEXT_PUBLIC_MARKETING_URL="https://zkwaconnect.in"
-NEXTAUTH_SECRET="zkwa_super_secret_master_key_32chars!"
-NODE_ENV="production"
-PORT=3002
-`;
-      downloadFile('.env', content);
+    function downloadActiveEnv() {
+      const filename = currentEnv === 'live' ? '.env.production' : '.env.development';
+      downloadFile(filename, generateEnvText());
     }
 
     function downloadNginxConf() {
       const conf = `
 # ZKWAConnect v6 NGINX Configuration
-# 1. Marketing Site (zkwaconnect.in)
 server {
     server_name zkwaconnect.in www.zkwaconnect.in;
     location / {
-        proxy_pass http://127.0.0.1:3000;
+        proxy_pass http://127.0.0.1:3002;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }
 }
-
-# 2. Customer Platform (app.zkwaconnect.in)
 server {
     server_name app.zkwaconnect.in;
     location / {
-        proxy_pass http://127.0.0.1:3001;
+        proxy_pass http://127.0.0.1:3002;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }
 }
-
-# 3. Public REST API (api.zkwaconnect.in)
 server {
     server_name api.zkwaconnect.in;
     location / {
@@ -467,14 +629,9 @@ server {
       const ht = `
 # ZKWAConnect v6 Apache / GoDaddy .htaccess
 RewriteEngine On
-RewriteCond %{HTTP_HOST} ^api\\.zkwaconnect\\.in$ [NC]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*)$ http://127.0.0.1:3002/$1 [P,L]
-
-RewriteCond %{HTTP_HOST} ^app\\.zkwaconnect\\.in$ [NC]
-RewriteRule ^(.*)$ http://127.0.0.1:3001/$1 [P,L]
-
-RewriteCond %{HTTP_HOST} ^(www\\.)?zkwaconnect\\.in$ [NC]
-RewriteRule ^(.*)$ http://127.0.0.1:3000/$1 [P,L]
 `;
       downloadFile('.htaccess', ht);
     }
@@ -499,8 +656,6 @@ services:
     container_name: zkwaconnect-app
     restart: always
     ports:
-      - "3000:3000"
-      - "3001:3001"
       - "3002:3002"
     environment:
       DATABASE_URL: "mysql://root:password@mysql:3306/zkwaconnect"
@@ -511,6 +666,45 @@ volumes:
   mysql_data:
 `;
       downloadFile('docker-compose.yml', dc);
+    }
+
+    async function downloadZipBundle() {
+      if (typeof JSZip === 'undefined') {
+        alert('JSZip library loading. Please check your internet connection or use the direct ZIP download button above.');
+        return;
+      }
+      const zip = new JSZip();
+      const isLive = (currentEnv === 'live');
+      
+      // Add .env
+      zip.file(isLive ? '.env' : '.env.local', generateEnvText());
+      zip.file('.env.example', generateEnvText());
+
+      // Add NGINX, htaccess, PM2, Docker configs
+      zip.file('nginx.conf', `# ZKWAConnect v6 NGINX Configuration\nserver {\n    server_name zkwaconnect.in;\n    location / { proxy_pass http://127.0.0.1:3002; }\n}\n`);
+      zip.file('.htaccess', `RewriteEngine On\nRewriteCond %{REQUEST_FILENAME} !-f\nRewriteRule ^(.*)$ http://127.0.0.1:3002/$1 [P,L]\n`);
+      zip.file('ecosystem.config.js', `module.exports = { apps: [{ name: "zkwaconnect-unified", script: "server.js", env: { NODE_ENV: "${isLive ? 'production' : 'development'}", PORT: 3002 } }] };\n`);
+      zip.file('docker-compose.yml', `version: '3.8'\nservices:\n  mysql:\n    image: mysql:8.0\n    ports: ["3306:3306"]\n`);
+      zip.file('DEPLOY-README.md', `# ZKWAConnect v6 (${isLive ? 'LIVE' : 'DEV'} Configuration Bundle)\n\n1. Import schema-mysql.sql into MySQL.\n2. Configure .env.\n3. Run npm start or pm2 start ecosystem.config.js\n`);
+
+      // Try fetching schema-mysql.sql to bundle it if available
+      try {
+        const resp = await fetch('../prisma/schema-mysql.sql');
+        if (resp.ok) {
+          const sql = await resp.text();
+          zip.file('schema-mysql.sql', sql);
+        }
+      } catch (_) {}
+
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `zkwaconnect-v6-config-${currentEnv}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     }
   </script>
 </body>
