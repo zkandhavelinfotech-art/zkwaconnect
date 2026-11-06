@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ZKWAConnect v6 — Universal Publish & Deployment Portal</title>
+  <style>
+    :root {
+      --primary: #075e54;
+      --primary-dark: #054c44;
+      --accent: #25d366;
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --border: #e2e8f0;
+      --text: #0f172a;
+      --text-muted: #64748b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      padding-bottom: 60px;
+    }
+    header {
+      background: linear-gradient(135deg, var(--primary) 0%, #128c7e 100%);
+      color: white;
+      padding: 30px 24px;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    }
+    .header-container {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .badge {
+      display: inline-block;
+      background: rgba(255,255,255,0.2);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+    .container {
+      max-width: 1100px;
+      margin: 28px auto;
+      padding: 0 20px;
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      margin-bottom: 28px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      position: relative;
+    }
+    .card h3 {
+      font-size: 17px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card p {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+    }
+    .domain-tag {
+      display: inline-block;
+      font-family: monospace;
+      font-size: 12.5px;
+      font-weight: 700;
+      background: #f1f5f9;
+      color: var(--primary);
+      padding: 4px 8px;
+      border-radius: 6px;
+      margin-bottom: 12px;
+    }
+    .tabs {
+      display: flex;
+      border-bottom: 2px solid var(--border);
+      margin-bottom: 24px;
+      gap: 12px;
+      overflow-x: auto;
+    }
+    .tab-btn {
+      background: none;
+      border: none;
+      padding: 12px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -2px;
+      white-space: nowrap;
+    }
+    .tab-btn.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    pre {
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 16px;
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 12.5px;
+      overflow-x: auto;
+      line-height: 1.6;
+      margin: 12px 0;
+    }
+    .form-group { margin-bottom: 14px; }
+    label {
+      display: block;
+      font-size: 12.5px;
+      font-weight: 600;
+      margin-bottom: 4px;
+      color: #334155;
+    }
+    input, select {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+    .btn {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      text-decoration: none;
+    }
+    .btn:hover { background: var(--primary-dark); }
+    .btn-secondary {
+      background: #f1f5f9;
+      color: #334155;
+      border: 1px solid #cbd5e1;
+    }
+    .btn-secondary:hover { background: #e2e8f0; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-container">
+      <div>
+        <div class="badge">ZKWAConnect v6 Architecture</div>
+        <h1 style="font-size:26px;font-weight:800">Publish & Deployment Portal</h1>
+        <p style="font-size:13.5px;opacity:0.9;margin-top:4px">
+          Deploy Marketing Website, Customer WhatsApp Platform, and REST API across 3 separate domains with native MySQL support.
+        </p>
+      </div>
+      <div>
+        <button onclick="downloadEnvFile()" class="btn" style="background:#fff;color:var(--primary)">
+          💾 Download .env (MySQL)
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+    <!-- 3 App Architecture Overview -->
+    <h2 style="font-size:19px;margin-bottom:14px;color:var(--text)">1. Project Multi-Domain Architecture</h2>
+    <div class="grid-3">
+      <!-- App 1: Marketing -->
+      <div class="card" style="border-top:4px solid #0284c7">
+        <span class="badge" style="background:#e0f2fe;color:#0369a1">Source: apps/marketing</span>
+        <h3>🌐 Marketing Webapp</h3>
+        <div class="domain-tag">zkwaconnect.in</div>
+        <p>Public SaaS website, pricing calculator, feature showcase, and Product Owner <b>Super Admin Portal</b> (/admin).</p>
+        <ul style="font-size:12px;color:var(--text-muted);margin-left:18px;margin-bottom:14px">
+          <li>Self-serve customer registration</li>
+          <li>Super Admin tenant & revenue management</li>
+          <li>Partner and agency commission auditing</li>
+        </ul>
+        <span style="font-size:11.5px;color:#0369a1;font-weight:700">Root Directory: apps/marketing</span>
+      </div>
+
+      <!-- App 2: Customer Platform -->
+      <div class="card" style="border-top:4px solid #16a34a">
+        <span class="badge" style="background:#dcfce7;color:#15803d">Source: apps/app</span>
+        <h3>📱 WhatsApp Business Platform</h3>
+        <div class="domain-tag">app.zkwaconnect.in</div>
+        <p>Customer login (/login), Team Inbox, Broadcast Campaigns, Contacts CRM, WhatsApp Forms, and Integrations.</p>
+        <ul style="font-size:12px;color:var(--text-muted);margin-left:18px;margin-bottom:14px">
+          <li>1st-Class ZKCommerce, Shopify, WooCommerce</li>
+          <li>Meta Cloud API live webhook listeners</li>
+          <li>UPI QR automated wallet & credit top-ups</li>
+        </ul>
+        <span style="font-size:11.5px;color:#15803d;font-weight:700">Root Directory: apps/app</span>
+      </div>
+
+      <!-- App 3: REST API -->
+      <div class="card" style="border-top:4px solid #9333ea">
+        <span class="badge" style="background:#f3e8ff;color:#7e22ce">Source: apps/api</span>
+        <h3>⚡ Public REST API & Webhooks</h3>
+        <div class="domain-tag">api.zkwaconnect.in/api/v1</div>
+        <p>High-performance backend API for external apps (ZKLeadFlowCRM, ZKCMS) with HMAC-SHA256 authentication.</p>
+        <ul style="font-size:12px;color:var(--text-muted);margin-left:18px;margin-bottom:14px">
+          <li>/api/v1/messages/send & /template</li>
+          <li>OWASP signed request verification</li>
+          <li>Native MySQL database persistence</li>
+        </ul>
+        <span style="font-size:11.5px;color:#7e22ce;font-weight:700">Root Directory: apps/api</span>
+      </div>
+    </div>
+
+    <!-- Deployment Target Guides -->
+    <h2 style="font-size:19px;margin-bottom:14px;color:var(--text)">2. Server Deployment Targets</h2>
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('godaddy')">📦 GoDaddy / cPanel (PHP & MySQL)</button>
+      <button class="tab-btn" onclick="switchTab('vps')">🚀 VPS / Ubuntu / PM2 / NGINX</button>
+      <button class="tab-btn" onclick="switchTab('docker')">🐳 Docker & Docker Compose</button>
+      <button class="tab-btn" onclick="switchTab('vercel')">☁️ Vercel / Cloud PaaS (3 GitHub Sources)</button>
+      <button class="tab-btn" onclick="switchTab('mysql')">🗄️ MySQL Database Setup</button>
+    </div>
+
+    <!-- TAB 1: GoDaddy / cPanel -->
+    <div id="tab-godaddy" class="tab-content active">
+      <div class="card">
+        <h3>Deploying on GoDaddy / cPanel Hosting</h3>
+        <p>You can deploy ZKWAConnect on GoDaddy using cPanel's <b>Node.js App Selector</b> and <b>MySQL Database</b>.</p>
+        <ol style="font-size:13px;margin-left:20px;line-height:1.8;color:#334155">
+          <li><b>Create MySQL Database in cPanel:</b> Name it <code>zkwaconnect_db</code>, create a database user, and assign ALL PRIVILEGES.</li>
+          <li><b>Import Schema:</b> Open <b>phpMyAdmin</b>, select your database, and import <code>prisma/schema-mysql.sql</code>.</li>
+          <li><b>Configure Subdomains in cPanel:</b>
+            <ul style="margin-left:20px">
+              <li><code>zkwaconnect.in</code> → Document Root: <code>public_html</code></li>
+              <li><code>app.zkwaconnect.in</code> → Document Root: <code>public_html/app</code></li>
+              <li><code>api.zkwaconnect.in</code> → Document Root: <code>public_html/api</code></li>
+            </ul>
+          </li>
+          <li><b>Setup Node.js App in cPanel:</b> Select Node.js version 20+, App Root: <code>/home/user/zkwaconnect</code>, Application Startup File: <code>server.js</code>.</li>
+        </ol>
+        <div style="margin-top:16px">
+          <button onclick="downloadApacheHtaccess()" class="btn">Download GoDaddy .htaccess</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: VPS / NGINX -->
+    <div id="tab-vps" class="tab-content">
+      <div class="card">
+        <h3>Deploying on Ubuntu / VPS with NGINX & PM2</h3>
+        <p>Run all 3 applications simultaneously using PM2 process manager and NGINX domain routing.</p>
+        <pre><code># 1. Clone repository
+git clone https://github.com/zkandhavelinfotech-art/zkwaconnect.git
+cd zkwaconnect && git checkout v6.0
+
+# 2. Configure MySQL Database in .env
+DATABASE_URL="mysql://zkwaconnect:YourStrongPassword@localhost:3306/zkwaconnect"
+
+# 3. Import MySQL Schema
+mysql -u zkwaconnect -p zkwaconnect < prisma/schema-mysql.sql
+
+# 4. Install & Build
+npm install
+npm run db:switch mysql
+npx prisma generate --schema=prisma/schema.mysql.prisma
+npm run build
+
+# 5. Start with PM2
+pm2 start server.js --name "zkwaconnect-unified" -i max
+pm2 save && pm2 startup</code></pre>
+        <button onclick="downloadNginxConf()" class="btn">Download NGINX VirtualHost Config</button>
+      </div>
+    </div>
+
+    <!-- TAB 3: Docker -->
+    <div id="tab-docker" class="tab-content">
+      <div class="card">
+        <h3>Deploying with Docker Compose</h3>
+        <p>Containerized stack with MySQL 8.0, Redis cache, and ZKWAConnect.</p>
+        <pre><code># Start the full stack with 1 command:
+docker-compose up -d --build</code></pre>
+        <button onclick="downloadDockerCompose()" class="btn">Download docker-compose.yml</button>
+      </div>
+    </div>
+
+    <!-- TAB 4: Vercel / Cloud PaaS -->
+    <div id="tab-vercel" class="tab-content">
+      <div class="card">
+        <h3>Deploying 3 Different Sources from the Same GitHub Repo</h3>
+        <p>How to configure Vercel, Railway, or Render to deploy 3 distinct projects from 1 repository:</p>
+        <table style="width:100%;border-collapse:collapse;font-size:12.5px;margin:14px 0">
+          <thead>
+            <tr style="border-bottom:2px solid var(--border);text-align:left;color:var(--text-muted)">
+              <th style="padding:8px">Project Name</th>
+              <th style="padding:8px">GitHub Repo</th>
+              <th style="padding:8px">Root Directory</th>
+              <th style="padding:8px">Target Domain</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom:1px solid var(--border)">
+              <td style="padding:8px;font-weight:700">Marketing Site</td>
+              <td style="padding:8px"><code>zkwaconnect</code></td>
+              <td style="padding:8px"><code>apps/marketing</code></td>
+              <td style="padding:8px"><code>zkwaconnect.in</code></td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border)">
+              <td style="padding:8px;font-weight:700">Customer Platform</td>
+              <td style="padding:8px"><code>zkwaconnect</code></td>
+              <td style="padding:8px"><code>apps/app</code></td>
+              <td style="padding:8px"><code>app.zkwaconnect.in</code></td>
+            </tr>
+            <tr>
+              <td style="padding:8px;font-weight:700">Public REST API</td>
+              <td style="padding:8px"><code>zkwaconnect</code></td>
+              <td style="padding:8px"><code>apps/api</code></td>
+              <td style="padding:8px"><code>api.zkwaconnect.in</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 5: MySQL Database Setup -->
+    <div id="tab-mysql" class="tab-content">
+      <div class="card">
+        <h3>MySQL 8.0 & MariaDB Database Setup</h3>
+        <p>ZKWAConnect v6 supports native MySQL! All 52 tables with foreign keys and enums are ready.</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">
+          <div>
+            <label>MySQL Host</label>
+            <input id="dbHost" value="localhost" oninput="updateEnvPreview()">
+          </div>
+          <div>
+            <label>Port</label>
+            <input id="dbPort" value="3306" oninput="updateEnvPreview()">
+          </div>
+          <div>
+            <label>Database User</label>
+            <input id="dbUser" value="root" oninput="updateEnvPreview()">
+          </div>
+          <div>
+            <label>Database Password</label>
+            <input id="dbPass" type="password" value="password" oninput="updateEnvPreview()">
+          </div>
+          <div style="grid-column:span 2">
+            <label>Database Name</label>
+            <input id="dbName" value="zkwaconnect" oninput="updateEnvPreview()">
+          </div>
+        </div>
+        <label>Generated DATABASE_URL for .env:</label>
+        <pre><code id="envUrlPreview">mysql://root:password@localhost:3306/zkwaconnect</code></pre>
+        <div style="display:flex;gap:10px;margin-top:14px">
+          <a href="../prisma/schema-mysql.sql" download="schema-mysql.sql" class="btn">
+            📥 Download schema-mysql.sql (phpMyAdmin Import)
+          </a>
+          <button onclick="downloadEnvFile()" class="btn btn-secondary">
+            Save to .env
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function switchTab(id) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      event.target.classList.add('active');
+      document.getElementById('tab-' + id).classList.add('active');
+    }
+
+    function updateEnvPreview() {
+      const h = document.getElementById('dbHost').value;
+      const p = document.getElementById('dbPort').value;
+      const u = document.getElementById('dbUser').value;
+      const pass = encodeURIComponent(document.getElementById('dbPass').value);
+      const d = document.getElementById('dbName').value;
+      const url = `mysql://${u}:${pass}@${h}:${p}/${d}`;
+      document.getElementById('envUrlPreview').textContent = url;
+      return url;
+    }
+
+    function downloadFile(filename, text) {
+      const el = document.createElement('a');
+      el.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+      el.setAttribute('download', filename);
+      el.style.display = 'none';
+      document.body.appendChild(el);
+      el.click();
+      document.body.removeChild(el);
+    }
+
+    function downloadEnvFile() {
+      const dbUrl = updateEnvPreview();
+      const content = `# ZKWAConnect v6 MySQL Configuration
+DATABASE_URL="${dbUrl}"
+NEXT_PUBLIC_APP_URL="https://app.zkwaconnect.in"
+NEXT_PUBLIC_API_URL="https://api.zkwaconnect.in/api/v1"
+NEXT_PUBLIC_MARKETING_URL="https://zkwaconnect.in"
+NEXTAUTH_SECRET="zkwa_super_secret_master_key_32chars!"
+NODE_ENV="production"
+PORT=3002
+`;
+      downloadFile('.env', content);
+    }
+
+    function downloadNginxConf() {
+      const conf = `
+# ZKWAConnect v6 NGINX Configuration
+# 1. Marketing Site (zkwaconnect.in)
+server {
+    server_name zkwaconnect.in www.zkwaconnect.in;
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+
+# 2. Customer Platform (app.zkwaconnect.in)
+server {
+    server_name app.zkwaconnect.in;
+    location / {
+        proxy_pass http://127.0.0.1:3001;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+
+# 3. Public REST API (api.zkwaconnect.in)
+server {
+    server_name api.zkwaconnect.in;
+    location / {
+        proxy_pass http://127.0.0.1:3002;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+`;
+      downloadFile('nginx.conf', conf);
+    }
+
+    function downloadApacheHtaccess() {
+      const ht = `
+# ZKWAConnect v6 Apache / GoDaddy .htaccess
+RewriteEngine On
+RewriteCond %{HTTP_HOST} ^api\\.zkwaconnect\\.in$ [NC]
+RewriteRule ^(.*)$ http://127.0.0.1:3002/$1 [P,L]
+
+RewriteCond %{HTTP_HOST} ^app\\.zkwaconnect\\.in$ [NC]
+RewriteRule ^(.*)$ http://127.0.0.1:3001/$1 [P,L]
+
+RewriteCond %{HTTP_HOST} ^(www\\.)?zkwaconnect\\.in$ [NC]
+RewriteRule ^(.*)$ http://127.0.0.1:3000/$1 [P,L]
+`;
+      downloadFile('.htaccess', ht);
+    }
+
+    function downloadDockerCompose() {
+      const dc = `version: '3.8'
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: zkwaconnect-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: zkwaconnect
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  zkwaconnect:
+    build: .
+    container_name: zkwaconnect-app
+    restart: always
+    ports:
+      - "3000:3000"
+      - "3001:3001"
+      - "3002:3002"
+    environment:
+      DATABASE_URL: "mysql://root:password@mysql:3306/zkwaconnect"
+    depends_on:
+      - mysql
+
+volumes:
+  mysql_data:
+`;
+      downloadFile('docker-compose.yml', dc);
+    }
+  </script>
+</body>
+</html>

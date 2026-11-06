@@ -1039,7 +1039,7 @@ model PasswordReset {
   userId    String
   tokenHash String    @unique
   codeHash  String?
-  channels  String[]
+  channels  Json?
   attempts  Int       @default(0)
   expiresAt DateTime
   usedAt    DateTime?
