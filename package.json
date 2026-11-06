@@ -3,7 +3,6 @@
   "version": "5.1.0",
   "private": true,
   "scripts": {
-    "predev": "node scripts/dev-guard.mjs",
     "dev": "next dev -p 3002",
     "build": "next build",
     "start": "node server.js",

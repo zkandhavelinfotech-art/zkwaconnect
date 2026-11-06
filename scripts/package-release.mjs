@@ -47,6 +47,7 @@ const dirsToCopy = [
 
 // Copy files
 const filesToCopy = [
+  "app.js",
   "server.js",
   "package.json",
   "package-lock.json",
@@ -58,6 +59,7 @@ const filesToCopy = [
   "nginx.conf",
   ".htaccess",
   "zkwa-publish.bat",
+  "zkwa-build-zip.bat",
   "README.md"
 ]
 
@@ -136,23 +138,20 @@ const deployReadme = `# ZKWAConnect v6 — Deployment Guide (${isLive ? "LIVE / 
 
 This ZIP contains the complete production-ready source code, database migration scripts, and server configurations for ZKWAConnect v6.
 
-## 1. Quick Server Setup
-1. **Extract this ZIP** to your server directory (e.g. \`/var/www/zkwaconnect\` or GoDaddy \`/home/user/zkwaconnect\`).
-2. **Review .env:** Update the \`DATABASE_URL\` with your MySQL database credentials.
-3. **Import Database Schema:**
-   - In phpMyAdmin / MySQL CLI, run:
-     \`\`\`bash
-     mysql -u username -p database_name < prisma/schema-mysql.sql
-     \`\`\`
-4. **Install & Build:**
+## 1. Quick Server Setup (GoDaddy / cPanel / Shared Hosting)
+1. In cPanel **Setup Node.js App**:
+   - **Node.js version:** Select 20.x or 22.x
+   - **Application mode:** \`Production\`
+   - **Application root:** \`/home/username/public_html\` or \`/home/username/zkwaconnect\`
+   - **Application startup file:** \`app.js\` (or \`server.js\`)
+2. **Extract this ZIP** into your Application root directory.
+3. Open **phpMyAdmin**, select your MySQL database, and import \`prisma/schema-mysql.sql\`.
+4. In cPanel, click **Run NPM Install** or in terminal run:
    \`\`\`bash
    npm install --production=false
    npm run build
    \`\`\`
-5. **Start Application:**
-   - Standalone: \`npm start\`
-   - With PM2: \`pm2 start ecosystem.config.js --env ${isLive ? "production" : "development"}\`
-   - With Docker: \`docker-compose up -d\`
+5. Click **Restart App** in cPanel!
 
 ## 2. Multi-Domain Routing
 - **Marketing & Admin Portal:** \`zkwaconnect.in\` (Port 3000 or unified 3002)
@@ -161,12 +160,32 @@ This ZIP contains the complete production-ready source code, database migration 
 `
 fs.writeFileSync(path.join(stagingDir, "DEPLOY-README.md"), deployReadme, "utf8")
 
-console.log("Compressing package into ZIP via .NET System.IO.Compression...")
+console.log("Compressing package into ZIP with Linux/POSIX forward-slash paths...")
 try {
   const normStaging = stagingDir.replace(/\\/g, "/")
   const normZip = zipPath.replace(/\\/g, "/")
-  const psCmd = `powershell -NoProfile -Command "$ProgressPreference = 'SilentlyContinue'; Add-Type -AssemblyName System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::CreateFromDirectory('${normStaging}', '${normZip}', [System.IO.Compression.CompressionLevel]::Optimal, $false)"`
-  execSync(psCmd, { stdio: "inherit" })
+
+  // PowerShell script that creates ZIP with POSIX forward slashes for Linux/GoDaddy compatibility
+  const psScript = `
+    Add-Type -AssemblyName System.IO.Compression
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+
+    $source = "${normStaging}"
+    $destination = "${normZip}"
+    if (Test-Path $destination) { Remove-Item $destination -Force }
+
+    $archive = [System.IO.Compression.ZipFile]::Open($destination, [System.IO.Compression.ZipArchiveMode]::Create)
+    Get-ChildItem -Path $source -Recurse | Where-Object { -not $_.PSIsContainer } | ForEach-Object {
+        $relPath = $_.FullName.Substring((Get-Item $source).FullName.Length + 1).Replace('\\', '/')
+        [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($archive, $_.FullName, $relPath, [System.IO.Compression.CompressionLevel]::Optimal)
+    }
+    $archive.Dispose()
+  `
+
+  const tempPsFile = path.join(releaseDir, `zip_builder_${envMode}.ps1`)
+  fs.writeFileSync(tempPsFile, psScript, "utf8")
+  execSync(`powershell -NoProfile -ExecutionPolicy Bypass -File "${tempPsFile}"`, { stdio: "inherit" })
+  fs.rmSync(tempPsFile, { force: true })
 
   // Clean staging directory
   fs.rmSync(stagingDir, { recursive: true, force: true })
@@ -174,7 +193,7 @@ try {
   const stats = fs.statSync(zipPath)
   const sizeMB = (stats.size / (1024 * 1024)).toFixed(2)
   console.log("============================================================")
-  console.log(`✅ Deployment ZIP Successfully Created!`)
+  console.log(`✅ Deployment ZIP Successfully Created! (POSIX-compliant)`)
   console.log(`📁 File: ${zipPath}`)
   console.log(`📦 Size: ${sizeMB} MB`)
   console.log("============================================================")

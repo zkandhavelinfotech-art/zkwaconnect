@@ -12,3 +12,4 @@ RewriteRule ^(.*)$ http://127.0.0.1:3002/$1 [P,L]
 # 2. Preserve Host headers for multi-domain routing
 RequestHeader set X-Forwarded-Proto "https" env=HTTPS
 ProxyPreserveHost On
+

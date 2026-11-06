@@ -25,3 +25,4 @@ echo   ZIP Package generated in release\ folder!
 echo ============================================================
 echo.
 pause
+
