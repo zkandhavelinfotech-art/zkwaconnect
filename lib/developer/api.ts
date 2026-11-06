@@ -6,18 +6,28 @@ import { z } from "zod"
 import { Prisma } from "@/generated/prisma/client"
 import { prisma } from "@/lib/db/prisma"
 import { MetaApiError } from "@/lib/meta/graph"
-import { ApiError, authenticateApiKey } from "./keys"
+import { ApiError, authenticateApiKey, type ApiAuthContext } from "./keys"
 import { emitEvent } from "./webhooks"
 
-type Context = { organizationId: string; keyId: string }
+export type { ApiAuthContext }
 
-// Wraps a public API handler: key auth, consistent { error: { code, message } } responses.
-export function apiHandler<P>(handler: (request: Request, context: Context, params: P) => Promise<Response>) {
-  return async (request: Request, route: { params: Promise<P> }) => {
+// Wraps a public API handler: key auth, scope verification, HMAC check, consistent { error: { code, message } } responses.
+export function apiHandler<P = Record<string, string>>(
+  handler: (request: Request, context: ApiAuthContext, params: P) => Promise<Response>,
+  options?: { scope?: string }
+) {
+  return async (request: Request, route?: { params?: Promise<P> } | any) => {
     try {
-      const context = await authenticateApiKey(request)
+      let rawBody: string | undefined = undefined
+      if (request.headers.get("x-zkwa-signature")) {
+        try {
+          rawBody = await request.clone().text()
+        } catch {}
+      }
+      const context = await authenticateApiKey(request, options?.scope, rawBody)
       await assertFeature(context.organizationId, "api")
-      return await handler(request, context, await route.params)
+      const resolvedParams = route && route.params ? await route.params : ({} as P)
+      return await handler(request, context, resolvedParams)
     } catch (error) {
       if (error instanceof ApiError) return apiError(error.status, error.code, error.message)
       if (error instanceof PlanLimitError) return apiError(402, `plan_${error.reason}`, error.message)

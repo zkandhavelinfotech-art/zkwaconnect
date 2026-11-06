@@ -242,6 +242,19 @@ export default function SettingsPage() {
               <a href="/onboarding/meta-connect" style={{fontSize:12,color:"#075e54",fontWeight:700,textDecoration:"none"}}>{data.metaConnected?"Reconnect Facebook →":"Connect Meta →"}</a>
             </div>
           </section>
+
+          <section style={{...card,borderTop:"3px solid #075e54"}}>
+            <h2 style={cardHead}>Developer API &amp; Keys</h2>
+            <p style={{fontSize:12,color:"#64748b",margin:"0 0 10px"}}>
+              Integrate external apps (e.g. ZKLeadFlowCRM) using our REST API and signed webhooks.
+            </p>
+            <div style={{background:"#f8fafc",border:"1px solid #e2e8f0",padding:"8px 10px",borderRadius:6,fontSize:11,fontFamily:"monospace",color:"#075e54",fontWeight:700,marginBottom:12}}>
+              https://api.zkwaconnect.in/api/v1
+            </div>
+            <a href="/app/developers" style={{display:"inline-block",background:"#075e54",color:"#fff",textDecoration:"none",borderRadius:8,padding:"8px 14px",fontSize:12,fontWeight:700}}>
+              Manage API Keys &amp; Webhooks →
+            </a>
+          </section>
         </div>
       </div>}
     </div>
