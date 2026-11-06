@@ -43,3 +43,4 @@ export const GET = apiHandler(
   },
   { scope: "account:read" }
 )
+
