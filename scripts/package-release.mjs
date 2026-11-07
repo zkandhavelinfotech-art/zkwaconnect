@@ -95,6 +95,13 @@ for (const file of filesToCopy) {
   }
 }
 
+// Ensure default schema in release is MySQL for GoDaddy / cPanel deployment
+const stagingMysqlSchema = path.join(stagingDir, "prisma", "schema.mysql.prisma")
+const stagingDefaultSchema = path.join(stagingDir, "prisma", "schema.prisma")
+if (fs.existsSync(stagingMysqlSchema)) {
+  fs.copyFileSync(stagingMysqlSchema, stagingDefaultSchema)
+}
+
 // Generate tailored .env for staging
 const envContent = isLive
   ? `# ZKWAConnect v6 — Live / Production Environment

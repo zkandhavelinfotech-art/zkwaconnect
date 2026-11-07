@@ -22,11 +22,13 @@
     "release:zip:dev": "node scripts/package-release.mjs --env=dev"
   },
   "dependencies": {
+    "@prisma/adapter-mariadb": "^7.9.1",
     "@prisma/adapter-pg": "7.9.1",
     "@prisma/client": "7.9.1",
     "aws4fetch": "^1.0.20",
     "bcryptjs": "^2.4.3",
     "cookie": "^1.0.2",
+    "mariadb": "^3.5.5",
     "next": "15.3.3",
     "nodemailer": "^6.9.16",
     "pdfkit": "^0.20.2",
