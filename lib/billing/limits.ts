@@ -24,9 +24,11 @@ export async function planState(organizationId: string) {
       prisma.invitation.count({ where: { organizationId, acceptedAt: null, revokedAt: null, expiresAt: { gt: new Date() } } }),
       prisma.phoneNumber.count({ where: { status: "CONNECTED", waba: { organizationId } } }),
     ])
-    return { active: true, onFree: false, internal: true, features: [...FEATURE_KEYS], status: "INTERNAL", planName: "Internal", planSlug: null as string | null,
+    return {
+      active: true, onFree: false, internal: true, features: [...FEATURE_KEYS], status: "INTERNAL", planName: "Internal", planSlug: null as string | null,
       endsAt: null as Date | null, limits: { messages: null as number | null, users: null as number | null, numbers: null as number | null },
-      usage: { messages: await messagesSince(organizationId, startOfMonth()), users, invites, numbers }, periodStart: startOfMonth() }
+      usage: { messages: await messagesSince(organizationId, startOfMonth()), users, invites, numbers }, periodStart: startOfMonth()
+    }
   }
   await expireLapsedSubscriptions(organizationId)
   const subscription = await prisma.subscription.findFirst({ where: { organizationId, status: { not: "PENDING_PAYMENT" } }, include: { plan: true }, orderBy: { createdAt: "desc" } })

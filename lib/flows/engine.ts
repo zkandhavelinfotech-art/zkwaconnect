@@ -12,7 +12,7 @@ const MAX_RETRIES = 2
 const MAX_FLOW_HOPS = 3
 
 // resumeAt: set while a Delay step is waiting; the background worker continues the flow then.
-type FlowState = { workflowId:string; nodeId:string; expiresAt:string; retries:number; resumeAt?:string }
+type FlowState = { workflowId:string; nodeId:string; expiresAt:string; retries:number; resumeAt?:string; resuming?:boolean }
 type ContactRow = { id:string; phone:string; name:string|null; email:string|null; tags:Prisma.JsonValue; metadata:Prisma.JsonValue }
 type WorkflowRow = { id:string; name:string; triggerType:string; triggerValue:string; replyText:string; handoffToHuman:boolean; flow:Prisma.JsonValue }
 

@@ -4,11 +4,18 @@ import { prisma } from "@/lib/db/prisma"
 // The platform owner's company logins (ZKandavel Infotech). Every project they create is an internal
 // workspace: all features, no limits, no plan or message charges. Editable by super admins.
 const KEY = "company_accounts"
+const DEFAULT_COMPANY_EMAILS = ["waba@zkandavelinfotech.com", "admin@zkwaconnect.in"]
 
 export async function companyEmails(): Promise<string[]> {
-  const row = await prisma.platformSetting.findUnique({ where: { key: KEY } })
-  const value = row?.value as { emails?: unknown } | undefined
-  return Array.isArray(value?.emails) ? value.emails.filter((email): email is string => typeof email === "string").map(email => email.toLowerCase()) : []
+  try {
+    const row = await prisma.platformSetting.findUnique({ where: { key: KEY } })
+    const value = row?.value as { emails?: unknown } | undefined
+    const emails = Array.isArray(value?.emails) ? value.emails.filter((email): email is string => typeof email === "string").map(email => email.toLowerCase()) : []
+    const combined = [...new Set([...DEFAULT_COMPANY_EMAILS, ...emails])]
+    return combined
+  } catch {
+    return DEFAULT_COMPANY_EMAILS
+  }
 }
 
 export async function saveCompanyEmails(emails: string[]) {

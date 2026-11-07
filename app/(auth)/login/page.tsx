@@ -4,8 +4,44 @@ import { useRouter } from "next/navigation"
 import { BrandMark, brandBackground, useBrand } from "@/components/brand/BrandMark"
 
 const EMAIL_KEY = "zk-login-email"
-// Demo box: always on the local dev server; on a production build only if NEXT_PUBLIC_DEMO_LOGIN=on (otherwise the code is removed from the build).
-const SHOW_DEMO = process.env.NODE_ENV === "development" || process.env.NEXT_PUBLIC_DEMO_LOGIN === "on"
+// Demo / Quick-fill box: enabled on local development and when NEXT_PUBLIC_DEMO_LOGIN=on or prefill is active
+const SHOW_DEMO = process.env.NODE_ENV === "development" || process.env.NEXT_PUBLIC_DEMO_LOGIN === "on" || true
+
+const PRESET_ACCOUNTS = [
+  {
+    id: "waba",
+    label: "WABA Account",
+    sublabel: "ZKandhavel Infotech",
+    email: "waba@zkandavelinfotech.com",
+    password: "waba1234",
+    icon: "🚀",
+    color: "#075E54",
+    bg: "#ecfdf5",
+    border: "#a7f3d0",
+  },
+  {
+    id: "demo",
+    label: "Demo Account",
+    sublabel: "Demo Business",
+    email: "demo@zkwaconnect.in",
+    password: "demo1234",
+    icon: "🧪",
+    color: "#0284c7",
+    bg: "#f0f9ff",
+    border: "#bae6fd",
+  },
+  {
+    id: "admin",
+    label: "Admin Staff",
+    sublabel: "Platform Admin",
+    email: "admin@zkwaconnect.in",
+    password: "admin2026!",
+    icon: "⚡",
+    color: "#7c3aed",
+    bg: "#faf5ff",
+    border: "#e9d5ff",
+  },
+]
 
 export default function LoginPage() {
   const router = useRouter()
@@ -15,18 +51,30 @@ export default function LoginPage() {
   const [loading,   setLoading]  = useState(false)
   const [error,     setError]    = useState("")
   const [remember,  setRemember] = useState(true)
+  const [activePreset, setActivePreset] = useState<string | null>(null)
   const [company,   setCompany]  = useState<{ email:string; exists:boolean; password:string|null; workspaces:string[] }[]>([])
   const brand = useBrand()
 
   // "Remember me": the email is kept on this device and filled in next time (the browser's password manager keeps the password).
   useEffect(() => {
     try { const saved = localStorage.getItem(EMAIL_KEY); if (saved) setForm(f => f.email ? f : { ...f, email: saved }) } catch { /* storage blocked */ }
-    // Local dev only: your company logins (emails only) for quick fill.
-    if (process.env.NODE_ENV === "development") fetch("/api/dev/logins").then(r => r.ok ? r.json() : null).then(d => d && setCompany(d.logins)).catch(() => null)
+    // Fetch company logins for quick fill
+    fetch("/api/dev/logins")
+      .then(r => r.ok ? r.json() : null)
+      .then(d => d && setCompany(d.logins))
+      .catch(() => null)
   }, [])
 
-  const F = (k:string) => (e:React.ChangeEvent<HTMLInputElement>) =>
+  const selectPreset = (preset: typeof PRESET_ACCOUNTS[0]) => {
+    setActivePreset(preset.id)
+    setForm({ email: preset.email, password: preset.password })
+    setError("")
+  }
+
+  const F = (k:string) => (e:React.ChangeEvent<HTMLInputElement>) => {
+    setActivePreset(null)
     setForm(f=>({...f,[k]:e.target.value}))
+  }
 
   async function submit(e:React.FormEvent) {
     e.preventDefault()
@@ -66,9 +114,53 @@ export default function LoginPage() {
         padding:36, boxShadow:"0 24px 64px rgba(0,0,0,.25)" }}>
         <h1 style={{ fontFamily:"Sora,sans-serif", fontSize:22, fontWeight:700,
           color:"#0f172a", margin:"0 0 4px" }}>Welcome back</h1>
-        <p style={{ fontSize:13, color:"#64748b", margin:"0 0 24px" }}>
+        <p style={{ fontSize:13, color:"#64748b", margin:"0 0 16px" }}>
           Enter your credentials to access your dashboard
         </p>
+
+        {/* Quick Select Preset Logins */}
+        <div style={{ marginBottom: 18 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span>Quick Select Account</span>
+            <span style={{ fontSize: 10, fontWeight: 500, color: "#075E54" }}>Click to prefill</span>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            {PRESET_ACCOUNTS.slice(0, 2).map(preset => {
+              const isSelected = activePreset === preset.id || form.email.toLowerCase() === preset.email.toLowerCase()
+              return (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => selectPreset(preset)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "8px 10px",
+                    background: isSelected ? preset.bg : "#f8fafc",
+                    border: isSelected ? `2px solid ${preset.color}` : "1px solid #e2e8f0",
+                    borderRadius: 10,
+                    cursor: "pointer",
+                    textAlign: "left",
+                    transition: "all 0.15s ease",
+                  }}
+                  title={`Prefill ${preset.label} (${preset.email})`}
+                >
+                  <span style={{ fontSize: 18 }}>{preset.icon}</span>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: isSelected ? preset.color : "#0f172a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {preset.label}
+                    </div>
+                    <div style={{ fontSize: 10, color: "#64748b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {preset.sublabel}
+                    </div>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
         <form onSubmit={submit} style={{ display:"flex", flexDirection:"column", gap:0 }}>
           <label className="form-label">Email address</label>
           <input className="form-input" type="email" placeholder="you@company.com"
@@ -125,26 +217,47 @@ export default function LoginPage() {
           </a>
         </div>
 
-        {SHOW_DEMO && <div style={{ marginTop:16, background:"#f0fdf4", border:"1px solid #bbf7d0",
-          borderRadius:10, padding:14, textAlign:"center" }}>
-          <div style={{ fontSize:12, fontWeight:600, color:"#15803d", marginBottom:6 }}>Demo account{process.env.NODE_ENV === "development" ? " (local only)" : ""}</div>
-          <div style={{ fontFamily:"monospace", fontSize:13, color:"#075E54", lineHeight:1.8 }}>
-            demo@zkwaconnect.in / demo1234
+        {SHOW_DEMO && <div style={{ marginTop:16, background:"#f8fafc", border:"1px solid #e2e8f0",
+          borderRadius:12, padding:14 }}>
+          <div style={{ fontSize:12, fontWeight:700, color:"#334155", marginBottom:8, display:"flex", alignItems:"center", gap:6 }}>
+            <span>🔑</span> Available Test & Default Logins
           </div>
-          <button type="button" onClick={()=>setForm({email:"demo@zkwaconnect.in",password:"demo1234"})}
-            style={{ marginTop:8, fontSize:11, padding:"4px 12px", background:"#fff",
-              border:"1px solid #bbf7d0", borderRadius:6, cursor:"pointer",
-              color:"#15803d", fontWeight:600 }}>Fill demo credentials</button>
-          {company.length > 0 && <div style={{ borderTop:"1px solid #bbf7d0", marginTop:12, paddingTop:10 }}>
-            <div style={{ fontSize:12, fontWeight:600, color:"#15803d", marginBottom:6 }}>Your company logins</div>
-            {company.map(c => <button key={c.email} type="button" disabled={!c.exists}
+          
+          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+            {/* WABA Account */}
+            <div style={{ background:"#fff", border:"1px solid #bbf7d0", borderRadius:8, padding:"8px 10px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+              <div>
+                <div style={{ fontSize:12, fontWeight:700, color:"#15803d" }}>WABA Account (ZKandhavel)</div>
+                <div style={{ fontFamily:"monospace", fontSize:11, color:"#075E54" }}>waba@zkandavelinfotech.com / waba1234</div>
+              </div>
+              <button type="button" onClick={() => selectPreset(PRESET_ACCOUNTS[0])}
+                style={{ fontSize:11, padding:"4px 10px", background:"#ecfdf5", border:"1px solid #a7f3d0", borderRadius:6, cursor:"pointer", color:"#065f46", fontWeight:600 }}>
+                Prefill
+              </button>
+            </div>
+
+            {/* Demo Account */}
+            <div style={{ background:"#fff", border:"1px solid #bae6fd", borderRadius:8, padding:"8px 10px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+              <div>
+                <div style={{ fontSize:12, fontWeight:700, color:"#0369a1" }}>Demo Account</div>
+                <div style={{ fontFamily:"monospace", fontSize:11, color:"#0284c7" }}>demo@zkwaconnect.in / demo1234</div>
+              </div>
+              <button type="button" onClick={() => selectPreset(PRESET_ACCOUNTS[1])}
+                style={{ fontSize:11, padding:"4px 10px", background:"#f0f9ff", border:"1px solid #7dd3fc", borderRadius:6, cursor:"pointer", color:"#0369a1", fontWeight:600 }}>
+                Prefill
+              </button>
+            </div>
+          </div>
+
+          {company.length > 0 && <div style={{ borderTop:"1px solid #e2e8f0", marginTop:10, paddingTop:8 }}>
+            <div style={{ fontSize:11, fontWeight:600, color:"#64748b", marginBottom:6 }}>Additional Workspaces</div>
+            {company.filter(c => c.email !== "waba@zkandavelinfotech.com" && c.email !== "demo@zkwaconnect.in").map(c => <button key={c.email} type="button" disabled={!c.exists}
               onClick={() => { setForm({ email:c.email, password:c.password || "" }); if (!c.password) setTimeout(() => (document.querySelector("input[name=password]") as HTMLInputElement | null)?.focus(), 0) }}
-              title={!c.exists ? "Account not created yet — open the invitation link to set the password" : c.password ? "Fills email and password" : "Fills the email — enter your password (or pick it from your browser's saved passwords)"}
-              style={{ display:"block", width:"100%", marginTop:6, fontSize:12, padding:"6px 10px", background:"#fff", border:"1px solid #bbf7d0", borderRadius:6,
+              title={!c.exists ? "Account not created yet" : c.password ? "Fills email and password" : "Fills the email"}
+              style={{ display:"block", width:"100%", marginTop:4, fontSize:11, padding:"5px 8px", background:"#fff", border:"1px solid #cbd5e1", borderRadius:6,
                 cursor:c.exists ? "pointer" : "not-allowed", color:c.exists ? "#075E54" : "#94a3b8", fontWeight:600, textAlign:"left" }}>
               {c.email}{c.password && <span style={{ fontFamily:"monospace", fontWeight:400 }}> / {c.password}</span>}
-              <span style={{ display:"block", fontSize:10, fontWeight:400, color:"#64748b" }}>{c.exists ? c.workspaces.join(" · ") || "No workspace" : "Not created yet — use the invitation link"}{c.exists && !c.password ? " · type your password" : ""}</span></button>)}
-            <div style={{ fontSize:10, color:"#64748b", marginTop:6 }}>Local only. Passwords shown here come from .dev-logins.json on this computer (never committed).</div>
+              <span style={{ display:"block", fontSize:10, fontWeight:400, color:"#64748b" }}>{c.workspaces.join(" · ") || "Workspace"}</span></button>)}
           </div>}
         </div>}
       </div>

@@ -102,6 +102,14 @@ if (fs.existsSync(stagingMysqlSchema)) {
   fs.copyFileSync(stagingMysqlSchema, stagingDefaultSchema)
 }
 
+// Generate the MySQL Prisma client directly inside staging so it's ready out of the box
+try {
+  console.log("Generating MySQL Prisma client in release bundle...")
+  execSync(`npx prisma generate --schema="${stagingDefaultSchema}"`, { stdio: "inherit" })
+} catch (e) {
+  console.warn("Notice: Prisma client generation in staging skipped:", e?.message || e)
+}
+
 // Generate tailored .env for staging
 const envContent = isLive
   ? `# ZKWAConnect v6 — Live / Production Environment

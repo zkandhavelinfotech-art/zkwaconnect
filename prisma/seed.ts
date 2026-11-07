@@ -2,13 +2,7 @@ import { randomBytes } from "node:crypto"
 import "dotenv/config"
 import { DEFAULT_PLAN_FEATURES, toFeatureJson } from "../lib/billing/features"
 import bcrypt           from "bcryptjs"
-import { PrismaPg }    from "@prisma/adapter-pg"
-import { PrismaClient } from "../generated/prisma/client"
-
-const connectionString = process.env.DATABASE_URL ?? ""
-if (!connectionString) throw new Error("DATABASE_URL not set")
-
-const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString }) })
+import { prisma }       from "../lib/db/prisma"
 
 async function main() {
   console.log("\n==============================================")
@@ -74,6 +68,44 @@ async function main() {
     }
   }
 
+  // WABA / Company Owner Account (ZKandhavel Infotech)
+  const wabaEmail = (process.env.WABA_EMAIL || "waba@zkandavelinfotech.com").toLowerCase()
+  const wabaPassword = process.env.WABA_PASSWORD || "waba1234"
+  const existingWaba = await prisma.user.findUnique({ where: { email: wabaEmail } })
+  const wabaUser = await prisma.user.upsert({
+    where: { email: wabaEmail },
+    update: {},
+    create: {
+      email: wabaEmail,
+      name: "ZKandavel WABA Admin",
+      passwordHash: await bcrypt.hash(wabaPassword, 12),
+      status: "ACTIVE",
+      adminRole: "SUPER_ADMIN",
+    },
+  })
+  console.log(`  ✅ WABA user: ${wabaUser.email}`)
+
+  const wabaOrg = await prisma.organization.upsert({
+    where: { slug: "zkandavel-infotech" },
+    update: {},
+    create: {
+      name: "ZKandhavel Infotech",
+      slug: "zkandavel-infotech",
+      email: wabaEmail,
+      billingExempt: true,
+      country: "IN",
+      timezone: "Asia/Kolkata",
+      currency: "INR",
+      status: "ACTIVE",
+    },
+  })
+
+  await prisma.membership.upsert({
+    where: { organizationId_userId: { organizationId: wabaOrg.id, userId: wabaUser.id } },
+    update: {},
+    create: { organizationId: wabaOrg.id, userId: wabaUser.id, role: "OWNER", status: "ACTIVE" },
+  })
+
   // Admin user
   // Live: set SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD, otherwise a random password is generated and printed once.
   const adminEmail = (process.env.SEED_ADMIN_EMAIL || "admin@zkwaconnect.in").toLowerCase()
@@ -91,6 +123,7 @@ async function main() {
   console.log("\n==============================================")
   console.log("🎉 SEED COMPLETE")
   console.log("==============================================")
+  console.log(`  WABA     : ${wabaEmail} / ${existingWaba ? "(existing account — password unchanged)" : wabaPassword}`)
   if (!production) console.log("  Customer : demo@zkwaconnect.in  / demo1234")
   console.log(`  Admin    : ${adminEmail} / ${existingAdmin ? "(existing account — password unchanged)" : adminPassword}`)
   console.log("==============================================\n")

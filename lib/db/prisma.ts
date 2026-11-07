@@ -1,4 +1,5 @@
 import "dotenv/config"
+import fs from "node:fs"
 import { PrismaPg } from "@prisma/adapter-pg"
 import { PrismaMariaDb } from "@prisma/adapter-mariadb"
 import { mockAdapterFactory } from "@prisma/driver-adapter-utils"
@@ -45,8 +46,8 @@ function parseMySqlConfig(rawUrl: string) {
       const auth = withoutProto.slice(0, lastAt)
       const rest = withoutProto.slice(lastAt + 1)
       const firstColon = auth.indexOf(":")
-      user = firstColon !== -1 ? auth.slice(0, firstColon) : auth
-      password = firstColon !== -1 ? auth.slice(firstColon + 1) : undefined
+      user = firstColon !== -1 ? decodeURIComponent(auth.slice(0, firstColon)) : auth
+      password = firstColon !== -1 ? decodeURIComponent(auth.slice(firstColon + 1)) : undefined
       const [hostPort, dbQuery] = rest.split("/")
       const [rawHost, rawPort] = (hostPort || "").split(":")
       host = (rawHost === "localhost" ? "127.0.0.1" : rawHost) || "127.0.0.1"
@@ -62,14 +63,27 @@ function parseMySqlConfig(rawUrl: string) {
     }
   }
 
+  // On Linux (cPanel / GoDaddy / cloud VPS), check if Unix socket exists when connecting to localhost
+  if (!socketPath && process.platform === "linux" && (host === "127.0.0.1" || host === "localhost")) {
+    const candidates = ["/var/lib/mysql/mysql.sock", "/var/run/mysqld/mysqld.sock", "/tmp/mysql.sock"]
+    for (const c of candidates) {
+      try {
+        if (fs.existsSync(c)) {
+          socketPath = c
+          break
+        }
+      } catch { /* ignore */ }
+    }
+  }
+
   const config: any = {
     user,
     password,
     database,
     connectionLimit: 15,
     prepareCacheLength: 0,
-    connectTimeout: 10000,
-    acquireTimeout: 15000,
+    connectTimeout: 8000,
+    acquireTimeout: 10000,
   }
 
   if (socketPath) {
@@ -94,8 +108,13 @@ function makeClient(): PrismaClient {
         adapter,
         log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
       })
-    } catch {
-      // Fallback if Postgres adapter cannot connect or schema is MySQL
+    } catch (err: any) {
+      if (err?.message?.includes("not compatible with the provider")) {
+        console.error("❌ [Prisma Configuration Error] DATABASE_URL is PostgreSQL, but the generated client expects MySQL!")
+        console.error("👉 Run 'npm run db:switch postgres && npm run db:generate' to synchronize.")
+      } else {
+        console.error("⚠️ [Prisma] Failed to initialize PostgreSQL adapter:", err?.message || err)
+      }
     }
   }
 
@@ -107,25 +126,37 @@ function makeClient(): PrismaClient {
         adapter,
         log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
       })
-    } catch {
-      // Fallback if MySQL adapter cannot connect or schema is Postgres
+    } catch (err: any) {
+      if (err?.message?.includes("not compatible with the provider")) {
+        console.error("❌ [Prisma Configuration Error] DATABASE_URL is MySQL, but the generated client expects PostgreSQL!")
+        console.error("👉 Run 'npm run db:switch mysql && npm run db:generate' to synchronize.")
+      } else {
+        console.error("⚠️ [Prisma] Failed to initialize MySQL adapter:", err?.message || err)
+      }
     }
   }
 
-  // Safe fallback for Next.js build-time page collection or environments without active DB
+  // Safe mock fallback for Next.js build-time static page collection or when DB is not configured
+  // We try mock adapters matching the client's expected provider without opening hanging TCP sockets
   try {
-    const mockAdapter = mockAdapterFactory(isMysql ? "mysql" : "postgres")
+    const mockPg = mockAdapterFactory("postgres")
     return new PrismaClient({
-      adapter: mockAdapter as any,
+      adapter: mockPg as any,
       log: ["error"],
     })
   } catch {
-    // If mock fails, fallback to default MariaDb adapter stub
-    const fallbackAdapter = new PrismaMariaDb({ host: "127.0.0.1", port: 3306, database: "zkwaconnect" })
-    return new PrismaClient({
-      adapter: fallbackAdapter,
-      log: ["error"],
-    })
+    try {
+      const mockMysql = mockAdapterFactory("mysql")
+      return new PrismaClient({
+        adapter: mockMysql as any,
+        log: ["error"],
+      })
+    } catch (e: any) {
+      console.error("⚠️ [Prisma] Fallback mock client initialization failed:", e?.message || e)
+      return new PrismaClient({
+        log: ["error"],
+      } as any)
+    }
   }
 }
 

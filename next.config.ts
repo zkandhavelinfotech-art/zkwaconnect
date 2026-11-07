@@ -1,12 +1,12 @@
 // Normalize non-standard NODE_ENV values early to prevent Next.js build warnings
-const nodeEnvKey = 'NODE_ENV'
-const rawEnvVal = (process.env[nodeEnvKey] || '').toLowerCase().trim()
+const envMap = process.env as Record<string, string | undefined>
+const rawEnvVal = (envMap.NODE_ENV || '').toLowerCase().trim()
 if (rawEnvVal === 'live' || rawEnvVal === 'prod' || rawEnvVal.includes('production')) {
-  process.env[nodeEnvKey] = 'production'
+  envMap.NODE_ENV = 'production'
 } else if (rawEnvVal === 'dev' || rawEnvVal.includes('development') || rawEnvVal === 'local') {
-  process.env[nodeEnvKey] = 'development'
+  envMap.NODE_ENV = 'development'
 } else if (rawEnvVal.includes('test')) {
-  process.env[nodeEnvKey] = 'test'
+  envMap.NODE_ENV = 'test'
 }
 
 import type { NextConfig } from 'next'
