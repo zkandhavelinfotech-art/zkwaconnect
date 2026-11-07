@@ -121,14 +121,32 @@ export async function chargeTemplateMessage(input: { organizationId: string; cat
   if (mode === "DIRECT" || (category === "UTILITY" && input.inServiceWindow)) return null
   const price = priceOf(settings, mode, category)
   if (price.wallet <= 0) return null
-  const debited = await prisma.$queryRaw<{ walletBalance: Prisma.Decimal }[]>`
-    UPDATE organizations SET "walletBalance" = "walletBalance" - ${price.wallet} WHERE id = ${input.organizationId} AND "walletBalance" >= ${price.wallet}
-    RETURNING "walletBalance"`
-  if (!debited.length) {
-    const current = await prisma.organization.findUniqueOrThrow({ where: { id: input.organizationId }, select: { walletBalance: true } })
-    throw new InsufficientBalanceError(price.wallet, Number(current.walletBalance), org.currency)
+  const isMysql = (process.env.DATABASE_URL || "").startsWith("mysql://") || (process.env.DATABASE_URL || "").startsWith("mariadb://")
+  let balanceAfter: number
+
+  if (isMysql) {
+    const updated = await prisma.$transaction(async tx => {
+      const current = await tx.organization.findUniqueOrThrow({ where: { id: input.organizationId }, select: { walletBalance: true } })
+      if (Number(current.walletBalance) < price.wallet) {
+        throw new InsufficientBalanceError(price.wallet, Number(current.walletBalance), org.currency)
+      }
+      return tx.organization.update({
+        where: { id: input.organizationId },
+        data: { walletBalance: { decrement: price.wallet } },
+        select: { walletBalance: true }
+      })
+    })
+    balanceAfter = Number(updated.walletBalance)
+  } else {
+    const debited = await prisma.$queryRaw<{ walletBalance: Prisma.Decimal }[]>`
+      UPDATE organizations SET "walletBalance" = "walletBalance" - ${price.wallet} WHERE id = ${input.organizationId} AND "walletBalance" >= ${price.wallet}
+      RETURNING "walletBalance"`
+    if (!debited.length) {
+      const current = await prisma.organization.findUniqueOrThrow({ where: { id: input.organizationId }, select: { walletBalance: true } })
+      throw new InsufficientBalanceError(price.wallet, Number(current.walletBalance), org.currency)
+    }
+    balanceAfter = Number(debited[0].walletBalance)
   }
-  const balanceAfter = Number(debited[0].walletBalance)
   const entry = await prisma.walletTransaction.create({ data: { organizationId: input.organizationId, type: "DEBIT", amount: -price.wallet, balanceAfter,
     reason: input.reason.slice(0, 200), category, mode, metaCost: mode === "RESELLER" ? settings.metaRates[category] : null,
     conversationId: input.conversationId, campaignId: input.campaignId } })

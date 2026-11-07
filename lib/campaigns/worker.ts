@@ -69,7 +69,23 @@ export async function startDueCampaigns(now = new Date()) {
   return due.length
 }
 
-async function claimBatch(campaignId: string, limit: number) {
+async function claimBatch(campaignId: string, limit: number): Promise<Claimed[]> {
+  const isMysql = (process.env.DATABASE_URL || "").startsWith("mysql://") || (process.env.DATABASE_URL || "").startsWith("mariadb://")
+  if (isMysql) {
+    const queued = await prisma.campaignRecipient.findMany({
+      where: { campaignId, status: "QUEUED", nextAttemptAt: { lte: new Date() } },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      take: limit,
+      select: { id: true, phone: true, contactId: true, variables: true, attempts: true }
+    })
+    if (!queued.length) return []
+    await prisma.campaignRecipient.updateMany({
+      where: { id: { in: queued.map(r => r.id) } },
+      data: { status: "SENDING", lockedAt: new Date(), updatedAt: new Date() }
+    })
+    return queued as Claimed[]
+  }
+
   return prisma.$queryRaw<Claimed[]>`
     UPDATE campaign_recipients SET status = 'SENDING', "lockedAt" = now(), "updatedAt" = now()
     WHERE id IN (

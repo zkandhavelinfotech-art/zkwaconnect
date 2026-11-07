@@ -44,11 +44,29 @@ export async function applyAsPartner(userId: string, input: { organizationId: st
 export async function postLedger(tx: Tx, input: { partnerId: string; type: string; amount: number; description: string; reference?: string; organizationId?: string; allowNegative?: boolean }) {
   const amount = Math.round(input.amount * 100) / 100
   if (input.reference && await tx.partnerLedger.findUnique({ where: { reference: input.reference } })) return null
-  const rows = amount < 0 && !input.allowNegative
-    ? await tx.$queryRaw<{ walletBalance: Prisma.Decimal }[]>`UPDATE partners SET "walletBalance" = "walletBalance" + ${amount}, "updatedAt" = now() WHERE id = ${input.partnerId} AND "walletBalance" + ${amount} >= 0 RETURNING "walletBalance"`
-    : await tx.$queryRaw<{ walletBalance: Prisma.Decimal }[]>`UPDATE partners SET "walletBalance" = "walletBalance" + ${amount}, "updatedAt" = now() WHERE id = ${input.partnerId} RETURNING "walletBalance"`
-  if (!rows.length) throw new Error("Not enough balance in the partner wallet. Top it up first.")
-  return tx.partnerLedger.create({ data: { partnerId: input.partnerId, organizationId: input.organizationId, type: input.type, amount, balanceAfter: rows[0].walletBalance,
+  const isMysql = (process.env.DATABASE_URL || "").startsWith("mysql://") || (process.env.DATABASE_URL || "").startsWith("mariadb://")
+  let balanceAfter: Prisma.Decimal
+
+  if (isMysql) {
+    const current = await tx.partner.findUniqueOrThrow({ where: { id: input.partnerId }, select: { walletBalance: true } })
+    if (amount < 0 && !input.allowNegative && Number(current.walletBalance) + amount < 0) {
+      throw new Error("Not enough balance in the partner wallet. Top it up first.")
+    }
+    const updated = await tx.partner.update({
+      where: { id: input.partnerId },
+      data: { walletBalance: { increment: amount }, updatedAt: new Date() },
+      select: { walletBalance: true }
+    })
+    balanceAfter = updated.walletBalance
+  } else {
+    const rows = amount < 0 && !input.allowNegative
+      ? await tx.$queryRaw<{ walletBalance: Prisma.Decimal }[]>`UPDATE partners SET "walletBalance" = "walletBalance" + ${amount}, "updatedAt" = now() WHERE id = ${input.partnerId} AND "walletBalance" + ${amount} >= 0 RETURNING "walletBalance"`
+      : await tx.$queryRaw<{ walletBalance: Prisma.Decimal }[]>`UPDATE partners SET "walletBalance" = "walletBalance" + ${amount}, "updatedAt" = now() WHERE id = ${input.partnerId} RETURNING "walletBalance"`
+    if (!rows.length) throw new Error("Not enough balance in the partner wallet. Top it up first.")
+    balanceAfter = rows[0].walletBalance
+  }
+
+  return tx.partnerLedger.create({ data: { partnerId: input.partnerId, organizationId: input.organizationId, type: input.type, amount, balanceAfter,
     description: input.description.slice(0, 300), reference: input.reference } })
 }
 

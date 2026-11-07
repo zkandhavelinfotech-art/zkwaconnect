@@ -395,15 +395,39 @@ export async function handleInboundMessage(ctx:InboundContext):Promise<boolean> 
   return true
 }
 
-// Continues flows whose Delay step is due. Conversations are claimed with SKIP LOCKED so each resumes once.
+// Continues flows whose Delay step is due. Conversations are claimed so each resumes once.
 export async function resumeDueDelays(limit = 20) {
-  const due = await prisma.$queryRaw<{ id:string; flowState:Prisma.JsonValue }[]>`
-    UPDATE conversations SET "flowState" = "flowState" || '{"resuming":true}'::jsonb
-    WHERE id IN (SELECT id FROM conversations
-                 WHERE "flowState"->>'resumeAt' IS NOT NULL AND ("flowState"->>'resumeAt')::timestamptz <= now()
-                   AND "flowState"->>'resuming' IS NULL
-                 LIMIT ${limit} FOR UPDATE SKIP LOCKED)
-    RETURNING id, "flowState"`
+  const isMysql = (process.env.DATABASE_URL || "").startsWith("mysql://") || (process.env.DATABASE_URL || "").startsWith("mariadb://")
+  let due: { id: string; flowState: Prisma.JsonValue }[] = []
+
+  if (isMysql) {
+    const now = new Date()
+    const candidates = await prisma.conversation.findMany({
+      where: { flowState: { not: Prisma.JsonNull } },
+      select: { id: true, flowState: true },
+      take: 100,
+    })
+    for (const c of candidates) {
+      if (due.length >= limit) break
+      const state = parseState(c.flowState)
+      if (state?.resumeAt && !state.resuming && new Date(state.resumeAt) <= now) {
+        const updated = { ...state, resuming: true }
+        await prisma.conversation.update({
+          where: { id: c.id },
+          data: { flowState: updated as any },
+        })
+        due.push({ id: c.id, flowState: updated })
+      }
+    }
+  } else {
+    due = await prisma.$queryRaw<{ id:string; flowState:Prisma.JsonValue }[]>`
+      UPDATE conversations SET "flowState" = "flowState" || '{"resuming":true}'::jsonb
+      WHERE id IN (SELECT id FROM conversations
+                   WHERE "flowState"->>'resumeAt' IS NOT NULL AND ("flowState"->>'resumeAt')::timestamptz <= now()
+                     AND "flowState"->>'resuming' IS NULL
+                   LIMIT ${limit} FOR UPDATE SKIP LOCKED)
+      RETURNING id, "flowState"`
+  }
   for(const row of due){
     try {
       const state = parseState(row.flowState)

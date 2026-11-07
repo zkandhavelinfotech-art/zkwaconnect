@@ -18,6 +18,7 @@
     "db:format": "prisma format",
     "db:status": "prisma migrate status",
     "db:switch": "node scripts/db-switch.mjs",
+    "db:test": "node scripts/test-db.mjs",
     "release:zip": "node scripts/package-release.mjs --env=live",
     "release:zip:dev": "node scripts/package-release.mjs --env=dev"
   },

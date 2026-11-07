@@ -54,11 +54,32 @@ type Claimed = { id: string; endpointId: string; event: string; payload: Prisma.
 // Sends due deliveries (claimed with SKIP LOCKED, so several instances can run this). Returns how many were attempted.
 export async function deliverWebhooks(limit = 25) {
   await prisma.webhookDelivery.updateMany({ where: { status: "SENDING", lockedAt: { lt: new Date(Date.now() - 2 * 60_000) } }, data: { status: "PENDING", lockedAt: null } })
-  const claimed = await prisma.$queryRaw<Claimed[]>`
-    UPDATE webhook_deliveries SET status = 'SENDING', "lockedAt" = now()
-    WHERE id IN (SELECT id FROM webhook_deliveries WHERE status = 'PENDING' AND "nextAttemptAt" <= now()
-                 ORDER BY "createdAt" LIMIT ${limit} FOR UPDATE SKIP LOCKED)
-    RETURNING id, "endpointId", event, payload, attempts`
+  
+  const isMysql = (process.env.DATABASE_URL || "").startsWith("mysql://") || (process.env.DATABASE_URL || "").startsWith("mariadb://")
+  let claimed: Claimed[] = []
+
+  if (isMysql) {
+    const pending = await prisma.webhookDelivery.findMany({
+      where: { status: "PENDING", nextAttemptAt: { lte: new Date() } },
+      orderBy: { createdAt: "asc" },
+      take: limit,
+      select: { id: true, endpointId: true, event: true, payload: true, attempts: true }
+    })
+    if (pending.length) {
+      await prisma.webhookDelivery.updateMany({
+        where: { id: { in: pending.map(p => p.id) } },
+        data: { status: "SENDING", lockedAt: new Date() }
+      })
+      claimed = pending
+    }
+  } else {
+    claimed = await prisma.$queryRaw<Claimed[]>`
+      UPDATE webhook_deliveries SET status = 'SENDING', "lockedAt" = now()
+      WHERE id IN (SELECT id FROM webhook_deliveries WHERE status = 'PENDING' AND "nextAttemptAt" <= now()
+                   ORDER BY "createdAt" LIMIT ${limit} FOR UPDATE SKIP LOCKED)
+      RETURNING id, "endpointId", event, payload, attempts`
+  }
+
   await Promise.all(claimed.map(deliverOne))
   return claimed.length
 }

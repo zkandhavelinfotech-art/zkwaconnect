@@ -54,10 +54,20 @@ export async function planState(organizationId: string) {
 }
 
 async function messagesSince(organizationId: string, since: Date) {
-  const rows = await prisma.$queryRaw<{ count: number }[]>`
-    SELECT COUNT(*)::int AS count FROM messages m JOIN conversations c ON c.id = m."conversationId"
-    WHERE c."organizationId" = ${organizationId} AND m.direction = 'OUTBOUND' AND m."createdAt" >= ${since}`
-  return rows[0]?.count || 0
+  try {
+    return await prisma.message.count({
+      where: {
+        direction: "OUTBOUND",
+        createdAt: { gte: since },
+        conversation: { organizationId },
+      },
+    })
+  } catch {
+    const rows = await prisma.$queryRaw<{ count: number }[]>`
+      SELECT COUNT(*)::int AS count FROM messages m JOIN conversations c ON c.id = m."conversationId"
+      WHERE c."organizationId" = ${organizationId} AND m.direction = 'OUTBOUND' AND m."createdAt" >= ${since}`
+    return rows[0]?.count || 0
+  }
 }
 
 // Short-lived cache so a broadcast doesn't recount every message; local sends are added on top.

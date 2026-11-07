@@ -19,18 +19,24 @@ function parseMySqlConfig(rawUrl: string) {
     urlStr = "mariadb://" + urlStr.slice("mysql://".length)
   }
 
+  let host = "127.0.0.1"
+  let port = 3306
+  let user = "root"
+  let password: string | undefined
+  let database: string | undefined
+  let socketPath: string | undefined
+
   try {
     const u = new URL(urlStr)
-    return {
-      host: u.hostname || "127.0.0.1",
-      port: u.port ? parseInt(u.port, 10) : 3306,
-      user: u.username ? decodeURIComponent(u.username) : "root",
-      password: u.password ? decodeURIComponent(u.password) : undefined,
-      database: u.pathname ? u.pathname.replace(/^\//, "") : undefined,
-      connectionLimit: 10,
-      prepareCacheLength: 0,
-      connectTimeout: 15000,
-    }
+    const rawHost = u.hostname || "127.0.0.1"
+    host = rawHost === "localhost" ? "127.0.0.1" : rawHost
+    port = u.port ? parseInt(u.port, 10) : 3306
+    user = u.username ? decodeURIComponent(u.username) : "root"
+    password = u.password ? decodeURIComponent(u.password) : undefined
+    database = u.pathname ? u.pathname.replace(/^\//, "") : undefined
+
+    if (u.searchParams.has("socket")) socketPath = u.searchParams.get("socket")!
+    if (u.searchParams.has("socketPath")) socketPath = u.searchParams.get("socketPath")!
   } catch {
     // If password contained unencoded '@' or characters that broke URL parsing, extract safely
     const withoutProto = urlStr.replace(/^(mariadb|mysql):\/\//, "")
@@ -39,24 +45,41 @@ function parseMySqlConfig(rawUrl: string) {
       const auth = withoutProto.slice(0, lastAt)
       const rest = withoutProto.slice(lastAt + 1)
       const firstColon = auth.indexOf(":")
-      const user = firstColon !== -1 ? auth.slice(0, firstColon) : auth
-      const pass = firstColon !== -1 ? auth.slice(firstColon + 1) : undefined
+      user = firstColon !== -1 ? auth.slice(0, firstColon) : auth
+      password = firstColon !== -1 ? auth.slice(firstColon + 1) : undefined
       const [hostPort, dbQuery] = rest.split("/")
-      const [host, port] = (hostPort || "").split(":")
-      const [db] = (dbQuery || "").split("?")
-      return {
-        host: host || "127.0.0.1",
-        port: port ? parseInt(port, 10) : 3306,
-        user: user || "root",
-        password: pass,
-        database: db || undefined,
-        connectionLimit: 10,
-        prepareCacheLength: 0,
-        connectTimeout: 15000,
+      const [rawHost, rawPort] = (hostPort || "").split(":")
+      host = (rawHost === "localhost" ? "127.0.0.1" : rawHost) || "127.0.0.1"
+      port = rawPort ? parseInt(rawPort, 10) : 3306
+      const [db, query] = (dbQuery || "").split("?")
+      database = db || undefined
+
+      if (query) {
+        const sp = new URLSearchParams(query)
+        if (sp.has("socket")) socketPath = sp.get("socket")!
+        if (sp.has("socketPath")) socketPath = sp.get("socketPath")!
       }
     }
-    return { host: "127.0.0.1", port: 3306 }
   }
+
+  const config: any = {
+    user,
+    password,
+    database,
+    connectionLimit: 15,
+    prepareCacheLength: 0,
+    connectTimeout: 10000,
+    acquireTimeout: 15000,
+  }
+
+  if (socketPath) {
+    config.socketPath = socketPath
+  } else {
+    config.host = host
+    config.port = port
+  }
+
+  return config
 }
 
 function makeClient(): PrismaClient {
