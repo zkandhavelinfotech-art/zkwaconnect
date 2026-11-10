@@ -7,11 +7,57 @@ const EMAIL_KEY = "zk-login-email"
 // Demo / Quick-fill box: enabled on local development and when NEXT_PUBLIC_DEMO_LOGIN=on or prefill is active
 const SHOW_DEMO = process.env.NODE_ENV === "development" || process.env.NEXT_PUBLIC_DEMO_LOGIN === "on" || true
 
+// Preset accounts organized by Customer Clients (AiSensy/Interakt style) vs SaaS Product Admin
 const PRESET_ACCOUNTS = [
+  // 1. Customer Clients (Registered Businesses)
+  {
+    id: "rta",
+    category: "CLIENT" as const,
+    label: "Recruitment Training Academy",
+    sublabel: "Client Portal · EdTech",
+    workspace: "Recruitment Training Academy",
+    email: "rta@recruitmentacademy.com",
+    altEmail: "rta@gmail.com",
+    password: "rta1234",
+    icon: "🎓",
+    color: "#059669",
+    bg: "#ecfdf5",
+    border: "#a7f3d0",
+  },
+  {
+    id: "smeram",
+    category: "CLIENT" as const,
+    label: "Smeram Industries",
+    sublabel: "Client Portal · Manufacturing",
+    workspace: "Smeram Industries",
+    email: "smeram@smeramindustries.com",
+    altEmail: "smeram@gmail.com",
+    password: "smeram1234",
+    icon: "🏭",
+    color: "#d97706",
+    bg: "#fffbeb",
+    border: "#fde68a",
+  },
+  // 2. SaaS Product Admin & Testing Logins
+  {
+    id: "admin",
+    category: "ADMIN" as const,
+    label: "SaaS Product Admin",
+    sublabel: "Super Admin (Full SaaS Overview)",
+    workspace: "Platform Admin & All Tenants",
+    email: "admin@zkwaconnect.in",
+    password: "admin2026!",
+    icon: "⚡",
+    color: "#7c3aed",
+    bg: "#faf5ff",
+    border: "#e9d5ff",
+  },
   {
     id: "waba",
-    label: "WABA Account",
-    sublabel: "ZKandhavel Infotech",
+    category: "ADMIN" as const,
+    label: "WABA Root Admin",
+    sublabel: "ZKandhavel Infotech Root Owner",
+    workspace: "ZKandavel Infotech (WABA)",
     email: "waba@zkandavelinfotech.com",
     password: "waba1234",
     icon: "🚀",
@@ -21,8 +67,10 @@ const PRESET_ACCOUNTS = [
   },
   {
     id: "demo",
-    label: "Demo Account",
-    sublabel: "Demo Business",
+    category: "ADMIN" as const,
+    label: "Demo Sandbox",
+    sublabel: "Pre-configured Bot Flows",
+    workspace: "Demo Business",
     email: "demo@zkwaconnect.in",
     password: "demo1234",
     icon: "🧪",
@@ -30,34 +78,33 @@ const PRESET_ACCOUNTS = [
     bg: "#f0f9ff",
     border: "#bae6fd",
   },
-  {
-    id: "admin",
-    label: "Admin Staff",
-    sublabel: "Platform Admin",
-    email: "admin@zkwaconnect.in",
-    password: "admin2026!",
-    icon: "⚡",
-    color: "#7c3aed",
-    bg: "#faf5ff",
-    border: "#e9d5ff",
-  },
 ]
 
 export default function LoginPage() {
   const router = useRouter()
-  const [form,      setForm]     = useState({ email:"", password:"" })
-  const [totp,      setTotp]     = useState("")
-  const [needTotp,  setNeedTotp] = useState(false)
-  const [loading,   setLoading]  = useState(false)
-  const [error,     setError]    = useState("")
-  const [remember,  setRemember] = useState(true)
-  const [activePreset, setActivePreset] = useState<string | null>(null)
-  const [company,   setCompany]  = useState<{ email:string; exists:boolean; password:string|null; workspaces:string[] }[]>([])
+  const [form,          setForm]         = useState({ email:"", password:"" })
+  const [totp,          setTotp]         = useState("")
+  const [needTotp,      setNeedTotp]     = useState(false)
+  const [loading,       setLoading]      = useState(false)
+  const [error,         setError]        = useState("")
+  const [remember,      setRemember]     = useState(true)
+  const [accountTab,    setAccountTab]   = useState<"CLIENT" | "ADMIN">("CLIENT")
+  const [activePreset,  setActivePreset] = useState<string | null>("rta")
+  const [company,       setCompany]      = useState<{ email:string; exists:boolean; password:string|null; workspaces:string[] }[]>([])
   const brand = useBrand()
 
-  // "Remember me": the email is kept on this device and filled in next time (the browser's password manager keeps the password).
+  // Initialize with the first client account on first render
   useEffect(() => {
-    try { const saved = localStorage.getItem(EMAIL_KEY); if (saved) setForm(f => f.email ? f : { ...f, email: saved }) } catch { /* storage blocked */ }
+    try {
+      const saved = localStorage.getItem(EMAIL_KEY)
+      if (saved) {
+        setForm(f => f.email ? f : { ...f, email: saved })
+      } else {
+        // Default to Recruitment Training Academy client login
+        setForm({ email: PRESET_ACCOUNTS[0].email, password: PRESET_ACCOUNTS[0].password })
+      }
+    } catch { /* storage blocked */ }
+
     // Fetch company logins for quick fill
     fetch("/api/dev/logins")
       .then(r => r.ok ? r.json() : null)
@@ -96,36 +143,98 @@ export default function LoginPage() {
     } catch { setError("Network error. Please try again."); setLoading(false) }
   }
 
+  const activeAccount = PRESET_ACCOUNTS.find(p => p.id === activePreset) || PRESET_ACCOUNTS.find(p => p.email.toLowerCase() === form.email.toLowerCase())
+  const filteredPresets = PRESET_ACCOUNTS.filter(p => p.category === accountTab)
+
   return (
     <div style={{ minHeight:"100vh", background:brandBackground(brand),
       display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
       padding:20, fontFamily:"DM Sans,sans-serif" }}>
 
-      <div style={{ textAlign:"center", marginBottom:28 }}>
+      <div style={{ textAlign:"center", marginBottom:24 }}>
         <div style={{ display:"inline-flex", alignItems:"center", gap:12,
           background:"rgba(255,255,255,.12)", border:"1px solid rgba(255,255,255,.2)",
           borderRadius:16, padding:"12px 20px", marginBottom:10 }}>
           <BrandMark brand={brand} />
         </div>
-        <div style={{ fontSize:14, color:"rgba(255,255,255,.7)" }}>Sign in to your workspace</div>
+        <div style={{ fontSize:14, color:"rgba(255,255,255,.8)", fontWeight:500 }}>
+          WhatsApp Business SaaS Platform · Multi-Tenant Portal
+        </div>
       </div>
 
-      <div style={{ width:"100%", maxWidth:420, background:"#fff", borderRadius:20,
-        padding:36, boxShadow:"0 24px 64px rgba(0,0,0,.25)" }}>
-        <h1 style={{ fontFamily:"Sora,sans-serif", fontSize:22, fontWeight:700,
-          color:"#0f172a", margin:"0 0 4px" }}>Welcome back</h1>
+      <div style={{ width:"100%", maxWidth:480, background:"#fff", borderRadius:20,
+        padding:"32px 30px", boxShadow:"0 24px 64px rgba(0,0,0,.25)" }}>
+        
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", marginBottom:4 }}>
+          <h1 style={{ fontFamily:"Sora,sans-serif", fontSize:22, fontWeight:700, color:"#0f172a", margin:0 }}>
+            Sign In to Portal
+          </h1>
+          <span style={{ fontSize:11, background:"#ecfdf5", color:"#065f46", border:"1px solid #a7f3d0", padding:"2px 8px", borderRadius:12, fontWeight:700 }}>
+            v5.2.0 LIVE
+          </span>
+        </div>
         <p style={{ fontSize:13, color:"#64748b", margin:"0 0 16px" }}>
-          Enter your credentials to access your dashboard
+          Choose customer client portal or product admin to prefill credentials
         </p>
 
-        {/* Quick Select Preset Logins */}
-        <div style={{ marginBottom: 18 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span>Quick Select Account</span>
-            <span style={{ fontSize: 10, fontWeight: 500, color: "#075E54" }}>Click to prefill</span>
+        {/* Category Switcher: Customer Clients vs SaaS Admin */}
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ display: "flex", background: "#f1f5f9", padding: 4, borderRadius: 12, gap: 4, border: "1px solid #e2e8f0" }}>
+            <button
+              type="button"
+              onClick={() => setAccountTab("CLIENT")}
+              style={{
+                flex: 1,
+                border: 0,
+                borderRadius: 8,
+                padding: "8px 10px",
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: "pointer",
+                background: accountTab === "CLIENT" ? "#ffffff" : "transparent",
+                color: accountTab === "CLIENT" ? "#065f46" : "#64748b",
+                boxShadow: accountTab === "CLIENT" ? "0 2px 6px rgba(0,0,0,0.06)" : "none",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                transition: "all .15s ease",
+              }}
+            >
+              <span>🏢</span>
+              <span>1. Customer Clients ({PRESET_ACCOUNTS.filter(p => p.category === "CLIENT").length})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setAccountTab("ADMIN")}
+              style={{
+                flex: 1,
+                border: 0,
+                borderRadius: 8,
+                padding: "8px 10px",
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: "pointer",
+                background: accountTab === "ADMIN" ? "#ffffff" : "transparent",
+                color: accountTab === "ADMIN" ? "#7c3aed" : "#64748b",
+                boxShadow: accountTab === "ADMIN" ? "0 2px 6px rgba(0,0,0,0.06)" : "none",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                transition: "all .15s ease",
+              }}
+            >
+              <span>⚡</span>
+              <span>2. SaaS Admin ({PRESET_ACCOUNTS.filter(p => p.category === "ADMIN").length})</span>
+            </button>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-            {PRESET_ACCOUNTS.slice(0, 2).map(preset => {
+        </div>
+
+        {/* Quick Select Preset Cards */}
+        <div style={{ marginBottom: 18 }}>
+          <div style={{ display: "grid", gridTemplateColumns: filteredPresets.length === 2 ? "1fr 1fr" : "repeat(auto-fit, minmax(130px, 1fr))", gap: 8 }}>
+            {filteredPresets.map(preset => {
               const isSelected = activePreset === preset.id || form.email.toLowerCase() === preset.email.toLowerCase()
               return (
                 <button
@@ -134,20 +243,29 @@ export default function LoginPage() {
                   onClick={() => selectPreset(preset)}
                   style={{
                     display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    padding: "8px 10px",
+                    flexDirection: "column",
+                    alignItems: "flex-start",
+                    gap: 4,
+                    padding: "10px 12px",
                     background: isSelected ? preset.bg : "#f8fafc",
                     border: isSelected ? `2px solid ${preset.color}` : "1px solid #e2e8f0",
                     borderRadius: 10,
                     cursor: "pointer",
                     textAlign: "left",
                     transition: "all 0.15s ease",
+                    position: "relative",
                   }}
                   title={`Prefill ${preset.label} (${preset.email})`}
                 >
-                  <span style={{ fontSize: 18 }}>{preset.icon}</span>
-                  <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
+                    <span style={{ fontSize: 20 }}>{preset.icon}</span>
+                    {isSelected && (
+                      <span style={{ fontSize: 10, fontWeight: 800, color: preset.color, background: "#fff", padding: "1px 6px", borderRadius: 8, border: `1px solid ${preset.border}` }}>
+                        ✓ ACTIVE
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ minWidth: 0, width: "100%", marginTop: 2 }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: isSelected ? preset.color : "#0f172a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                       {preset.label}
                     </div>
@@ -159,6 +277,19 @@ export default function LoginPage() {
               )
             })}
           </div>
+
+          {/* Active Preset Indicator */}
+          {activeAccount && (
+            <div style={{ marginTop: 8, background: activeAccount.bg, border: `1px solid ${activeAccount.border}`, borderRadius: 8, padding: "6px 10px", display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 11 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, color: activeAccount.color, fontWeight: 700 }}>
+                <span>🎯</span>
+                <span>Workspace: <strong>{activeAccount.workspace}</strong></span>
+              </div>
+              <span style={{ fontFamily: "monospace", fontSize: 10, color: "#475569" }}>
+                {activeAccount.email}
+              </span>
+            </div>
+          )}
         </div>
 
         <form onSubmit={submit} style={{ display:"flex", flexDirection:"column", gap:0 }}>
@@ -207,11 +338,13 @@ export default function LoginPage() {
             borderRadius:10, padding:13, fontFamily:"Sora,sans-serif",
             fontSize:15, fontWeight:700, cursor:loading?"not-allowed":"pointer",
             boxShadow:"0 4px 14px rgba(7,94,84,.35)", opacity:loading?.7:1, marginBottom:16
-          }}>{loading?"Signing in…":needTotp?"Verify & Sign In →":"Sign In →"}</button>
+          }}>
+            {loading ? "Signing in…" : needTotp ? "Verify & Sign In →" : activeAccount ? `Sign In as ${activeAccount.label.split(" ")[0]} →` : "Sign In →"}
+          </button>
         </form>
 
         <div style={{ textAlign:"center", fontSize:13, color:"#64748b" }}>
-          No account?{" "}
+          New business onboarding?{" "}
           <a href="/register" style={{ color:"#075E54", fontWeight:600, textDecoration:"none" }}>
             Start 7-day free trial →
           </a>
@@ -219,39 +352,62 @@ export default function LoginPage() {
 
         {SHOW_DEMO && <div style={{ marginTop:16, background:"#f8fafc", border:"1px solid #e2e8f0",
           borderRadius:12, padding:14 }}>
-          <div style={{ fontSize:12, fontWeight:700, color:"#334155", marginBottom:8, display:"flex", alignItems:"center", gap:6 }}>
-            <span>🔑</span> Available Test & Default Logins
+          <div style={{ fontSize:12, fontWeight:700, color:"#334155", marginBottom:8, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+            <span style={{ display:"flex", alignItems:"center", gap:6 }}>
+              <span>🔑</span> Credentials Directory (1-Click Fill)
+            </span>
+            <span style={{ fontSize:10, color:"#075E54", fontWeight:600 }}>Ready for Demo & Clients</span>
           </div>
           
-          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-            {/* WABA Account */}
-            <div style={{ background:"#fff", border:"1px solid #bbf7d0", borderRadius:8, padding:"8px 10px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-              <div>
-                <div style={{ fontSize:12, fontWeight:700, color:"#15803d" }}>WABA Account (ZKandhavel)</div>
-                <div style={{ fontFamily:"monospace", fontSize:11, color:"#075E54" }}>waba@zkandavelinfotech.com / waba1234</div>
+          <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+            {PRESET_ACCOUNTS.map(acc => (
+              <div
+                key={acc.id}
+                style={{
+                  background: "#fff",
+                  border: `1px solid ${form.email.toLowerCase() === acc.email.toLowerCase() ? acc.color : "#e2e8f0"}`,
+                  borderRadius: 8,
+                  padding: "6px 10px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: acc.color, display: "flex", alignItems: "center", gap: 5 }}>
+                    <span>{acc.icon}</span>
+                    <span>{acc.label}</span>
+                    <span style={{ fontSize: 9, background: acc.bg, color: acc.color, padding: "1px 5px", borderRadius: 6, border: `1px solid ${acc.border}` }}>
+                      {acc.category === "CLIENT" ? "Customer Client" : "SaaS Admin"}
+                    </span>
+                  </div>
+                  <div style={{ fontFamily: "monospace", fontSize: 10, color: "#64748b", marginTop: 2 }}>
+                    {acc.email} <span style={{ color: "#075E54", fontWeight: 700 }}>/ {acc.password}</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => selectPreset(acc)}
+                  style={{
+                    fontSize: 10,
+                    padding: "3px 8px",
+                    background: acc.bg,
+                    border: `1px solid ${acc.border}`,
+                    borderRadius: 6,
+                    cursor: "pointer",
+                    color: acc.color,
+                    fontWeight: 700,
+                  }}
+                >
+                  Prefill
+                </button>
               </div>
-              <button type="button" onClick={() => selectPreset(PRESET_ACCOUNTS[0])}
-                style={{ fontSize:11, padding:"4px 10px", background:"#ecfdf5", border:"1px solid #a7f3d0", borderRadius:6, cursor:"pointer", color:"#065f46", fontWeight:600 }}>
-                Prefill
-              </button>
-            </div>
-
-            {/* Demo Account */}
-            <div style={{ background:"#fff", border:"1px solid #bae6fd", borderRadius:8, padding:"8px 10px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-              <div>
-                <div style={{ fontSize:12, fontWeight:700, color:"#0369a1" }}>Demo Account</div>
-                <div style={{ fontFamily:"monospace", fontSize:11, color:"#0284c7" }}>demo@zkwaconnect.in / demo1234</div>
-              </div>
-              <button type="button" onClick={() => selectPreset(PRESET_ACCOUNTS[1])}
-                style={{ fontSize:11, padding:"4px 10px", background:"#f0f9ff", border:"1px solid #7dd3fc", borderRadius:6, cursor:"pointer", color:"#0369a1", fontWeight:600 }}>
-                Prefill
-              </button>
-            </div>
+            ))}
           </div>
 
           {company.length > 0 && <div style={{ borderTop:"1px solid #e2e8f0", marginTop:10, paddingTop:8 }}>
-            <div style={{ fontSize:11, fontWeight:600, color:"#64748b", marginBottom:6 }}>Additional Workspaces</div>
-            {company.filter(c => c.email !== "waba@zkandavelinfotech.com" && c.email !== "demo@zkwaconnect.in").map(c => <button key={c.email} type="button" disabled={!c.exists}
+            <div style={{ fontSize:11, fontWeight:600, color:"#64748b", marginBottom:6 }}>Additional Company Workspaces</div>
+            {company.filter(c => !PRESET_ACCOUNTS.some(p => p.email.toLowerCase() === c.email.toLowerCase())).map(c => <button key={c.email} type="button" disabled={!c.exists}
               onClick={() => { setForm({ email:c.email, password:c.password || "" }); if (!c.password) setTimeout(() => (document.querySelector("input[name=password]") as HTMLInputElement | null)?.focus(), 0) }}
               title={!c.exists ? "Account not created yet" : c.password ? "Fills email and password" : "Fills the email"}
               style={{ display:"block", width:"100%", marginTop:4, fontSize:11, padding:"5px 8px", background:"#fff", border:"1px solid #cbd5e1", borderRadius:6,

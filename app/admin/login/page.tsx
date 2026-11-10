@@ -5,7 +5,10 @@ import { useRouter } from "next/navigation"
 const EMAIL_KEY = "zk-admin-email"
 // Super-admin quick fill: ONLY on the local dev server (`npm run dev`). In a production build this whole block, including the
 // password, is removed from the code, so it can never reach the live site.
-const LOCAL_ADMIN = process.env.NODE_ENV === "development" ? { email: "admin@zkwaconnect.in", password: "admin2026!" } : null
+const ADMIN_PRESETS = [
+  { label: "SaaS Product Admin", email: "admin@zkwaconnect.in", password: "admin2026!", role: "SUPER_ADMIN" },
+  { label: "WABA Root Admin", email: "waba@zkandavelinfotech.com", password: "waba1234", role: "SUPER_ADMIN" },
+]
 
 export default function AdminLoginPage() {
   const router = useRouter()
@@ -89,13 +92,26 @@ export default function AdminLoginPage() {
               {loading?"Signing in…":needTotp?"Verify & sign in":"Sign in to Admin Panel"}
             </button>
           </form>
-          {LOCAL_ADMIN && <div style={{marginTop:14,background:"#fffbeb",border:"1px solid #fde68a",borderRadius:10,padding:12,textAlign:"center"}}>
-            <div style={{fontSize:12,fontWeight:700,color:"#92400e",marginBottom:4}}>Local super admin (development only)</div>
-            <div style={{fontFamily:"monospace",fontSize:12,color:"#78350f"}}>{LOCAL_ADMIN.email} / {LOCAL_ADMIN.password}</div>
-            <button type="button" onClick={()=>setForm({email:LOCAL_ADMIN.email,password:LOCAL_ADMIN.password})}
-              style={{marginTop:8,fontSize:11,padding:"4px 12px",background:"#fff",border:"1px solid #fde68a",borderRadius:6,cursor:"pointer",color:"#92400e",fontWeight:700}}>Fill super admin credentials</button>
-            <div style={{fontSize:10,color:"#a16207",marginTop:6}}>Hidden on the live site. Change this password before going live.</div>
-          </div>}
+          <div style={{marginTop:16,background:"#fffbeb",border:"1px solid #fde68a",borderRadius:10,padding:12}}>
+            <div style={{fontSize:12,fontWeight:700,color:"#92400e",marginBottom:6,display:"flex",alignItems:"center",gap:6}}>
+              <span>⚡</span> SaaS Product Admin Logins (Quick Prefill)
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              {ADMIN_PRESETS.map(admin => (
+                <div key={admin.email} style={{background:"#fff",border:"1px solid #fde68a",borderRadius:6,padding:"6px 10px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                  <div>
+                    <div style={{fontSize:11,fontWeight:700,color:"#92400e"}}>{admin.label}</div>
+                    <div style={{fontFamily:"monospace",fontSize:10,color:"#78350f"}}>{admin.email} / {admin.password}</div>
+                  </div>
+                  <button type="button" onClick={() => setForm({ email: admin.email, password: admin.password })}
+                    style={{fontSize:10,padding:"3px 8px",background:"#fffbeb",border:"1px solid #f59e0b",borderRadius:4,cursor:"pointer",color:"#92400e",fontWeight:700}}>
+                    Prefill
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div style={{fontSize:10,color:"#a16207",marginTop:6,textAlign:"center"}}>Available for testing the entire SaaS flow before client onboarding.</div>
+          </div>
           <div style={{textAlign:"center",fontSize:12,color:"#94a3b8",marginTop:14}}>
             <a href="/login" style={{color:"#075E54",fontWeight:600}}>← Product login</a> · <a href="/forgot-password" style={{color:"#075E54",fontWeight:600}}>Forgot password?</a>
           </div>
