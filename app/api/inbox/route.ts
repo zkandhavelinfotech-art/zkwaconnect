@@ -82,33 +82,38 @@ export async function GET(request: Request) {
     const status = url.searchParams.get("status") || "OPEN"
     const query = (url.searchParams.get("q") || "").trim()
     const mine = url.searchParams.get("mine") === "1"
+    const phoneNumberId = url.searchParams.get("phoneNumberId")
     const where: Prisma.ConversationWhereInput = {
       organizationId,
       ...(STATUSES.includes(status as typeof STATUSES[number]) ? { status } : {}),
       ...(mine ? { assignedUserId:member.userId } : {}),
+      ...(phoneNumberId && phoneNumberId !== "ALL" ? { phoneNumberId } : {}),
       ...(query ? { contact:{ OR:[
         { name:{ contains:query, mode:"insensitive" } },
         { phone:{ contains:query.replace(/\D/g, "") || query } },
       ] } } : {}),
     }
-    const [conversations, counts, members] = await Promise.all([
+    const [conversations, counts, members, phoneNumbers] = await Promise.all([
       prisma.conversation.findMany({
         where, take:100,
         orderBy:[{ lastMessageAt:{ sort:"desc", nulls:"last" } }, { updatedAt:"desc" }],
         include:{
           contact:{ select:{ id:true, name:true, phone:true } },
+          phoneNumber:{ select:{ id:true, phoneNumber:true, displayName:true } },
           instagramAccount:{ select:{ username:true } },
           assignedUser:{ select:{ id:true, name:true } },
           messages:{ orderBy:{ createdAt:"desc" }, take:1, select:{ content:true, type:true, direction:true, createdAt:true } },
         },
       }),
-      prisma.conversation.groupBy({ by:["status"], where:{ organizationId }, _count:{ _all:true } }),
+      prisma.conversation.groupBy({ by:["status"], where:{ organizationId, ...(phoneNumberId && phoneNumberId !== "ALL" ? { phoneNumberId } : {}) }, _count:{ _all:true } }),
       prisma.membership.findMany({ where:{ organizationId, status:"ACTIVE" }, select:{ user:{ select:{ id:true, name:true } } } }),
+      prisma.phoneNumber.findMany({ where:{ waba:{ organizationId } }, select:{ id:true, phoneNumber:true, displayName:true, status:true }, orderBy:{ createdAt:"asc" } }),
     ])
     return NextResponse.json({
       conversations,
       counts:Object.fromEntries(counts.map(item => [item.status, item._count._all])),
       members:members.map(item => item.user),
+      phoneNumbers,
       me:member.userId,
     })
   } catch (error) {
@@ -120,6 +125,7 @@ const sendSchema = z.union([
   z.object({ conversationId:z.string().min(1), note:z.string().trim().min(1, "Write the note.").max(4096) }),
   z.object({ conversationId:z.string().min(1), text:z.string().trim().min(1).max(4096) }),
   z.object({ conversationId:z.string().min(1), templateId:z.string().min(1), parameters:z.array(z.string().trim().min(1).max(1024)).max(20).default([]) }),
+  z.object({ newChat:z.literal(true), phone:z.string().min(8), name:z.string().optional(), phoneNumberId:z.string().optional() }),
 ])
 
 export async function POST(request: Request) {
@@ -129,6 +135,33 @@ export async function POST(request: Request) {
     const { organizationId } = member
     if ((request.headers.get("content-type") || "").startsWith("multipart/form-data")) return await sendAttachment(request, member)
     const input = sendSchema.parse(await request.json())
+
+    if ("newChat" in input) {
+      const cleanPhone = input.phone.replace(/\D/g, "")
+      let contact = await prisma.contact.findFirst({ where:{ organizationId, phone:cleanPhone } })
+      if (!contact) {
+        contact = await prisma.contact.create({
+          data:{ organizationId, phone:cleanPhone, name:input.name||null, optedIn:true, source:"INBOX_AGENT" }
+        })
+      }
+      const phoneRecord = input.phoneNumberId
+        ? await prisma.phoneNumber.findFirst({ where:{ id:input.phoneNumberId, waba:{ organizationId } } })
+        : await prisma.phoneNumber.findFirst({ where:{ waba:{ organizationId }, status:"CONNECTED" } })
+
+      let conversation = await prisma.conversation.findFirst({
+        where:{ organizationId, contactId:contact.id, ...(phoneRecord ? { phoneNumberId:phoneRecord.id } : {}) }
+      })
+      if (!conversation) {
+        conversation = await prisma.conversation.create({
+          data:{
+            organizationId, contactId:contact.id, phoneNumberId:phoneRecord?.id||null,
+            status:"OPEN", assignedUserId:member.userId,
+          }
+        })
+      }
+      return NextResponse.json({ ok:true, conversationId:conversation.id }, { status:201 })
+    }
+
     const conversation = await prisma.conversation.findFirst({ where:{ id:input.conversationId, organizationId },
       include:{ contact:true, phoneNumber:true } })
     if (!conversation) return NextResponse.json({ error:"Conversation not found." }, { status:404 })

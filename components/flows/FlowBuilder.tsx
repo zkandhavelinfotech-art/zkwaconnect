@@ -416,6 +416,8 @@ function Inspector({node,templates,flows,iceBreakers,setData,setOptions,onDelete
   node:FlowNode;templates:TemplateOption[];flows:FlowOptionRef[];iceBreakers:string[];setData:(patch:Partial<FlowNodeData>)=>void;setOptions:(options:FlowOption[])=>void
   onDelete:()=>void;onDuplicate:()=>void
 }) {
+  const [testingApi, setTestingApi] = useState(false)
+  const [testResult, setTestResult] = useState<{ ok: boolean; status: number; text: string; durationMs: number; error?: string } | null>(null)
   const d = node.data
   const meta = NODE_META[node.type]
   const options = d.options||[]
@@ -423,6 +425,30 @@ function Inspector({node,templates,flows,iceBreakers,setData,setOptions,onDelete
   const maxTitle = node.type==="buttons"?20:24
   const textArea = (placeholder:string)=><textarea rows={5} maxLength={1024} value={d.text||""} placeholder={placeholder}
     onChange={event=>setData({text:event.target.value})} style={{...field,resize:"vertical"}}/>
+
+  async function testApiCall() {
+    if (!d.url || !d.url.startsWith("https://")) return
+    setTestingApi(true)
+    setTestResult(null)
+    try {
+      const res = await fetch("/api/flows/test-api", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url: d.url.replace(/\{\{phone\}\}/g, "919876543210").replace(/\{\{name\}\}/g, "Customer"),
+          method: d.method || "POST",
+          body: d.method !== "GET" ? (d.body || "").replace(/\{\{phone\}\}/g, "919876543210").replace(/\{\{name\}\}/g, "Customer") : undefined,
+        }),
+      })
+      const body = await res.json()
+      if (!res.ok) throw new Error(body.error || "Failed API call")
+      setTestResult({ ok: body.ok, status: body.status, text: body.sampleResponse, durationMs: body.durationMs })
+    } catch (err) {
+      setTestResult({ ok: false, status: 0, text: err instanceof Error ? err.message : "Error", durationMs: 0, error: err instanceof Error ? err.message : "Error" })
+    } finally {
+      setTestingApi(false)
+    }
+  }
 
   return <div>
     <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
@@ -607,6 +633,31 @@ function Inspector({node,templates,flows,iceBreakers,setData,setOptions,onDelete
       <label style={label}>Response field to save (optional)</label>
       <input value={d.responsePath||""} placeholder="data.order.status" onChange={event=>setData({responsePath:event.target.value.trim()})} style={field}/>
       <div style={{fontSize:10,color:"#71817e",marginTop:6}}>Times out after 8 seconds. 2xx responses follow the Success exit, anything else Failed. Private and internal addresses are blocked.</div>
+
+      <div style={{marginTop:10}}>
+        <button
+          type="button"
+          onClick={testApiCall}
+          disabled={testingApi||!d.url}
+          style={{
+            width:"100%",border:"1px solid #1d4ed8",background:"#eff6ff",color:"#1d4ed8",
+            borderRadius:6,padding:"7px 10px",fontSize:12,fontWeight:700,cursor:testingApi||!d.url?"default":"pointer",
+            opacity:testingApi||!d.url?.6:1
+          }}
+        >
+          {testingApi?"Testing Webhook API…":"⚡ Test API Request Now"}
+        </button>
+        {testResult&&(
+          <div style={{marginTop:8,padding:8,borderRadius:6,fontSize:11,background:testResult.ok?"#f0fdf4":"#fef2f2",border:`1px solid ${testResult.ok?"#bbf7d0":"#fecaca"}`}}>
+            <div style={{fontWeight:700,color:testResult.ok?"#166534":"#991b1b"}}>
+              {testResult.ok?`✓ HTTP ${testResult.status} OK (${testResult.durationMs}ms)`:`⚠ Failed: ${testResult.error||`HTTP ${testResult.status}`}`}
+            </div>
+            <pre style={{margin:"4px 0 0",maxHeight:90,overflowY:"auto",fontSize:10,background:"#fff",padding:6,borderRadius:4,color:"#334155"}}>
+              {testResult.text}
+            </pre>
+          </div>
+        )}
+      </div>
     </>}
 
     {node.type==="products"&&<>

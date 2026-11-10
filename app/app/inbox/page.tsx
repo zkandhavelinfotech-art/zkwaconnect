@@ -6,6 +6,7 @@ type Status = "OPEN"|"PENDING"|"RESOLVED"
 type ListItem = {
   id:string; status:Status; unreadCount:number; lastMessageAt:string|null; channel?:string; instagramAccount?:{username:string}|null
   contact:{id:string;name:string|null;phone:string}
+  phoneNumber?:{id:string;phoneNumber:string;displayName:string|null}|null
   assignedUser:{id:string;name:string}|null
   messages:{content:string|null;type:string;direction:string;createdAt:string}[]
 }
@@ -62,6 +63,13 @@ function ticks(status:string|null){
 export default function InboxPage() {
   const [status,setStatus] = useState<Status|"ALL">("OPEN")
   const [mine,setMine] = useState(false)
+  const [selectedPhoneId,setSelectedPhoneId] = useState<string>("ALL")
+  const [phoneNumbers,setPhoneNumbers] = useState<{id:string;phoneNumber:string;displayName:string|null;status?:string}[]>([])
+  const [newChatOpen,setNewChatOpen] = useState(false)
+  const [newChatPhone,setNewChatPhone] = useState("")
+  const [newChatName,setNewChatName] = useState("")
+  const [newChatPhoneId,setNewChatPhoneId] = useState("")
+  const [creatingChat,setCreatingChat] = useState(false)
   const [search,setSearch] = useState("")
   const [query,setQuery] = useState("")
   const [list,setList] = useState<ListItem[]>([])
@@ -85,12 +93,19 @@ export default function InboxPage() {
   const lastMessageId = useRef("")
 
   const loadList = useCallback(async()=>{
-    const params = new URLSearchParams({status,q:query,...(mine?{mine:"1"}:{})})
+    const params = new URLSearchParams({
+      status, q:query,
+      ...(mine?{mine:"1"}:{}),
+      ...(selectedPhoneId&&selectedPhoneId!=="ALL"?{phoneNumberId:selectedPhoneId}:{})
+    })
     const response = await fetch(`/api/inbox?${params.toString()}`)
     const body = await response.json()
     if(!response.ok)throw new Error(body.error||"Could not load conversations.")
-    setList(body.conversations);setCounts(body.counts||{});setMembers(body.members||[])
-  },[status,query,mine])
+    setList(body.conversations)
+    setCounts(body.counts||{})
+    setMembers(body.members||[])
+    if(body.phoneNumbers)setPhoneNumbers(body.phoneNumbers)
+  },[status,query,mine,selectedPhoneId])
 
   const loadDetail = useCallback(async(id:string)=>{
     const response = await fetch(`/api/inbox?conversationId=${encodeURIComponent(id)}`)
@@ -204,6 +219,36 @@ export default function InboxPage() {
   const attributes = metadata.attributes&&typeof metadata.attributes==="object"?Object.entries(metadata.attributes as Record<string,unknown>):[]
   const hoursLeft = detail?.windowEndsAt?Math.max(0,Math.round((new Date(detail.windowEndsAt).getTime()-Date.now())/3_600_000)):0
 
+  async function handleCreateNewChat(e: React.FormEvent) {
+    e.preventDefault()
+    if (!newChatPhone.trim()) return
+    setCreatingChat(true)
+    setError("")
+    try {
+      const res = await fetch("/api/inbox", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          newChat: true,
+          phone: newChatPhone.trim(),
+          name: newChatName.trim() || undefined,
+          phoneNumberId: newChatPhoneId || undefined,
+        }),
+      })
+      const body = await res.json()
+      if (!res.ok) throw new Error(body.error || "Could not start conversation.")
+      setNewChatOpen(false)
+      setNewChatPhone("")
+      setNewChatName("")
+      await loadList()
+      if (body.conversationId) open(body.conversationId)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not start conversation.")
+    } finally {
+      setCreatingChat(false)
+    }
+  }
+
   return (
     <div className={`zk-inbox${selectedId?" has-chat":""}`} style={{display:"flex",height:"calc(100vh - 104px)",minHeight:520,background:"#fff",border:"1px solid #e2e8f0",borderRadius:12,overflow:"hidden"}}>
       <style>{`@media(max-width:760px){
@@ -217,6 +262,34 @@ export default function InboxPage() {
       {/* Conversation list */}
       <div className="zk-inbox-list" style={{width:300,flexShrink:0,borderRight:"1px solid #e2e8f0",display:"flex",flexDirection:"column"}}>
         <div style={{padding:12,borderBottom:"1px solid #e2e8f0"}}>
+          {/* Multi-Number Phone Line Selector & New Chat Action */}
+          <div style={{display:"flex",gap:6,marginBottom:8,alignItems:"center"}}>
+            <select
+              aria-label="Filter by WhatsApp Phone Line"
+              value={selectedPhoneId}
+              onChange={e=>setSelectedPhoneId(e.target.value)}
+              style={{flex:1,fontSize:11,fontWeight:600,border:"1px solid #cbd5e1",borderRadius:6,padding:"5px 8px",background:"#f8fafc",color:"#0f172a",outline:"none"}}
+            >
+              <option value="ALL">📱 All Phone Lines ({phoneNumbers.length||"0"})</option>
+              {phoneNumbers.map(p=>(
+                <option key={p.id} value={p.id}>
+                  📱 {p.displayName||p.phoneNumber} (+{p.phoneNumber})
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={()=>{
+                setNewChatOpen(true)
+                if(phoneNumbers.length&&!newChatPhoneId)setNewChatPhoneId(phoneNumbers[0].id)
+              }}
+              title="Start a new WhatsApp chat with custom phone line"
+              style={{border:0,background:"#075e54",color:"#fff",borderRadius:6,padding:"5px 10px",fontSize:11,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}
+            >
+              + New
+            </button>
+          </div>
+
           <input aria-label="Search conversations" value={search} onChange={event=>setSearch(event.target.value)} placeholder="🔍 Search name or number"
             style={{width:"100%",boxSizing:"border-box",border:"1px solid #e2e8f0",borderRadius:8,padding:"8px 12px",fontSize:13,outline:"none"}}/>
           <div style={{display:"flex",gap:5,marginTop:8}}>
@@ -251,7 +324,10 @@ export default function InboxPage() {
                   {item.unreadCount>0&&<span style={{background:"#25D366",color:"#fff",borderRadius:10,minWidth:18,height:18,padding:"0 5px",boxSizing:"border-box",
                     display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,flexShrink:0}}>{item.unreadCount}</span>}
                 </span>
-                {item.assignedUser&&<span style={{display:"block",fontSize:10,color:"#94a3b8",marginTop:2}}>👤 {item.assignedUser.name}</span>}
+                <div style={{display:"flex",alignItems:"center",gap:6,marginTop:3,flexWrap:"wrap"}}>
+                  {item.phoneNumber&&<span style={{fontSize:9,fontWeight:700,background:"#ecfdf5",color:"#065f46",border:"1px solid #a7f3d0",borderRadius:4,padding:"1px 5px"}}>📱 {item.phoneNumber.displayName||item.phoneNumber.phoneNumber}</span>}
+                  {item.assignedUser&&<span style={{fontSize:10,color:"#94a3b8"}}>👤 {item.assignedUser.name}</span>}
+                </div>
               </span>
             </button>):
             <div style={{padding:20,fontSize:12,color:"#64748b",lineHeight:1.6}}>
@@ -447,6 +523,97 @@ export default function InboxPage() {
         </>}
         <a href={`/app/contacts?q=${encodeURIComponent(contact!.phone)}`} style={{display:"inline-block",marginTop:14,color:"#075e54",fontWeight:700,textDecoration:"none"}}>Open in Contacts →</a>
       </aside>}
+
+      {/* New Chat Modal with Outgoing Phone Line Selector */}
+      {newChatOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Start new conversation"
+          onClick={()=>setNewChatOpen(false)}
+          style={{
+            position:"fixed",inset:0,background:"rgba(15,23,42,.6)",backdropFilter:"blur(3px)",
+            zIndex:90,display:"flex",alignItems:"center",justifyContent:"center",padding:16
+          }}
+        >
+          <div
+            onClick={e=>e.stopPropagation()}
+            style={{background:"#fff",borderRadius:14,padding:22,width:"100%",maxWidth:420,boxShadow:"0 20px 40px rgba(0,0,0,.2)"}}
+          >
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+              <h3 style={{fontFamily:"Sora,sans-serif",fontSize:16,fontWeight:700,color:"#0f172a",margin:0}}>
+                💬 Start New WhatsApp Chat
+              </h3>
+              <button onClick={()=>setNewChatOpen(false)} style={{border:0,background:"none",fontSize:16,cursor:"pointer",color:"#64748b"}}>✕</button>
+            </div>
+
+            <form onSubmit={handleCreateNewChat}>
+              <div style={{marginBottom:12}}>
+                <label style={{display:"block",fontSize:11,fontWeight:700,color:"#475569",marginBottom:4}}>
+                  Send From WhatsApp Line
+                </label>
+                <select
+                  value={newChatPhoneId}
+                  onChange={e=>setNewChatPhoneId(e.target.value)}
+                  style={{width:"100%",boxSizing:"border-box",border:"1px solid #cbd5e1",borderRadius:8,padding:"9px 11px",fontSize:13,background:"#fff"}}
+                >
+                  {phoneNumbers.map(p=>(
+                    <option key={p.id} value={p.id}>
+                      📱 {p.displayName||p.phoneNumber} (+{p.phoneNumber})
+                    </option>
+                  ))}
+                </select>
+                <div style={{fontSize:10,color:"#94a3b8",marginTop:3}}>Customer will see messages coming from this phone number.</div>
+              </div>
+
+              <div style={{marginBottom:12}}>
+                <label style={{display:"block",fontSize:11,fontWeight:700,color:"#475569",marginBottom:4}}>
+                  Customer WhatsApp Number <span style={{color:"#dc2626"}}>*</span>
+                </label>
+                <input
+                  required
+                  value={newChatPhone}
+                  onChange={e=>setNewChatPhone(e.target.value)}
+                  placeholder="e.g. 917795783535 or +91 77957 83535"
+                  style={{width:"100%",boxSizing:"border-box",border:"1px solid #cbd5e1",borderRadius:8,padding:"9px 11px",fontSize:13}}
+                />
+              </div>
+
+              <div style={{marginBottom:16}}>
+                <label style={{display:"block",fontSize:11,fontWeight:700,color:"#475569",marginBottom:4}}>
+                  Customer Name (Optional)
+                </label>
+                <input
+                  value={newChatName}
+                  onChange={e=>setNewChatName(e.target.value)}
+                  placeholder="e.g. John Doe"
+                  style={{width:"100%",boxSizing:"border-box",border:"1px solid #cbd5e1",borderRadius:8,padding:"9px 11px",fontSize:13}}
+                />
+              </div>
+
+              <div style={{display:"flex",gap:8}}>
+                <button
+                  type="submit"
+                  disabled={creatingChat||!newChatPhone.trim()}
+                  style={{
+                    flex:1,border:0,borderRadius:8,padding:"11px 14px",background:"#075e54",color:"#fff",
+                    fontWeight:700,fontSize:13,cursor:"pointer",opacity:creatingChat||!newChatPhone.trim()?.6:1
+                  }}
+                >
+                  {creatingChat?"Starting chat…":"Start Conversation →"}
+                </button>
+                <button
+                  type="button"
+                  onClick={()=>setNewChatOpen(false)}
+                  style={{border:"1px solid #cbd5e1",background:"#fff",borderRadius:8,padding:"11px 14px",color:"#64748b",fontWeight:700,fontSize:13,cursor:"pointer"}}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

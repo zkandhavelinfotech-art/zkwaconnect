@@ -1,5 +1,6 @@
 "use client"
 import { useCallback, useEffect, useState } from "react"
+import { AbandonedCartBotManager } from "@/components/commerce/AbandonedCartBotManager"
 
 type Item = { sku: string; name: string; quantity: number; price: number }
 type Order = { id: string; source: string; orderNumber: string | null; status: string; paymentMethod: string | null; codStatus: string | null; currency: string; total: number
@@ -168,20 +169,23 @@ function Catalog() {
 }
 
 export default function CommercePage() {
-  const [tab, setTab] = useState<"orders" | "catalog">("orders")
-  useEffect(() => { if (window.location.hash === "#catalog") setTab("catalog") }, [])
+  const [tab, setTab] = useState<"orders" | "abandoned" | "catalog">("orders")
+  useEffect(() => {
+    if (window.location.hash === "#catalog") setTab("catalog")
+    if (window.location.hash === "#abandoned") setTab("abandoned")
+  }, [])
   return <div>
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
       <div>
         <h1 style={{ fontFamily: "Sora,sans-serif", fontSize: 22, fontWeight: 700, color: "#0f172a", margin: 0 }}>Commerce</h1>
-        <p style={{ fontSize: 13, color: "#64748b", margin: "4px 0 0" }}>Sell on WhatsApp: share products, receive carts as orders, and follow orders from your Shopify or WooCommerce store.</p>
+        <p style={{ fontSize: 13, color: "#64748b", margin: "4px 0 0" }}>Sell on WhatsApp: share products, recover abandoned carts with automated bots, and sync orders from Shopify or WooCommerce.</p>
       </div>
       <a href="/app/integrations" style={{ ...primary, background: "#fff", color: "#075e54", border: "1px solid #cbd5d3", textDecoration: "none" }}>Connect Shopify / WooCommerce →</a>
     </div>
-    <div role="tablist" style={{ display: "flex", gap: 6, marginBottom: 14 }}>
-      {([["orders", "📦 Orders"], ["catalog", "🛍️ Catalog & cart"]] as const).map(([value, label]) => <button key={value} role="tab" aria-selected={tab === value} onClick={() => setTab(value)}
+    <div role="tablist" style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
+      {([["orders", "📦 Orders"], ["abandoned", "🛒 Abandoned Cart Recovery Bot"], ["catalog", "🛍️ Catalog & cart"]] as const).map(([value, label]) => <button key={value} role="tab" aria-selected={tab === value} onClick={() => setTab(value)}
         style={{ border: 0, borderRadius: 8, padding: "8px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer", background: tab === value ? "#075e54" : "#e9efed", color: tab === value ? "#fff" : "#49615e" }}>{label}</button>)}
     </div>
-    {tab === "orders" ? <Orders /> : <Catalog />}
+    {tab === "orders" ? <Orders /> : tab === "abandoned" ? <AbandonedCartBotManager /> : <Catalog />}
   </div>
 }

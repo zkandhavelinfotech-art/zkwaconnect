@@ -10,6 +10,7 @@ import { CallManager } from "@/components/calls/CallManager"
 import { atLeast, PAGE_MIN_ROLE } from "@/lib/auth/permissions"
 import { featureForPage, type FeatureKey, type PlanSummary } from "@/lib/billing/features"
 import { LockedFeature } from "@/components/billing/LockedFeature"
+import { WorkspaceCreatorModal } from "@/components/workspaces/WorkspaceCreatorModal"
 
 type NavItem = { href:string; icon:string; label:string }
 type NavGroup = { id:string; icon:string; label:string; items:NavItem[] }
@@ -96,6 +97,7 @@ export default function AppLayout({ children }:{ children:React.ReactNode }) {
   const [rail, setRail] = useState(false)
   const [flyout, setFlyout] = useState<{id:string;top:number}|null>(null)
   const [drawer, setDrawer] = useState(false)
+  const [createWorkspaceOpen, setCreateWorkspaceOpen] = useState(false)
   const flyoutRef = useRef<HTMLDivElement>(null)
 
   const active = findActive(pathname)
@@ -229,15 +231,29 @@ export default function AppLayout({ children }:{ children:React.ReactNode }) {
         </div>
 
         {!compact && <div style={{margin:"12px 12px 4px",background:"rgba(0,0,0,.14)",border:"1px solid rgba(255,255,255,.12)",borderRadius:10,padding:"9px 12px"}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
             <span style={{fontSize:10,color:"rgba(255,255,255,.5)",textTransform:"uppercase",letterSpacing:".06em"}}>Project Workspace</span>
-            <Link href="/projects" style={{fontSize:10,color:"#86efac",fontWeight:700,textDecoration:"none"}}>All Projects ⇄</Link>
+            <div style={{display:"flex",gap:8,alignItems:"center"}}>
+              <button
+                type="button"
+                onClick={()=>setCreateWorkspaceOpen(true)}
+                style={{border:0,background:"none",fontSize:10,color:"#86efac",fontWeight:700,cursor:"pointer",padding:0}}
+                title="Create a new brand / multi-tenant workspace"
+              >
+                + New
+              </button>
+              <Link href="/projects" style={{fontSize:10,color:"rgba(255,255,255,.7)",textDecoration:"none"}}>All ⇄</Link>
+            </div>
           </div>
           {me?.workspaces && me.workspaces.length > 1 ? (
             <select
               value={me.workspace.id}
               onChange={async (e) => {
                 const orgId = e.target.value
+                if (orgId === "__NEW__") {
+                  setCreateWorkspaceOpen(true)
+                  return
+                }
                 try {
                   const res = await fetch("/api/workspaces/select", {
                     method: "POST",
@@ -269,9 +285,21 @@ export default function AppLayout({ children }:{ children:React.ReactNode }) {
                   {w.name}
                 </option>
               ))}
+              <option value="__NEW__" style={{ background: "#065f46", color: "#86efac", fontWeight: 700 }}>
+                ➕ Create New Project…
+              </option>
             </select>
           ) : (
-            <div style={{fontSize:13,fontWeight:600,color:"#fff",fontFamily:"Sora,sans-serif",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{workspace}</div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div style={{fontSize:13,fontWeight:600,color:"#fff",fontFamily:"Sora,sans-serif",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{workspace}</div>
+              <button
+                type="button"
+                onClick={()=>setCreateWorkspaceOpen(true)}
+                style={{border:0,background:"rgba(255,255,255,.15)",color:"#86efac",fontSize:10,fontWeight:700,borderRadius:4,padding:"2px 6px",cursor:"pointer"}}
+              >
+                + Add
+              </button>
+            </div>
           )}
           <div style={{display:"flex",alignItems:"center",gap:6,fontSize:11,marginTop:6,color:me?.whatsapp.connected?"#86efac":"rgba(255,255,255,.55)"}}>
             <span style={{width:7,height:7,borderRadius:"50%",background:me?.whatsapp.connected?"#25D366":"#f59e0b"}}/>
@@ -396,6 +424,7 @@ export default function AppLayout({ children }:{ children:React.ReactNode }) {
           })()}
         </main>
       </div>
+      <WorkspaceCreatorModal isOpen={createWorkspaceOpen} onClose={()=>setCreateWorkspaceOpen(false)}/>
     </div>
   )
 }
