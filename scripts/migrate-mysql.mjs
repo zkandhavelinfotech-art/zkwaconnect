@@ -58,3 +58,4 @@ try {
 console.log("\n==================================================================")
 console.log("🎉 MySQL Database Migration & Setup Completed Successfully!")
 console.log("==================================================================")
+
