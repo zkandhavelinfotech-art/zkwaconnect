@@ -730,7 +730,8 @@ volumes:
         }
 
         // Call the server API to build a fresh, timestamped release version
-        const resp = await fetch('/api/publish/build', {
+        const apiBase = (window.location.protocol === 'file:' ? 'http://localhost:3002' : '');
+        const resp = await fetch(`${apiBase}/api/publish/build`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ env })
@@ -754,25 +755,30 @@ volumes:
 
         // Trigger browser download via stream endpoint
         const dlLink = document.createElement('a');
-        dlLink.href = data.downloadUrl || `/api/publish/download?file=${encodeURIComponent(data.filename)}`;
+        const dlUrl = data.downloadUrl || `/api/publish/download?file=${encodeURIComponent(data.filename)}`;
+        dlLink.href = window.location.protocol === 'file:' ? `${apiBase}${dlUrl}` : dlUrl;
         dlLink.download = data.filename;
         document.body.appendChild(dlLink);
         dlLink.click();
         document.body.removeChild(dlLink);
 
       } catch (err) {
-        console.warn('Dynamic build failed or portal opened offline:', err);
+        console.warn('Dynamic build failed or server inactive:', err);
         if (statusEl) {
           statusEl.style.borderColor = '#fde68a';
           statusEl.style.background = '#fefce8';
           statusEl.style.color = '#854d0e';
-          statusEl.innerHTML = `⚠️ Direct build API unavailable. Downloading latest pre-compiled ${env.toUpperCase()} package...`;
+          statusEl.innerHTML = `⚠️ Local API server not responding on port 3002. Downloading pre-compiled static ${env.toUpperCase()} package... (To enable dynamic rebuild on click, run <code>npm run dev</code> or <code>server.js</code>)`;
         }
         // Fallback to static archive download
         const fallback = document.createElement('a');
-        fallback.href = `/release/ZKWAConnect-latest-DEPLOY-${env.toUpperCase()}.zip`;
+        fallback.href = window.location.protocol === 'file:'
+          ? `../release/ZKWAConnect-latest-DEPLOY-${env.toUpperCase()}.zip`
+          : `/release/ZKWAConnect-latest-DEPLOY-${env.toUpperCase()}.zip`;
         fallback.download = `ZKWAConnect-v5.2.0-DEPLOY-${env.toUpperCase()}.zip`;
         document.body.appendChild(fallback);
+        fallback.click();
+        document.body.removeChild(fallback);
         fallback.click();
         document.body.removeChild(fallback);
       } finally {
