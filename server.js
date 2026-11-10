@@ -43,18 +43,37 @@ if (!fs.existsSync(prismaClientPath)) {
 
 const next = require("next")
 const rawPort = process.env.PORT
+// If PORT is a Unix socket path (e.g. from Phusion Passenger / cPanel), pass it directly; otherwise parse number
 const port = rawPort ? (isNaN(Number(rawPort)) ? rawPort : Number(rawPort)) : 3000
+const host = typeof port === "number" ? (process.env.HOST || "0.0.0.0") : undefined
 const app = next({ dev: false, dir: __dirname })
 const handle = app.getRequestHandler()
 
 app.prepare().then(() => {
-  createServer((request, response) => handle(request, response)).listen(port, () => {
+  const server = createServer((request, response) => handle(request, response))
+
+  const listenCallback = () => {
     console.log("==================================================================")
-    console.log(`🚀 ZKWAConnect v5.2.0 production server running on port: ${port}`)
-    console.log(`🌐 Ready on ${typeof port === "number" ? `http://localhost:${port}` : port}`)
+    console.log(`🚀 ZKWAConnect v5.2.0 production server running`)
+    console.log(`🌐 Listening on: ${typeof port === "number" ? `http://${host}:${port}` : port}`)
     console.log("==================================================================")
-  }).on("error", error => {
-    console.error(error.code === "EADDRINUSE" ? `Port ${port} is already in use by another program. Set a free PORT in .env or stop the other program.` : error)
+  }
+
+  if (typeof port === "number") {
+    server.listen(port, host, listenCallback)
+  } else {
+    server.listen(port, listenCallback)
+  }
+
+  server.on("error", error => {
+    if (error.code === "EACCES") {
+      console.error(`❌ [EACCES] Permission denied binding to ${host}:${port}.`)
+      console.error(`💡 Solution: Configure PORT in your hosting settings (e.g. PORT=3000 or PORT=8080) instead of restricted ports.`)
+    } else if (error.code === "EADDRINUSE") {
+      console.error(`❌ [EADDRINUSE] Port ${port} is already in use by another process.`)
+    } else {
+      console.error("❌ Server error:", error)
+    }
     process.exit(1)
   })
 }).catch(error => {

@@ -1,6 +1,7 @@
 {
   "buildCommand": "npx prisma generate && npx next build",
   "serveCommand": "node server.js",
+  "startCommand": "node server.js",
   "cleanAppDirBeforeExtract": false
 }
 

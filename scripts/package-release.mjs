@@ -32,6 +32,19 @@ if (fs.existsSync(stagingDir)) fs.rmSync(stagingDir, { recursive: true, force: t
 if (fs.existsSync(zipPath)) fs.rmSync(zipPath, { force: true })
 fs.mkdirSync(stagingDir, { recursive: true })
 
+// Step 0: Ensure fresh production build before packaging
+const localNextDir = path.join(rootDir, ".next")
+const localBuildId = path.join(localNextDir, "BUILD_ID")
+if (!fs.existsSync(localBuildId)) {
+  console.log("⚙️  Building optimized production Next.js bundle before packaging...")
+  try {
+    execSync("npx next build", { stdio: "inherit", cwd: rootDir, env: { ...process.env, NODE_ENV: "production" } })
+    console.log("✅ Production Next.js build completed!")
+  } catch (buildErr) {
+    console.warn("⚠️ Production build warning:", buildErr?.message || buildErr)
+  }
+}
+
 // Copy directories
 const dirsToCopy = [
   ".airo",
@@ -89,7 +102,6 @@ for (const dir of dirsToCopy) {
 }
 
 // Copy pre-built production .next bundle (excluding cache) so GoDaddy has BUILD_ID and compiled pages
-const localNextDir = path.join(rootDir, ".next")
 const stagingNextDir = path.join(stagingDir, ".next")
 if (fs.existsSync(path.join(localNextDir, "BUILD_ID"))) {
   console.log("Including compiled .next production build in release package...")
@@ -251,6 +263,12 @@ try {
 
   const stats = fs.statSync(zipPath)
   const sizeMB = (stats.size / (1024 * 1024)).toFixed(2)
+
+  // Also copy to public/release so it can be downloaded directly from /publish-portal
+  const publicReleaseDir = path.join(rootDir, "public", "release")
+  if (!fs.existsSync(publicReleaseDir)) fs.mkdirSync(publicReleaseDir, { recursive: true })
+  fs.copyFileSync(zipPath, path.join(publicReleaseDir, zipName))
+
   console.log("============================================================")
   console.log(`✅ Deployment ZIP Successfully Created! (POSIX-compliant)`)
   console.log(`📁 File: ${zipPath}`)
