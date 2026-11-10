@@ -34,6 +34,7 @@ fs.mkdirSync(stagingDir, { recursive: true })
 
 // Copy directories
 const dirsToCopy = [
+  ".airo",
   "app",
   "apps",
   "components",
@@ -65,15 +66,15 @@ const filesToCopy = [
 
 console.log("Copying files to staging directory...")
 
-function copyDirRecursive(src, dest) {
+function copyDirRecursive(src, dest, excludeNames = ["node_modules", ".git", "cache"]) {
   if (!fs.existsSync(src)) return
   fs.mkdirSync(dest, { recursive: true })
   for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
     const srcPath = path.join(src, entry.name)
     const destPath = path.join(dest, entry.name)
     if (entry.isDirectory()) {
-      if (entry.name !== "node_modules" && entry.name !== ".next" && entry.name !== ".git") {
-        copyDirRecursive(srcPath, destPath)
+      if (!excludeNames.includes(entry.name)) {
+        copyDirRecursive(srcPath, destPath, excludeNames)
       }
     } else {
       fs.copyFileSync(srcPath, destPath)
@@ -85,6 +86,16 @@ for (const dir of dirsToCopy) {
   const src = path.join(rootDir, dir)
   const dest = path.join(stagingDir, dir)
   copyDirRecursive(src, dest)
+}
+
+// Copy pre-built production .next bundle (excluding cache) so GoDaddy has BUILD_ID and compiled pages
+const localNextDir = path.join(rootDir, ".next")
+const stagingNextDir = path.join(stagingDir, ".next")
+if (fs.existsSync(path.join(localNextDir, "BUILD_ID"))) {
+  console.log("Including compiled .next production build in release package...")
+  copyDirRecursive(localNextDir, stagingNextDir, ["cache"])
+} else {
+  console.log("Notice: Local .next/BUILD_ID not found. Release bundle will self-build via server.js on startup.")
 }
 
 for (const file of filesToCopy) {
@@ -149,29 +160,62 @@ fs.writeFileSync(path.join(stagingDir, ".env"), envContent, "utf8")
 fs.writeFileSync(path.join(stagingDir, ".env.example"), envContent, "utf8")
 
 // Generate DEPLOY-README.md
-const deployReadme = `# ZKWAConnect v6 — Deployment Guide (${isLive ? "LIVE / PRODUCTION" : "DEV / LOCAL"})
+const deployReadme = `# ZKWAConnect v5.2.0 — Production Deployment Guide (${isLive ? "LIVE / PRODUCTION" : "DEV / LOCAL"})
 
-This ZIP contains the complete production-ready source code, database migration scripts, and server configurations for ZKWAConnect v6.
+This package contains the complete production-ready source code, pre-compiled Next.js production build (\`.next\`), MySQL database migration scripts, and server configuration files for GoDaddy PaaS / cPanel / Linux VPS.
 
-## 1. Quick Server Setup (GoDaddy / cPanel / Shared Hosting)
-1. In cPanel **Setup Node.js App**:
-   - **Node.js version:** Select 20.x or 22.x
+---
+
+## 🚀 1. GoDaddy PaaS / cPanel Deployment Steps
+
+### Method A: GoDaddy Airo / PaaS (Upload Archive)
+1. In GoDaddy PaaS, upload the generated \`${zipName}\`.
+2. GoDaddy automatically detects \`.airo/config.json\` and uses \`node server.js\` as the entry point.
+3. The bundle includes the pre-compiled \`.next\` production build. If missing for any reason, \`server.js\` features self-healing and builds it automatically.
+4. Set environment variables in GoDaddy PaaS Settings (or edit \`.env\`):
+   \`\`\`bash
+   NODE_ENV="production"
+   PORT=3000
+   DATABASE_URL="mysql://your_db_user:your_password@localhost:3306/your_db_name"
+   NEXT_PUBLIC_APP_URL="https://yourdomain.com"
+   NEXTAUTH_SECRET="your_secure_32_character_secret_key"
+   \`\`\`
+
+### Method B: cPanel "Setup Node.js App"
+1. In cPanel ➔ **Setup Node.js App**:
+   - **Node.js version:** Select \`20.x\` or \`22.x\`
    - **Application mode:** \`Production\`
    - **Application root:** \`/home/username/public_html\` or \`/home/username/zkwaconnect\`
    - **Application startup file:** \`app.js\` (or \`server.js\`)
-2. **Extract this ZIP** into your Application root directory.
-3. Open **phpMyAdmin**, select your MySQL database, and import \`prisma/schema-mysql.sql\`.
-4. In cPanel, click **Run NPM Install** or in terminal run:
-   \`\`\`bash
-   npm install --production=false
-   npm run build
-   \`\`\`
-5. Click **Restart App** in cPanel!
+2. **Extract this ZIP** into your application root folder.
+3. Click **Run NPM Install** (or in terminal: \`npm install --omit=dev\`).
+4. Click **Restart**!
 
-## 2. Multi-Domain Routing
-- **Marketing & Admin Portal:** \`zkwaconnect.in\` (Port 3000 or unified 3002)
-- **Customer WhatsApp Platform:** \`app.zkwaconnect.in\` (Port 3001 or unified 3002)
-- **Public REST API:** \`api.zkwaconnect.in\` (Port 3002)
+---
+
+## 🐬 2. MySQL Database Migration & Setup
+
+To create all 50+ tables, foreign keys, indexes, and seed default plans and admin logins:
+
+### Option 1 (1-Click Command via SSH / Terminal):
+\`\`\`bash
+npm run db:migrate:mysql
+\`\`\`
+This script automatically applies the MySQL schema, generates the Prisma client, pushes all tables, and seeds the default plans, super admin (\`admin@zkwaconnect.in\`), WABA account, and client logins.
+
+### Option 2 (via phpMyAdmin UI):
+1. Open **phpMyAdmin** in your hosting control panel.
+2. Select your target MySQL database.
+3. Click the **Import** tab.
+4. Choose the file: \`prisma/schema-mysql.sql\` and click **Import** / **Go**.
+
+---
+
+## 🔑 3. Default Initial Logins
+- **SaaS Product Admin:** \`admin@zkwaconnect.in\` / \`admin2026!\`
+- **WABA Root Admin:** \`waba@zkandavelinfotech.com\` / \`waba1234\`
+- **Customer Client 1 (RTA):** \`rta@recruitmentacademy.com\` / \`rta1234\`
+- **Customer Client 2 (Smeram):** \`smeram@smeramindustries.com\` / \`smeram1234\`
 `
 fs.writeFileSync(path.join(stagingDir, "DEPLOY-README.md"), deployReadme, "utf8")
 
