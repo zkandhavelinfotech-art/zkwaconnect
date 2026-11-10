@@ -35,12 +35,36 @@ export const settingsSchema = z.object({
 }).refine(value => value.enabledModes.includes(value.defaultMode), { message: "The default option must be one of the enabled options.", path: ["defaultMode"] })
 export type MessagingSettings = z.infer<typeof settingsSchema>
 
+export const AISENSY_CLIENT_RATES: Record<Category, number> = {
+  MARKETING: 1.0900,
+  UTILITY: 0.1450,
+  AUTHENTICATION: 0.1450,
+}
+
+export const META_BASE_RATES: Record<Category, number> = {
+  MARKETING: 0.7846,
+  UTILITY: 0.1150,
+  AUTHENTICATION: 0.1150,
+}
+
+export const SAAS_OWNER_COMMISSION: Record<Category, number> = {
+  MARKETING: 0.3054,
+  UTILITY: 0.0300,
+  AUTHENTICATION: 0.0300,
+}
+
 export const DEFAULT_SETTINGS: MessagingSettings = {
-  enabledModes: ["DIRECT"], defaultMode: "DIRECT", currency: "INR",
-  metaRates: { MARKETING: 0.7846, UTILITY: 0.115, AUTHENTICATION: 0.115 },
-  platformFee: { MARKETING: 0.05, UTILITY: 0.02, AUTHENTICATION: 0.02 },
-  resellerMarkupPercent: 20, minTopup: 500, lowBalanceThreshold: 100, welcomeCredit: 500, showComparisonToCustomers: true,
-  ratesNote: "Meta rates are defaults for India — check Meta's current WhatsApp rate card.",
+  enabledModes: ["RESELLER", "PLATFORM_FEE", "DIRECT"],
+  defaultMode: "RESELLER",
+  currency: "INR",
+  metaRates: META_BASE_RATES,
+  platformFee: SAAS_OWNER_COMMISSION,
+  resellerMarkupPercent: 38.92,
+  minTopup: 500,
+  lowBalanceThreshold: 100,
+  welcomeCredit: 50,
+  showComparisonToCustomers: true,
+  ratesNote: "Official WhatsApp rates aligned with AiSensy: Marketing ₹1.09, Utility ₹0.145, Authentication ₹0.145, Service ₹0.145 (First 1,000 service conversations free).",
 }
 const KEY = "messaging_billing"
 
@@ -62,10 +86,15 @@ const round4 = (value: number) => Math.round(value * 10_000) / 10_000
 
 // What one message costs in a mode: paid to Meta by the customer, and charged to the ZKWAConnect wallet.
 export function priceOf(settings: MessagingSettings, mode: Mode, category: Category) {
-  const meta = settings.metaRates[category]
+  const meta = settings.metaRates[category] ?? META_BASE_RATES[category]
   if (mode === "DIRECT") return { payToMeta: meta, wallet: 0 }
-  if (mode === "PLATFORM_FEE") return { payToMeta: meta, wallet: settings.platformFee[category] }
-  return { payToMeta: 0, wallet: round4(meta * (1 + settings.resellerMarkupPercent / 100)) }
+  if (mode === "PLATFORM_FEE") {
+    const fee = settings.platformFee[category] ?? SAAS_OWNER_COMMISSION[category]
+    return { payToMeta: meta, wallet: round4(fee) }
+  }
+  // RESELLER / Wallet: charges AiSensy rate (Marketing ₹1.09, Utility ₹0.145, Auth ₹0.145), owner keeps commission markup
+  const clientPrice = AISENSY_CLIENT_RATES[category] ?? round4(meta * (1 + settings.resellerMarkupPercent / 100))
+  return { payToMeta: 0, wallet: round4(clientPrice) }
 }
 
 export function normalizeCategory(value: string | null | undefined): Category {
@@ -148,7 +177,8 @@ export async function chargeTemplateMessage(input: { organizationId: string; cat
     balanceAfter = Number(debited[0].walletBalance)
   }
   const entry = await prisma.walletTransaction.create({ data: { organizationId: input.organizationId, type: "DEBIT", amount: -price.wallet, balanceAfter,
-    reason: input.reason.slice(0, 200), category, mode, metaCost: mode === "RESELLER" ? settings.metaRates[category] : null,
+    reason: input.reason.slice(0, 200), category, mode,
+    metaCost: mode === "RESELLER" ? (settings.metaRates[category] ?? META_BASE_RATES[category]) : (mode === "PLATFORM_FEE" ? 0 : null),
     conversationId: input.conversationId, campaignId: input.campaignId } })
   if (balanceAfter < settings.lowBalanceThreshold) await lowBalanceAlert(input.organizationId, balanceAfter, org.currency)
   return entry.id

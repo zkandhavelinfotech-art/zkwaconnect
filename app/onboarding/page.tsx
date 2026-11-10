@@ -43,6 +43,17 @@ export default function SetupWizardPage() {
           summary={<>Signed in as <strong>{status.account.name}</strong> ({status.account.email}) · Workspace <strong>{status.account.workspace}</strong>
             {" · "}<a href="/api/auth/logout?next=/login" style={{ color: "#075E54", fontWeight: 700 }}>Not you?</a></>} />
 
+        {done.meta && (
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "9px 14px", fontSize: 12 }}>
+            <span style={{ color: "#166534" }}>
+              🟢 <strong>Meta Connected:</strong> Cloud API gateway routing and diagnostics are available.
+            </span>
+            <a href="/app/settings/gateway" target="_blank" rel="noreferrer" style={{ color: "#075e54", fontWeight: 800, textDecoration: "none" }}>
+              Open WhatsApp Gateway Settings ↗
+            </a>
+          </div>
+        )}
+
         {steps.map((step, index) => {
           const isDone = done[step.id as keyof typeof done]
           const isOpen = active === step.id && !step.locked

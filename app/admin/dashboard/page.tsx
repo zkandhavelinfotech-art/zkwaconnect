@@ -1,6 +1,7 @@
 "use client"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { SaasProfitDashboard } from "@/components/admin/SaasProfitDashboard"
 
 type DashboardData = {
   stats: {
@@ -59,7 +60,7 @@ type AdminWaba = {
   }
   phoneNumbers: { phoneNumber: string; status: string; verificationStatus: string | null; qualityRating: string | null }[]
 }
-type AdminTab = "overview" | "tenants" | "payments" | "wabas"
+type AdminTab = "overview" | "profit" | "tenants" | "payments" | "wabas"
 
 export default function AdminDashboard() {
   const router = useRouter()
@@ -250,7 +251,7 @@ export default function AdminDashboard() {
       <nav aria-label="Admin sections" style={{display:"flex",gap:4,padding:"8px 32px",
         background:"#172235",borderBottom:"1px solid rgba(255,255,255,.08)",overflowX:"auto"}}>
         {([
-          ["overview","Overview"],["tenants","Tenants"],["payments","Payments"],["wabas","WABA health"],
+          ["overview","Overview"],["profit","💰 Profit & Margins"],["tenants","Tenants"],["payments","Payments"],["wabas","WABA health"],
         ] as [AdminTab,string][]).map(([key,label]) => (
           <button key={key} onClick={() => setTab(key)} aria-current={tab === key ? "page" : undefined}
             style={{whiteSpace:"nowrap",border:0,borderRadius:5,padding:"9px 13px",fontSize:12,fontWeight:700,
@@ -263,10 +264,11 @@ export default function AdminDashboard() {
           flexWrap:"wrap",marginBottom:24}}>
           <div>
             <h1 style={{fontFamily:"Sora,sans-serif",fontSize:24,margin:0}}>
-              {tab === "overview" ? "Operations overview" : tab === "tenants" ? "Tenant management" : tab === "payments" ? "Payment review" : "WABA health"}
+              {tab === "overview" ? "Operations overview" : tab === "profit" ? "SaaS Product Owner Profit Analytics" : tab === "tenants" ? "Tenant management" : tab === "payments" ? "Payment review" : "WABA health"}
             </h1>
             <p style={{fontSize:13,color:"rgba(255,255,255,.48)",margin:"6px 0 0"}}>
               {tab === "overview" ? "Customer, payment, messaging, and platform activity" :
+                tab === "profit" ? "Monthly, quarterly, and yearly net profit tracking per client and message commission" :
                 tab === "tenants" ? "Customer accounts, onboarding, and subscription plans" :
                 tab === "payments" ? "Review customer UPI references and settle invoices" :
                 "WhatsApp accounts, phone registration, and connection state"}
@@ -371,7 +373,8 @@ export default function AdminDashboard() {
             </div>
           </section>
         </div>
-        </> : sectionLoading ? <div style={{padding:24,color:"rgba(255,255,255,.55)"}}>Loading {tab}…</div>
+        </> : tab === "profit" ? <SaasProfitDashboard />
+          : sectionLoading ? <div style={{padding:24,color:"rgba(255,255,255,.55)"}}>Loading {tab}…</div>
           : tab === "tenants" ? <section style={{background:"#172235",border:"1px solid rgba(255,255,255,.08)",borderRadius:8,overflow:"hidden"}}>
             <div style={{padding:16,borderBottom:"1px solid rgba(255,255,255,.08)"}}>
               <input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search organization or owner"

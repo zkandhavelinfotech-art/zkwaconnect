@@ -67,6 +67,18 @@ export function EmbeddedSignupButton({ config, onDone, onError }: {
   async function launch() {
     setBusy(true); session.current = null
     try {
+      if (!config.configId || config.configId === "your-meta-config-id" || config.configId.includes("your-")) {
+        onError("Meta Login Configuration ID is not configured (placeholder 'your-meta-config-id'). Please create a configuration in Meta App Dashboard > WhatsApp > Embedded Signup, or use Method A / Manual Upgrade.")
+        setBusy(false)
+        return
+      }
+
+      if (typeof window !== "undefined" && window.location.protocol === "http:") {
+        onError("Meta restricts FB.login from HTTP pages (enforce HTTPS). Please use Automated Method A (Direct Graph API) or Tab 2 (Manual Upgrade), or open your app via HTTPS / tunnel.")
+        setBusy(false)
+        return
+      }
+
       const FB = await loadSdk(config)
       FB.login(response => {
         const code = response.authResponse?.code

@@ -1,6 +1,7 @@
 "use client"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Notice, primaryButton, secondaryButton } from "@/components/onboarding/OnboardingShell"
+import { MetaAuditHub } from "@/components/meta/MetaAuditHub"
 
 type Phone = { id: string; display_phone_number: string; verified_name?: string; quality_rating?: string; code_verification_status?: string }
 type WabaOption = {
@@ -23,7 +24,28 @@ export function WabaStep({ onDone, onBack }: { onDone: (redirect: string) => voi
   // Kept in a ref so a new onBack each render doesn't re-trigger loading.
   const onBackRef = useRef(onBack)
   onBackRef.current = onBack
+  const [showAudit, setShowAudit] = useState(false)
   const [groups, setGroups] = useState<BusinessGroup[]>([])
+  const [manualWabaId, setManualWabaId] = useState("")
+  const [manualBusinessId, setManualBusinessId] = useState("")
+  const [manualBusy, setManualBusy] = useState(false)
+
+  async function saveManual(event: React.FormEvent) {
+    event.preventDefault()
+    if (!manualWabaId.trim()) return
+    setManualBusy(true); setError("")
+    try {
+      const response = await fetch("/api/onboarding/wabas", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ wabaId: manualWabaId.trim(), businessId: manualBusinessId.trim() || "direct" }),
+      })
+      const body = await response.json()
+      if (!response.ok) throw new Error(body.error || "Could not connect WhatsApp account.")
+      onDone(body.redirect || "/onboarding/phone-registration")
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Could not connect WhatsApp account.")
+    } finally { setManualBusy(false) }
+  }
   const [metaErrors, setMetaErrors] = useState<string[]>([])
   const [selected, setSelected] = useState("")
   const [search, setSearch] = useState("")
@@ -148,8 +170,93 @@ export function WabaStep({ onDone, onBack }: { onDone: (redirect: string) => voi
             </div>
           </form>
         ) : !error ? (
-          <Notice tone="info">Your Facebook login can&apos;t see any WhatsApp Business Accounts. Create one in WhatsApp Manager or ask your business admin
-            for access, then reconnect Facebook.</Notice>
+          <>
+            <Notice tone="info">Your Facebook login can&apos;t see any WhatsApp Business Accounts automatically. Create one in WhatsApp Manager or ask your business admin
+              for access, or enter your WABA ID manually below.</Notice>
+            <div style={{ marginTop: 18, padding: 18, border: "1.5px dashed #cbd5e1", borderRadius: 10, background: "#f8fafc" }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#1e293b", marginBottom: 6 }}>Already have your WhatsApp Business Account (WABA) ID?</div>
+              <p style={{ fontSize: 12, color: "#64748b", margin: "0 0 12px", lineHeight: 1.5 }}>
+                You can copy your 15–16 digit <strong>WhatsApp Business Account ID</strong> directly from Meta WhatsApp Manager (under Overview or Phone numbers) and connect:
+              </p>
+              <form onSubmit={saveManual} style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+                <input value={manualWabaId} onChange={event => setManualWabaId(event.target.value.replace(/\D/g, ""))}
+                  placeholder="Enter 15–16 digit WABA ID" required
+                  style={{ border: "1.5px solid #cbd5e1", borderRadius: 8, padding: "8px 12px", fontSize: 13, minWidth: 240 }} />
+                <button type="submit" disabled={manualBusy || !manualWabaId} style={{ ...primaryButton, opacity: manualBusy || !manualWabaId ? .65 : 1 }}>
+                  {manualBusy ? "Connecting…" : "Connect by WABA ID →"}
+                </button>
+              </form>
+
+              {/* Method 2 Direct Developer Link */}
+              <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px dashed #cbd5e1", display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                <a
+                  href="https://developers.facebook.com/apps/1710743377107186/whatsapp-business/wa-dev-console/"
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    background: "#1877F2",
+                    color: "#fff",
+                    padding: "7px 12px",
+                    borderRadius: 6,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    textDecoration: "none",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 4,
+                  }}
+                >
+                  ⚡ Method 2: Open Meta Developer Console (App 1710743377107186) ↗
+                </a>
+                <a
+                  href="/app/settings/gateway"
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    background: "#075e54",
+                    color: "#fff",
+                    padding: "7px 12px",
+                    borderRadius: 6,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    textDecoration: "none",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 4,
+                  }}
+                >
+                  🛠️ Open WhatsApp Gateway Provisioning Hub ↗
+                </a>
+              </div>
+            </div>
+
+            <div style={{ marginTop: 16 }}>
+              <button
+                type="button"
+                onClick={() => setShowAudit(prev => !prev)}
+                style={{
+                  background: "#f1f5f9",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: 8,
+                  padding: "8px 14px",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: "#334155",
+                  cursor: "pointer",
+                }}
+              >
+                {showAudit ? "▲ Hide Meta Diagnostic Audit" : "🔍 Run Meta & WhatsApp Diagnostic Audit"}
+              </button>
+            </div>
+
+            {showAudit && (
+              <div style={{ marginTop: 16, borderTop: "1px solid #e2e8f0", paddingTop: 16 }}>
+                <MetaAuditHub onConnected={() => load()} />
+              </div>
+            )}
+
+            {onBack && <div style={{ marginTop: 18 }}><button type="button" onClick={onBack} style={secondaryButton}>← Back</button></div>}
+          </>
         ) : null}
   </div>
 }

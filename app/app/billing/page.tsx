@@ -17,7 +17,7 @@ type BillingProfile = {
   billingStateCode: string
   billingPostalCode: string
 }
-type Interval = "MONTHLY" | "ANNUAL"
+type Interval = "MONTHLY" | "QUARTERLY" | "ANNUAL"
 type Plan = { id: string; slug: string; name: string; description?: string | null; monthlyPrice: number | string; annualPrice?: number | string | null
   maxUsers?: number | null; maxPhoneNumbers?: number | null; maxMessages?: number | null; features: FeatureKey[]; isPopular?: boolean }
 type Invoice = { id: string; invoiceNumber: string; description?: string | null; amount: number | string; tax: number | string; total: number | string
@@ -383,22 +383,13 @@ export default function BillingPage() {
       {!profileComplete && profileSection}
 
       <section style={{marginBottom:18}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap",marginBottom:12}}>
-          <h2 style={{fontFamily:"Sora,sans-serif",fontSize:16,margin:0,color:"#102a2a"}}>Plans</h2>
-          {anyAnnual && <div role="radiogroup" aria-label="Billing period" style={{display:"inline-flex",background:"#e9efed",borderRadius:20,padding:3}}>
-            {(["MONTHLY","ANNUAL"] as Interval[]).map(option => <button key={option} role="radio" aria-checked={period === option} onClick={() => setPeriod(option)}
-              style={{border:0,borderRadius:18,padding:"6px 14px",fontSize:12,fontWeight:700,cursor:"pointer",
-                background:period === option ? "#075e54" : "transparent",color:period === option ? "#fff" : "#49615e"}}>
-              {option === "MONTHLY" ? "Monthly" : "Yearly · 2 months free"}</button>)}
-          </div>}
-        </div>
-        {data?.managedBy ? <div style={{background:"#eff6ff",border:"1px solid #bfdbfe",borderRadius:10,padding:16,fontSize:13,color:"#1e3a8a"}}>
+        {data?.managedBy ? <div style={{background:"#eff6ff",border:"1px solid #bfdbfe",borderRadius:10,padding:16,fontSize:13,color:"#1e3a8a",marginBottom:16}}>
           🤝 <strong>Your plan is managed by {data.managedBy.name}.</strong> Contact them to change or renew it
           {data.managedBy.supportEmail ? <> — <a href={`mailto:${data.managedBy.supportEmail}`}>{data.managedBy.supportEmail}</a></> : ""}{data.managedBy.supportPhone ? ` · ${data.managedBy.supportPhone}` : ""}.</div>
-        : data?.usage?.internal ? <div style={{background:"#eff6ff",border:"1px solid #bfdbfe",borderRadius:10,padding:16,fontSize:13,color:"#1e3a8a"}}>
+        : data?.usage?.internal ? <div style={{background:"#eff6ff",border:"1px solid #bfdbfe",borderRadius:10,padding:16,fontSize:13,color:"#1e3a8a",marginBottom:16}}>
           🏢 <strong>Internal workspace</strong> — this project belongs to ZKandavel Infotech, so every feature is included with no plan, limits or ZKWAConnect charges.
           Meta bills WhatsApp messages to the connected account as usual.</div>
-        : data && <PlanCards plans={data.plans as CardPlan[]} period={period} busyId={busyPlan}
+        : data && <PlanCards plans={data.plans as CardPlan[]} period={period} onPeriodChange={setPeriod} busyId={busyPlan}
           currentSlug={data.usage?.planSlug || null} currentFeatures={data.usage?.features || []} currentLimits={data.usage?.limits || null}
           action={plan => { const found = data.plans.find(item => item.id === plan.id)!; const state = planAction(found)
             return period === "ANNUAL" && !(Number(found.annualPrice) > 0) && Number(found.monthlyPrice) > 0 ? { label: "Monthly only", disabled: true } : state }}

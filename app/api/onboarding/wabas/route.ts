@@ -26,8 +26,21 @@ export async function GET() {
     if (!accessToken) return NextResponse.json({ error: "Connect your Meta account first." }, { status: 409 })
 
     const errors: string[] = []
+    console.log("[WABA-SETUP] Fetching businesses with token:", accessToken.slice(0, 15) + "...")
+    
+    // Check permissions granted to this token
+    metaGraph<{ data: { permission: string; status: string }[] }>("me/permissions", accessToken)
+      .then(p => console.log("[WABA-SETUP] Granted permissions:", p.data.filter(x => x.status === "granted").map(x => x.permission).join(", ")))
+      .catch(err => console.log("[WABA-SETUP] Failed to read permissions:", message(err)))
+
     const businesses = await metaGraph<Edge<Business>>("me/businesses?fields=id,name,verification_status&limit=100", accessToken)
       .catch(() => metaGraph<Edge<Business>>("me/businesses?fields=id,name&limit=100", accessToken))
+      .catch(err => {
+        console.error("[WABA-SETUP] Failed to query me/businesses:", message(err))
+        return { data: [] }
+      })
+
+    console.log("[WABA-SETUP] Found businesses:", JSON.stringify(businesses.data))
 
     const listWabas = async (business: Business, edge: "owned" | "client") => {
       const path = `${business.id}/${edge}_whatsapp_business_accounts`
@@ -44,6 +57,24 @@ export async function GET() {
         .filter(waba => !seen.has(waba.id) && seen.add(waba.id))
       return { business, wabas: found }
     }))
+
+    // Also check direct WhatsApp Business Accounts attached to me
+    try {
+      const directWabas = await metaGraph<Edge<Waba>>("me/whatsapp_business_accounts?fields=id,name,currency,timezone_id,account_review_status&limit=100", accessToken)
+        .catch(() => metaGraph<Edge<Waba>>("me/whatsapp_business_accounts?fields=id,name&limit=100", accessToken))
+        .catch(() => ({ data: [] }))
+      
+      console.log("[WABA-SETUP] Direct WABAs found:", JSON.stringify(directWabas.data))
+      const missingDirect = directWabas.data.filter(w => !seen.has(w.id) && seen.add(w.id)).map(w => ({ ...w, ownership: "owned" as const }))
+      if (missingDirect.length) {
+        groups.push({
+          business: { id: "direct", name: "WhatsApp Business Accounts" },
+          wabas: missingDirect,
+        })
+      }
+    } catch (e) {
+      console.log("[WABA-SETUP] Direct WABAs check error:", message(e))
+    }
 
     const allIds = groups.flatMap(group => group.wabas.map(waba => waba.id))
     const saved = await prisma.waba.findMany({ where: { wabaId: { in: allIds } }, select: { wabaId: true, organizationId: true, status: true } })
@@ -74,7 +105,7 @@ export async function GET() {
 
 const selectSchema = z.object({
   wabaId: z.string().regex(/^\d{5,30}$/),
-  businessId: z.string().regex(/^\d{5,30}$/),
+  businessId: z.string().optional().nullable(),
 })
 
 // Makes the chosen WABA this workspace's single active WhatsApp Business API account.
@@ -91,7 +122,8 @@ export async function POST(request: Request) {
     if (existing && existing.organizationId !== organizationId)
       return NextResponse.json({ error: "This WhatsApp account is already linked to another ZKWAConnect workspace." }, { status: 409 })
 
-    const { phoneReady: hasRegisteredPhone } = await activateWaba({ organizationId, businessId: input.businessId, waba })
+    const bId = input.businessId && input.businessId !== "direct" ? input.businessId : null
+    const { phoneReady: hasRegisteredPhone } = await activateWaba({ organizationId, businessId: bId, waba })
 
     // Without this subscription Meta never sends this WABA's incoming messages to our webhook.
     let warning: string | undefined

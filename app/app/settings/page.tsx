@@ -98,8 +98,13 @@ export default function SettingsPage() {
           <h1 style={{fontFamily:"Sora,sans-serif",fontSize:22,fontWeight:700,color:"#0f172a",margin:0}}>WhatsApp settings</h1>
           <p style={{fontSize:13,color:"#64748b",margin:"4px 0 0"}}>Your business profile, numbers, account health and plan — read live from Meta.</p>
         </div>
-        <button onClick={load} disabled={loading} style={{border:"1px solid #cbd5e1",borderRadius:8,background:"#fff",padding:"8px 14px",fontSize:12,fontWeight:700,cursor:"pointer"}}>
-          {loading?"Syncing…":"↻ Sync from Meta"}</button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <a href="/app/settings/gateway" style={{ border: "1px solid #cbd5e1", borderRadius: 8, background: "#f8fafc", padding: "8px 14px", fontSize: 12, fontWeight: 700, textDecoration: "none", color: "#0f172a" }}>
+            ⚡ Gateway Settings ↗
+          </a>
+          <button onClick={load} disabled={loading} style={{border:"1px solid #cbd5e1",borderRadius:8,background:"#fff",padding:"8px 14px",fontSize:12,fontWeight:700,cursor:"pointer"}}>
+            {loading?"Syncing…":"↻ Sync from Meta"}</button>
+        </div>
       </div>
 
       {error&&<div role="alert" style={{padding:11,background:"#fff1f0",color:"#9f2d22",borderRadius:8,marginBottom:12,fontSize:13}}>{error}</div>}

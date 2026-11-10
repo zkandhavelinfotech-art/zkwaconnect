@@ -1,9 +1,17 @@
 import "dotenv/config"
 import fs from "node:fs"
 import { PrismaPg } from "@prisma/adapter-pg"
-import { PrismaMariaDb } from "@prisma/adapter-mariadb"
 import { mockAdapterFactory } from "@prisma/driver-adapter-utils"
 import { PrismaClient } from "@/generated/prisma/client"
+
+let PrismaMariaDb: any = null
+try {
+  const pkg = "@prisma/adapter-mariadb"
+  // eslint-disable-next-line no-eval
+  PrismaMariaDb = eval("require")(pkg).PrismaMariaDb
+} catch {
+  // Optional adapter for MySQL deployments
+}
 
 const connectionString = (process.env.DATABASE_URL || "").trim()
 

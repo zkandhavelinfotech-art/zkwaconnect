@@ -47,6 +47,7 @@ const NAV:NavGroup[] = [
     { href:"/app/profile",      icon:"👤", label:"My Profile" },
     { href:"/app/team",         icon:"👥", label:"Team" },
     { href:"/app/meta-account", icon:"🔗", label:"Meta Account" },
+    { href:"/app/rta-connect",  icon:"⚡", label:"RTA WhatsApp & Page" },
     { href:"/app/settings",     icon:"⚙️", label:"Settings" },
     { href:"/app/billing",      icon:"💳", label:"Billing" },
     { href:"/app/green-tick",   icon:"✔️", label:"Green tick" },
@@ -70,6 +71,7 @@ function findActive(pathname:string) {
 type Me = {
   user:{name:string;email:string}
   workspace:{id:string;name:string;role:string;walletBalance:number;currency:string;count:number}
+  workspaces?:{id:string;name:string;slug:string;role:string;isCurrent:boolean}[]
   plan:{name:string;status:string;interval:string;renewsOn:string|null;trialEndsAt:string|null}|null
   whatsapp:{connected:boolean;phoneNumber:string|null}
   brand?:{name:string;logoUrl:string|null;primaryColor:string|null;hidePoweredBy:boolean}|null
@@ -227,12 +229,51 @@ export default function AppLayout({ children }:{ children:React.ReactNode }) {
         </div>
 
         {!compact && <div style={{margin:"12px 12px 4px",background:"rgba(0,0,0,.14)",border:"1px solid rgba(255,255,255,.12)",borderRadius:10,padding:"9px 12px"}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:2}}>
-            <span style={{fontSize:10,color:"rgba(255,255,255,.5)",textTransform:"uppercase",letterSpacing:".06em"}}>Project</span>
-            <Link href="/projects" style={{fontSize:10,color:"#86efac",fontWeight:700,textDecoration:"none"}}>Switch ⇄</Link>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+            <span style={{fontSize:10,color:"rgba(255,255,255,.5)",textTransform:"uppercase",letterSpacing:".06em"}}>Project Workspace</span>
+            <Link href="/projects" style={{fontSize:10,color:"#86efac",fontWeight:700,textDecoration:"none"}}>All Projects ⇄</Link>
           </div>
-          <div style={{fontSize:13,fontWeight:600,color:"#fff",fontFamily:"Sora,sans-serif",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{workspace}</div>
-          <div style={{display:"flex",alignItems:"center",gap:6,fontSize:11,marginTop:4,color:me?.whatsapp.connected?"#86efac":"rgba(255,255,255,.55)"}}>
+          {me?.workspaces && me.workspaces.length > 1 ? (
+            <select
+              value={me.workspace.id}
+              onChange={async (e) => {
+                const orgId = e.target.value
+                try {
+                  const res = await fetch("/api/workspaces/select", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ organizationId: orgId }),
+                  })
+                  if (res.ok) {
+                    window.location.reload()
+                  }
+                } catch {
+                  // ignore
+                }
+              }}
+              style={{
+                width: "100%",
+                background: "#075e54",
+                color: "#fff",
+                border: "1px solid rgba(255,255,255,0.3)",
+                borderRadius: 6,
+                padding: "6px 8px",
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: "pointer",
+                outline: "none",
+              }}
+            >
+              {me.workspaces.map(w => (
+                <option key={w.id} value={w.id} style={{ background: "#054640", color: "#fff" }}>
+                  {w.name}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <div style={{fontSize:13,fontWeight:600,color:"#fff",fontFamily:"Sora,sans-serif",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{workspace}</div>
+          )}
+          <div style={{display:"flex",alignItems:"center",gap:6,fontSize:11,marginTop:6,color:me?.whatsapp.connected?"#86efac":"rgba(255,255,255,.55)"}}>
             <span style={{width:7,height:7,borderRadius:"50%",background:me?.whatsapp.connected?"#25D366":"#f59e0b"}}/>
             {me?.whatsapp.connected ? `WhatsApp · ${me.whatsapp.phoneNumber}` : "WhatsApp not connected"}
           </div>

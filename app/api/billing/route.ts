@@ -113,7 +113,7 @@ export async function PATCH(request: Request) {
   }
 }
 
-const purchaseSchema = z.object({ planId: z.string().min(1), interval: z.enum(["MONTHLY", "ANNUAL"]).default("MONTHLY") })
+const purchaseSchema = z.object({ planId: z.string().min(1), interval: z.enum(["MONTHLY", "QUARTERLY", "ANNUAL"]).default("MONTHLY") })
 
 // Buy, renew or upgrade a plan: creates a GST invoice and a PENDING_PAYMENT subscription that
 // becomes active once the UPI payment is approved (the current plan stays as it is until then).
@@ -139,8 +139,14 @@ export async function POST(request: Request) {
       }),
     ])
     if (!plan) return NextResponse.json({ error: "Plan not found or unavailable." }, { status: 404 })
-    const price = interval === "ANNUAL" ? plan.annualPrice : plan.monthlyPrice
-    if (price === null || Number(price) <= 0) return NextResponse.json({ error: `${plan.name} isn't available with ${interval === "ANNUAL" ? "yearly" : "monthly"} billing.` }, { status: 400 })
+    let price: any = plan.monthlyPrice
+    if (interval === "ANNUAL") {
+      price = plan.annualPrice ?? (Number(plan.monthlyPrice) * 10)
+    } else if (interval === "QUARTERLY") {
+      // 3 months with 5% off matching AiSensy quarterly pricing model
+      price = Math.round(Number(plan.monthlyPrice) * 3 * 0.95)
+    }
+    if (price === null || Number(price) <= 0) return NextResponse.json({ error: `${plan.name} isn't available with ${interval === "ANNUAL" ? "yearly" : interval === "QUARTERLY" ? "quarterly" : "monthly"} billing.` }, { status: 400 })
     if (current?.status === "ACTIVE" && Number(plan.monthlyPrice) < Number(current.plan.monthlyPrice))
       return NextResponse.json({ error: `You're on ${current.plan.name}. Moving to a smaller plan is possible when it ends on ${current.currentPeriodEnd?.toLocaleDateString("en-IN") || "renewal"} — contact support.` }, { status: 400 })
 

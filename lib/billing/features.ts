@@ -2,39 +2,51 @@
 // upgrade prompts, locked pages) and the marketing page. Keep free of server-only imports.
 
 export const FEATURES = {
-  whatsappApi:     { label: "Official WhatsApp Business API", group: "Essentials", description: "Your own number on the official API — no bans for bulk messaging." },
-  inbox:           { label: "Shared team inbox", group: "Essentials", description: "Every WhatsApp chat in one inbox for your whole team." },
-  templates:       { label: "Template library & builder", group: "Essentials", description: "40+ ready templates plus text, media and carousel templates." },
-  contacts:        { label: "Contacts, tags & CSV import", group: "Essentials", description: "Organise customers with tags and custom fields." },
-  quickReplies:    { label: "Quick replies & internal notes", group: "Essentials", description: "Saved answers and private team notes in every chat." },
-  linkWidget:      { label: "WhatsApp link, QR & website button", group: "Essentials", description: "Let customers start a chat from your site, ads or print." },
-  greenTick:       { label: "Green tick application help", group: "Essentials", description: "Check eligibility and apply for the verified badge." },
-  pages:           { label: "WhatsApp page builder", group: "Essentials", description: "Mini-website, link-in-bio and landing pages where every button opens a WhatsApp chat (Free: 1 page)." },
-  broadcasts:      { label: "Broadcasts & scheduling", group: "Marketing", description: "Send personalised templates to thousands, now or later, with delivery reports." },
-  segments:        { label: "Saved segments", group: "Marketing", description: "Reusable audiences built from tags, fields and activity." },
-  clickTracking:   { label: "Click tracking & retargeting", group: "Marketing", description: "See who clicked your links and re-target readers, repliers and clickers." },
-  ads:             { label: "Click-to-WhatsApp ads", group: "Marketing", description: "Create Facebook & Instagram ads that open a WhatsApp chat, and track their leads." },
-  flows:           { label: "Chatbot flow builder (unlimited flows)", group: "Automation", description: "Drag-and-drop chatbots with buttons, lists, questions, API calls, delays and ice breakers." },
-  forms:           { label: "WhatsApp forms", group: "Automation", description: "Collect leads and details with native WhatsApp Flows and hosted forms." },
-  inboxAutomation: { label: "Auto-assign, business hours & away message", group: "Automation", description: "Route chats to agents automatically and reply outside working hours." },
-  analytics:       { label: "Analytics dashboard", group: "Automation", description: "Delivery, read and reply rates, team response times and broadcast results." },
-  commerce:        { label: "Catalog, cart orders & payment links", group: "Commerce", description: "Share products, receive carts as orders and collect payments by UPI or link." },
-  integrations:    { label: "Shopify, WooCommerce, Zapier & Google Sheets", group: "Integrations", description: "Order updates, COD confirmation, abandoned carts and no-code automations." },
-  api:             { label: "Developer API & webhooks", group: "Integrations", description: "Send messages from your own systems and receive real-time events." },
-  instagram:       { label: "Instagram inbox", group: "Integrations", description: "Answer Instagram DMs from the same inbox." },
-  calling:         { label: "WhatsApp Calling", group: "Integrations", description: "Answer customers' WhatsApp calls in the browser and call them back with permission." },
-  prioritySupport: { label: "Priority support", group: "Support", description: "Faster answers from our India-based team." },
-  whiteLabel:      { label: "White-label partner programme", group: "Support", description: "Run client workspaces under your own brand, logo and web address (partner panel)." },
-  dedicatedManager:{ label: "Dedicated manager & SLA", group: "Support", description: "A named account manager and an uptime commitment." },
+  whatsappApi:             { label: "Official WhatsApp Business API", group: "Essentials", description: "Your own number on the official API — no bans for bulk messaging." },
+  inbox:                   { label: "Shared team inbox", group: "Essentials", description: "Every WhatsApp chat in one inbox for your whole team." },
+  templates:               { label: "Template library & builder", group: "Essentials", description: "40+ ready templates plus text, media and carousel templates." },
+  contacts:                { label: "Contacts, tags & custom fields", group: "Essentials", description: "Organise customers with up to tags, attributes and custom fields." },
+  unlimitedContacts:       { label: "Unlimited contacts upload", group: "Essentials", description: "Upload and manage unlimited contacts with CSV sync." },
+  freeServiceConversations:{ label: "1,000 Free Service messages / mo", group: "Essentials", description: "Meta grants 1,000 free service conversation threads every month." },
+  quickReplies:            { label: "Quick replies & internal notes", group: "Essentials", description: "Saved answers and private team notes in every chat." },
+  linkWidget:              { label: "WhatsApp link, QR & website button", group: "Essentials", description: "Let customers start a chat from your site, ads or print." },
+  greenTick:               { label: "Green / Blue tick application help", group: "Essentials", description: "Check eligibility and apply for Meta's official verified badge." },
+  pages:                   { label: "WhatsApp page builder", group: "Essentials", description: "Mini-website, link-in-bio and landing pages where every button opens a WhatsApp chat (Free: 1 page)." },
+  broadcasts:              { label: "Broadcasts, scheduling & retargeting", group: "Marketing", description: "Send personalised templates to thousands, now or later, with delivery reports." },
+  segments:                { label: "Saved segments & custom lists", group: "Marketing", description: "Reusable audiences built from tags, fields and activity." },
+  smartAudience:           { label: "Smart audience segregation", group: "Marketing", description: "Segment contacts into targeted lists and audience cohorts." },
+  clickTracking:           { label: "Click tracking & retargeting", group: "Marketing", description: "See who clicked your links and re-target readers, repliers and clickers." },
+  campaignBudget:          { label: "Campaign budget & ROI analytics", group: "Marketing", description: "Track delivery costs, click performance and campaign ROI." },
+  ads:                     { label: "Click-to-WhatsApp ads manager", group: "Marketing", description: "Create Facebook & Instagram ads that open a WhatsApp chat, and track leads." },
+  adCredits:               { label: "₹1,000 Meta Ad Credits guide", group: "Marketing", description: "Guidance to claim ₹1,000 free Meta ad credits for Click-to-WhatsApp ads." },
+  flows:                   { label: "Chatbot flow builder (unlimited flows)", group: "Automation", description: "Drag-and-drop chatbots with buttons, lists, questions, API calls, delays and ice breakers." },
+  forms:                   { label: "WhatsApp forms", group: "Automation", description: "Collect leads and details with native WhatsApp Flows and hosted forms." },
+  inboxAutomation:         { label: "Auto-assign, business hours & away message", group: "Automation", description: "Route chats to agents automatically and reply outside working hours." },
+  smartRouting:            { label: "Smart agent routing & auto-assignment", group: "Automation", description: "Route chats to specific agents based on topic, team or workload." },
+  analytics:               { label: "Analytics dashboard", group: "Automation", description: "Delivery, read and reply rates, team response times and broadcast results." },
+  speed40:                 { label: "Messaging speed: 40 msgs/second", group: "Performance", description: "Reliable bulk delivery at up to 40 messages per second." },
+  speed250:                { label: "High messaging speed: 250 msgs/second", group: "Performance", description: "Accelerated campaign dispatch for large subscriber lists." },
+  speed1000:               { label: "Enterprise messaging speed: 1,000 msgs/second", group: "Performance", description: "Ultra-fast high-volume delivery with dedicated infrastructure." },
+  commerce:                { label: "Catalog, cart orders & payment links", group: "Commerce", description: "Share products, receive carts as orders and collect payments by UPI or link." },
+  integrations:            { label: "Shopify, WooCommerce, Zapier & Google Sheets", group: "Integrations", description: "Order updates, COD confirmation, abandoned carts and no-code automations." },
+  api:                     { label: "Developer API & webhooks", group: "Integrations", description: "Send messages from your own systems and receive real-time events." },
+  instagram:               { label: "Instagram inbox", group: "Integrations", description: "Answer Instagram DMs from the same inbox." },
+  calling:                 { label: "WhatsApp Calling", group: "Integrations", description: "Answer customers' WhatsApp calls in the browser and call them back with permission." },
+  numberMasking:           { label: "Number masking & agent privacy", group: "Security", description: "Protect customer privacy and prevent agents from seeing personal phone numbers." },
+  auditLogs:               { label: "SSO & enterprise audit logs", group: "Security", description: "Single sign-on integration and complete activity audit trail for compliance." },
+  prioritySupport:         { label: "Priority support", group: "Support", description: "Faster answers from our India-based team." },
+  onboardingSetup:         { label: "Dedicated 1:1 onboarding & setup", group: "Support", description: "Hands-on account setup, template migration and team training." },
+  whiteLabel:              { label: "White-label partner programme", group: "Support", description: "Run client workspaces under your own brand, logo and web address (partner panel)." },
+  dedicatedManager:        { label: "Dedicated manager & SLA guarantee", group: "Support", description: "A named account manager and an uptime commitment." },
 } as const
 export type FeatureKey = keyof typeof FEATURES
 export const FEATURE_KEYS = Object.keys(FEATURES) as FeatureKey[]
 
-const ESSENTIALS: FeatureKey[] = ["whatsappApi", "inbox", "templates", "contacts", "quickReplies", "linkWidget", "greenTick", "pages"]
-const STARTER: FeatureKey[] = [...ESSENTIALS, "broadcasts", "segments"]
-const BUSINESS: FeatureKey[] = [...STARTER, "flows", "forms", "inboxAutomation", "clickTracking", "analytics", "commerce", "ads"]
-const PROFESSIONAL: FeatureKey[] = [...BUSINESS, "api", "integrations", "instagram", "calling"]
-const ENTERPRISE: FeatureKey[] = [...PROFESSIONAL, "prioritySupport", "whiteLabel", "dedicatedManager"]
+const ESSENTIALS: FeatureKey[] = ["whatsappApi", "inbox", "templates", "contacts", "unlimitedContacts", "quickReplies", "linkWidget", "greenTick", "pages", "freeServiceConversations", "adCredits"]
+const STARTER: FeatureKey[] = [...ESSENTIALS, "broadcasts", "segments", "smartAudience", "speed40"]
+const BUSINESS: FeatureKey[] = [...STARTER, "flows", "forms", "inboxAutomation", "smartRouting", "clickTracking", "campaignBudget", "analytics", "commerce", "ads", "api", "instagram"]
+const PROFESSIONAL: FeatureKey[] = [...BUSINESS, "integrations", "calling", "numberMasking", "speed250", "prioritySupport"]
+const ENTERPRISE: FeatureKey[] = [...PROFESSIONAL, "whiteLabel", "dedicatedManager", "speed1000", "auditLogs", "onboardingSetup"]
 
 // Starting split (approved 2026-10-20). Super admins can change it per plan afterwards.
 export const DEFAULT_PLAN_FEATURES: Record<string, FeatureKey[]> = {

@@ -43,6 +43,13 @@ export async function GET() {
     user: { name: session.user.name, email: session.user.email, isPlatformAdmin: session.user.adminRole !== "NONE" },
     workspace: { id: org.id, name: org.name, role: membership.role, walletBalance: Number(org.walletBalance), currency: org.currency,
       count: session.user.memberships.length },
+    workspaces: session.user.memberships.map(m => ({
+      id: m.organization.id,
+      name: m.organization.name,
+      slug: m.organization.slug,
+      role: m.role,
+      isCurrent: m.organization.id === org.id,
+    })),
     access: await accessSummary(membership.organizationId),
     plan: subscription ? { name: subscription.plan.name, status: subscription.status, interval: subscription.billingInterval === "ANNUAL" ? "yearly" : "monthly",
       renewsOn: subscription.currentPeriodEnd, trialEndsAt: subscription.trialEndsAt } : null,

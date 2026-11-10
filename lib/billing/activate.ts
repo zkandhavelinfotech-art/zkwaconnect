@@ -5,17 +5,18 @@ import { creditWallet } from "@/lib/billing/messaging"
 import { prisma } from "@/lib/db/prisma"
 import { accrueCommission, postLedger } from "@/lib/partners/partners"
 
-export type BillingInterval = "MONTHLY" | "ANNUAL"
+export type BillingInterval = "MONTHLY" | "QUARTERLY" | "ANNUAL"
 
 export function addInterval(start: Date, interval: string) {
   const end = new Date(start)
   if (interval === "ANNUAL") end.setFullYear(end.getFullYear() + 1)
+  else if (interval === "QUARTERLY") end.setMonth(end.getMonth() + 3)
   else end.setMonth(end.getMonth() + 1)
   return end
 }
 
 export function intervalLabel(interval: string) {
-  return interval === "ANNUAL" ? "12 months" : "1 month"
+  return interval === "ANNUAL" ? "12 months" : interval === "QUARTERLY" ? "3 months (Quarterly)" : "1 month"
 }
 
 // Approve a plan payment: mark the invoice paid, start the paid period and retire the trial / previous plan.

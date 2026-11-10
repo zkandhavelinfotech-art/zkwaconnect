@@ -86,8 +86,30 @@ export default function AutomationPage() {
           <h1 style={{fontFamily:"Sora,sans-serif",fontSize:22,fontWeight:700,color:"#0f172a",margin:0}}>Chatbot flows</h1>
           <p style={{fontSize:13,color:"#64748b",margin:"4px 0 0"}}>Build no-code WhatsApp chatbots with a drag-and-drop flow builder. Qualify leads, answer FAQs and route to your team 24×7.</p>
         </div>
-        <Link href="/app/automation/flows/new" style={{background:"#075e54",color:"#fff",textDecoration:"none",borderRadius:6,padding:"10px 14px",fontSize:12,fontWeight:700}}>
-          + Create flow</Link>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          <Link href="/app/billing?plan=business" style={{background:"#f0fdf4",border:"1px solid #86efac",color:"#166534",textDecoration:"none",borderRadius:6,padding:"9px 12px",fontSize:12,fontWeight:700}}>
+            ⚡ Business Plan: Unlimited Flows Included
+          </Link>
+          <Link href="/app/automation/flows/new" style={{background:"#075e54",color:"#fff",textDecoration:"none",borderRadius:6,padding:"10px 14px",fontSize:12,fontWeight:700}}>
+            + Create flow
+          </Link>
+        </div>
+      </div>
+
+      {/* AiSensy FlowBuilder Cost Comparison Banner */}
+      <div style={{background:"linear-gradient(135deg,#f0fdf4 0%,#e6f4ea 100%)",border:"1px solid #bbf7d0",borderRadius:8,padding:"12px 16px",marginBottom:18,display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:10}}>
+        <div>
+          <div style={{fontSize:12,fontWeight:800,color:"#166534",display:"flex",alignItems:"center",gap:6}}>
+            <span>💡 FlowBuilder Cost Advantage:</span>
+            <span style={{background:"#22c55e",color:"#fff",fontSize:10,borderRadius:10,padding:"1px 7px",fontWeight:800}}>SAVES ₹30,000 / YR</span>
+          </div>
+          <div style={{fontSize:12,color:"#374151",marginTop:2}}>
+            AiSensy charges <strong>+₹2,500/month extra</strong> as a standalone add-on for just 5 bot flows. On ZKWAConnect Business (₹2,499/mo), <strong>Unlimited Chatbot Flows + Developer API + Instagram DM</strong> are included for free!
+          </div>
+        </div>
+        <Link href="/app/billing" style={{fontSize:11,fontWeight:700,color:"#075e54",textDecoration:"none",background:"#fff",border:"1px solid #cbd5d3",borderRadius:6,padding:"6px 10px"}}>
+          View Plan &amp; Add-on Options →
+        </Link>
       </div>
 
       {error&&<div role="alert" style={{padding:11,background:"#fff1f0",color:"#9f2d22",borderRadius:6,marginBottom:14,fontSize:13}}>{error}</div>}
