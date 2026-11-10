@@ -1,6 +1,7 @@
 "use client"
 import { useCallback, useEffect, useState } from "react"
 import { EmbeddedSignupButton } from "@/components/onboarding/EmbeddedSignupButton"
+import { CloudflareTunnelGuide } from "@/components/meta/CloudflareTunnelGuide"
 
 type UpgradeData = {
   ok: boolean
@@ -27,6 +28,7 @@ export function ProductionUpgradeManager() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [successMsg, setSuccessMsg] = useState("")
+  const [showTunnelGuide, setShowTunnelGuide] = useState(false)
 
   // Auto Method A state
   const [methodAWabaId, setMethodAWabaId] = useState("1169391638991834")
@@ -805,21 +807,40 @@ export function ProductionUpgradeManager() {
                   ⚡ One-Click Meta Popup Onboarding
                 </h3>
               </div>
-              <span style={{ background: "#eff6ff", color: "#1d4ed8", padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>
-                Zero Manual Copying
-              </span>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <button
+                  type="button"
+                  onClick={() => setShowTunnelGuide(true)}
+                  style={{
+                    background: "#f0f9ff",
+                    color: "#0284c7",
+                    border: "1px solid #bae6fd",
+                    padding: "4px 10px",
+                    borderRadius: 20,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  🔒 Cloudflare Tunnel / SSL Guide
+                </button>
+                <span style={{ background: "#eff6ff", color: "#1d4ed8", padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>
+                  Zero Manual Copying
+                </span>
+              </div>
             </div>
 
             <p style={{ fontSize: 12, color: "#64748b", lineHeight: 1.5, margin: "0 0 14px" }}>
               Launches Meta&apos;s official popup window. The business owner logs into Facebook, creates or chooses their official WhatsApp Business Account and registers their phone number. The credentials automatically return to your workspace without typing anything.
             </p>
 
-            {data?.embeddedSignup.ready ? (
+            {/* Embedded Signup Action */}
+            <div style={{ marginBottom: 14 }}>
               <EmbeddedSignupButton
                 config={{
-                  appId: data.embeddedSignup.appId,
-                  configId: data.embeddedSignup.configId,
-                  graphVersion: data.embeddedSignup.graphVersion,
+                  appId: data?.embeddedSignup?.appId || "1710743377107186",
+                  configId: data?.embeddedSignup?.configId || "your-meta-config-id",
+                  graphVersion: data?.embeddedSignup?.graphVersion || "v21.0",
                 }}
                 onDone={result => {
                   setSuccessMsg(result.message || "✓ Meta Embedded Signup complete! Your WhatsApp account is active.")
@@ -827,18 +848,31 @@ export function ProductionUpgradeManager() {
                 }}
                 onError={err => setError(err)}
               />
-            ) : (
-              <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: 14, fontSize: 12, color: "#475569" }}>
-                <div style={{ fontWeight: 700, color: "#0f172a", marginBottom: 4 }}>💡 Method B Embedded Signup Setup Notice:</div>
-                <p style={{ margin: "0 0 8px", lineHeight: 1.5 }}>
-                  Meta Embedded Signup requires an active Meta Login Configuration ID from your Meta App (<code>WhatsApp &gt; Quickstart / Embedded Signup</code>) and enforces HTTPS.
-                </p>
-                <p style={{ margin: 0, lineHeight: 1.5 }}>
-                  👉 <strong>Recommended for now:</strong> Use <strong>Method A (Direct Meta API)</strong> above or <strong>Tab 2 (Manual Production Upgrade)</strong> below. Both communicate directly server-to-server with Meta Graph API without requiring client-side HTTPS.
-                </p>
+            </div>
+
+            <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: 14, fontSize: 12, color: "#475569" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                <span style={{ fontWeight: 700, color: "#0f172a" }}>💡 Why Does Meta Popup Require HTTPS?</span>
+                <button
+                  type="button"
+                  onClick={() => setShowTunnelGuide(true)}
+                  style={{ background: "none", border: 0, color: "#0284c7", fontWeight: 700, fontSize: 11, cursor: "pointer", textDecoration: "underline" }}
+                >
+                  View Setup Guide ↗
+                </button>
               </div>
-            )}
+              <p style={{ margin: "0 0 6px", lineHeight: 1.5 }}>
+                Meta enforces HTTPS for <code>FB.login</code>. Running on plain <code>http://localhost:3002</code> causes Meta to block the popup. Run <code>npm run tunnel</code> to get a free secure <code>https://xxx.trycloudflare.com</code> URL in 5 seconds.
+              </p>
+              <p style={{ margin: 0, lineHeight: 1.5, color: "#166534" }}>
+                👉 <strong>Alternatively:</strong> Use <strong>Method A (Direct Meta API)</strong> above — it works directly server-to-server over Graph API on localhost without requiring client-side HTTPS!
+              </p>
+            </div>
           </div>
+
+          {showTunnelGuide && (
+            <CloudflareTunnelGuide isModal onClose={() => setShowTunnelGuide(false)} />
+          )}
         </div>
       )}
 

@@ -1,6 +1,7 @@
 "use client"
 import { useEffect, useRef, useState } from "react"
 import { primaryButton } from "@/components/onboarding/OnboardingShell"
+import { CloudflareTunnelGuide } from "@/components/meta/CloudflareTunnelGuide"
 
 type FacebookSdk = {
   init(options: Record<string, unknown>): void
@@ -35,9 +36,14 @@ export function EmbeddedSignupButton({ config, onDone, onError }: {
   config: EmbeddedSignupConfig; onDone: (result: EmbeddedSignupResult) => void; onError: (message: string) => void
 }) {
   const [busy, setBusy] = useState(false)
+  const [showTunnelGuide, setShowTunnelGuide] = useState(false)
+  const [isHttp, setIsHttp] = useState(false)
   const session = useRef<SessionInfo | null>(null)
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      setIsHttp(window.location.protocol === "http:")
+    }
     loadSdk(config).catch(() => undefined)
     // Meta posts the chosen WABA and phone number from the popup window.
     function onMessage(event: MessageEvent) {
@@ -64,17 +70,19 @@ export function EmbeddedSignupButton({ config, onDone, onError }: {
     onDone({ redirect: body.redirect, message: body.message, warnings: body.warnings })
   }
 
-  async function launch() {
+  async function launch(force = false) {
     setBusy(true); session.current = null
     try {
       if (!config.configId || config.configId === "your-meta-config-id" || config.configId.includes("your-")) {
         onError("Meta Login Configuration ID is not configured (placeholder 'your-meta-config-id'). Please create a configuration in Meta App Dashboard > WhatsApp > Embedded Signup, or use Method A / Manual Upgrade.")
+        setShowTunnelGuide(true)
         setBusy(false)
         return
       }
 
-      if (typeof window !== "undefined" && window.location.protocol === "http:") {
-        onError("Meta restricts FB.login from HTTP pages (enforce HTTPS). Please use Automated Method A (Direct Graph API) or Tab 2 (Manual Upgrade), or open your app via HTTPS / tunnel.")
+      if (!force && typeof window !== "undefined" && window.location.protocol === "http:") {
+        onError("Meta restricts FB.login from HTTP pages (enforce HTTPS). Please run 'npm run tunnel' to use Cloudflare Tunnel, or use Method A (Direct Graph API).")
+        setShowTunnelGuide(true)
         setBusy(false)
         return
       }
@@ -98,7 +106,66 @@ export function EmbeddedSignupButton({ config, onDone, onError }: {
     }
   }
 
-  return <button type="button" onClick={launch} disabled={busy} style={{ ...primaryButton, background: "#25D366", minWidth: 260, opacity: busy ? .7 : 1 }}>
-    {busy ? "Waiting for Meta…" : "⚡ Set up with Embedded Signup"}
-  </button>
+  return (
+    <div>
+      {isHttp ? (
+        <div style={{ background: "#fffbeb", border: "1.5px solid #fde68a", borderRadius: 10, padding: 14, marginBottom: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 700, color: "#92400e", fontSize: 13, marginBottom: 4 }}>
+            <span>🔒</span> HTTPS Required for Meta Embedded Signup SDK
+          </div>
+          <p style={{ margin: "0 0 10px", fontSize: 11.5, color: "#78350f", lineHeight: 1.5 }}>
+            Running on <code>http://localhost</code>. Meta&apos;s security policy prevents opening the Facebook Login popup over unencrypted HTTP.
+          </p>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            <button
+              type="button"
+              onClick={() => setShowTunnelGuide(true)}
+              style={{
+                background: "#0284c7",
+                color: "#ffffff",
+                border: 0,
+                borderRadius: 6,
+                padding: "7px 12px",
+                fontSize: 11,
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              🛠️ View Cloudflare Tunnel Guide (npm run tunnel)
+            </button>
+            <button
+              type="button"
+              onClick={() => launch(true)}
+              disabled={busy}
+              style={{
+                background: "#ffffff",
+                color: "#475569",
+                border: "1px solid #cbd5e1",
+                borderRadius: 6,
+                padding: "7px 12px",
+                fontSize: 11,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              {busy ? "Opening…" : "Try Launching Anyway ↗"}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => launch(false)}
+          disabled={busy}
+          style={{ ...primaryButton, background: "#25D366", minWidth: 260, opacity: busy ? .7 : 1 }}
+        >
+          {busy ? "Waiting for Meta…" : "⚡ Set up with Embedded Signup (1-Click)"}
+        </button>
+      )}
+
+      {showTunnelGuide && (
+        <CloudflareTunnelGuide isModal onClose={() => setShowTunnelGuide(false)} />
+      )}
+    </div>
+  )
 }
