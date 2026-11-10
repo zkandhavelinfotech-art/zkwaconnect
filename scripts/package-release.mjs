@@ -10,8 +10,10 @@ const rootDir = path.resolve(__dirname, "..")
 // Parse command line arguments
 const args = process.argv.slice(2)
 let envMode = "live"
+let customVersion = ""
 for (const arg of args) {
   if (arg.startsWith("--env=")) envMode = arg.split("=")[1].toLowerCase()
+  else if (arg.startsWith("--version=")) customVersion = arg.split("=")[1].trim()
   else if (arg === "dev" || arg === "development") envMode = "dev"
   else if (arg === "live" || arg === "prod" || arg === "production") envMode = "live"
 }
@@ -19,7 +21,8 @@ for (const arg of args) {
 const isLive = envMode === "live" || envMode === "prod" || envMode === "production"
 const releaseDir = path.join(rootDir, "release")
 const stagingDir = path.join(releaseDir, `staging-${envMode}`)
-const zipName = `ZKWAConnect-v6.0.0-DEPLOY-${isLive ? "LIVE" : "DEV"}.zip`
+const effectiveVersion = customVersion || "v6.0.0"
+const zipName = `ZKWAConnect-${effectiveVersion}-DEPLOY-${isLive ? "LIVE" : "DEV"}.zip`
 const zipPath = path.join(releaseDir, zipName)
 
 console.log("============================================================")
@@ -79,7 +82,7 @@ const filesToCopy = [
 
 console.log("Copying files to staging directory...")
 
-function copyDirRecursive(src, dest, excludeNames = ["node_modules", ".git", "cache"]) {
+function copyDirRecursive(src, dest, excludeNames = ["node_modules", ".git", "cache", "release"]) {
   if (!fs.existsSync(src)) return
   fs.mkdirSync(dest, { recursive: true })
   for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
@@ -264,10 +267,18 @@ try {
   const stats = fs.statSync(zipPath)
   const sizeMB = (stats.size / (1024 * 1024)).toFixed(2)
 
-  // Also copy to public/release so it can be downloaded directly from /publish-portal
+  // Also copy to public/release and keep standard latest/v6 aliases
   const publicReleaseDir = path.join(rootDir, "public", "release")
   if (!fs.existsSync(publicReleaseDir)) fs.mkdirSync(publicReleaseDir, { recursive: true })
+  
+  const standardAliasName = `ZKWAConnect-v6.0.0-DEPLOY-${isLive ? "LIVE" : "DEV"}.zip`
+  const latestAliasName = `ZKWAConnect-latest-DEPLOY-${isLive ? "LIVE" : "DEV"}.zip`
+
   fs.copyFileSync(zipPath, path.join(publicReleaseDir, zipName))
+  fs.copyFileSync(zipPath, path.join(releaseDir, standardAliasName))
+  fs.copyFileSync(zipPath, path.join(releaseDir, latestAliasName))
+  fs.copyFileSync(zipPath, path.join(publicReleaseDir, standardAliasName))
+  fs.copyFileSync(zipPath, path.join(publicReleaseDir, latestAliasName))
 
   console.log("============================================================")
   console.log(`✅ Deployment ZIP Successfully Created! (POSIX-compliant)`)

@@ -267,16 +267,17 @@
           </p>
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
-          <a href="../release/ZKWAConnect-v6.0.0-DEPLOY-LIVE.zip" download="ZKWAConnect-v6.0.0-DEPLOY-LIVE.zip" class="btn btn-live">
-            📥 Download LIVE Deployment ZIP (1.66 MB)
-          </a>
-          <a href="../release/ZKWAConnect-v6.0.0-DEPLOY-DEV.zip" download="ZKWAConnect-v6.0.0-DEPLOY-DEV.zip" class="btn btn-dev">
-            📥 Download DEV Deployment ZIP (1.66 MB)
-          </a>
+          <button id="btnZipLive" onclick="triggerBuildAndDownload('live')" class="btn btn-live">
+            📥 Build &amp; Download LIVE ZIP
+          </button>
+          <button id="btnZipDev" onclick="triggerBuildAndDownload('dev')" class="btn btn-dev">
+            📥 Build &amp; Download DEV ZIP
+          </button>
         </div>
       </div>
+      <div id="buildStatusMsg" style="display:none;margin-top:12px;font-size:12.5px;padding:8px 12px;border-radius:6px;background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe"></div>
       <div style="margin-top:12px;font-size:12px;color:#15803d;border-top:1px dashed #86efac;padding-top:10px">
-        ⚡ <b>Need to re-pack?</b> Run <code>npm run release:zip</code> or double-click <code>zkwa-build-zip.bat</code> in the root folder anytime!
+        ⚡ <b>Dynamic Release Engine:</b> Generates a freshly compiled, timestamped release version on <i>every click</i>. Alternatively run <code>zkwa-build-zip.bat</code> in the root folder anytime!
       </div>
     </div>
 
@@ -356,9 +357,9 @@
         </ol>
         <div style="margin-top:16px;display:flex;gap:10px">
           <button onclick="downloadApacheHtaccess()" class="btn">Download GoDaddy .htaccess</button>
-          <a href="../release/ZKWAConnect-v6.0.0-DEPLOY-LIVE.zip" download="ZKWAConnect-v6.0.0-DEPLOY-LIVE.zip" class="btn btn-secondary">
-            Download Deployment ZIP
-          </a>
+          <button onclick="triggerBuildAndDownload('live')" class="btn btn-secondary">
+            📦 Build &amp; Download LIVE ZIP
+          </button>
         </div>
       </div>
     </div>
@@ -705,6 +706,84 @@ volumes:
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+    }
+
+    async function triggerBuildAndDownload(env = 'live') {
+      const isLive = env === 'live';
+      const btnId = isLive ? 'btnZipLive' : 'btnZipDev';
+      const btn = document.getElementById(btnId);
+      const statusEl = document.getElementById('buildStatusMsg');
+      const originalHtml = btn ? btn.innerHTML : '';
+
+      try {
+        if (btn) {
+          btn.disabled = true;
+          btn.style.opacity = '0.7';
+          btn.innerHTML = `⏳ Building ${env.toUpperCase()}...`;
+        }
+        if (statusEl) {
+          statusEl.style.display = 'block';
+          statusEl.style.borderColor = '#93c5fd';
+          statusEl.style.background = '#eff6ff';
+          statusEl.style.color = '#1e40af';
+          statusEl.innerHTML = `⏳ <b>Packaging fresh version on server...</b> Compiling configurations, Prisma client, and .env (${env.toUpperCase()})...`;
+        }
+
+        // Call the server API to build a fresh, timestamped release version
+        const resp = await fetch('/api/publish/build', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ env })
+        });
+
+        if (!resp.ok) {
+          throw new Error(`Server returned HTTP ${resp.status}`);
+        }
+
+        const data = await resp.json();
+        if (!data.success) {
+          throw new Error(data.error || 'Build process failed');
+        }
+
+        if (statusEl) {
+          statusEl.style.borderColor = '#86efac';
+          statusEl.style.background = '#f0fdf4';
+          statusEl.style.color = '#15803d';
+          statusEl.innerHTML = `✅ <b>Generated Version ${data.version}!</b> Downloading <b>${data.filename}</b> (${data.sizeMB})...`;
+        }
+
+        // Trigger browser download via stream endpoint
+        const dlLink = document.createElement('a');
+        dlLink.href = data.downloadUrl || `/api/publish/download?file=${encodeURIComponent(data.filename)}`;
+        dlLink.download = data.filename;
+        document.body.appendChild(dlLink);
+        dlLink.click();
+        document.body.removeChild(dlLink);
+
+      } catch (err) {
+        console.warn('Dynamic build failed or portal opened offline:', err);
+        if (statusEl) {
+          statusEl.style.borderColor = '#fde68a';
+          statusEl.style.background = '#fefce8';
+          statusEl.style.color = '#854d0e';
+          statusEl.innerHTML = `⚠️ Direct build API unavailable. Downloading latest pre-compiled ${env.toUpperCase()} package...`;
+        }
+        // Fallback to static archive download
+        const fallback = document.createElement('a');
+        fallback.href = `/release/ZKWAConnect-latest-DEPLOY-${env.toUpperCase()}.zip`;
+        fallback.download = `ZKWAConnect-v5.2.0-DEPLOY-${env.toUpperCase()}.zip`;
+        document.body.appendChild(fallback);
+        fallback.click();
+        document.body.removeChild(fallback);
+      } finally {
+        setTimeout(() => {
+          if (btn) {
+            btn.disabled = false;
+            btn.style.opacity = '1';
+            btn.innerHTML = originalHtml;
+          }
+        }, 3000);
+      }
     }
   </script>
 </body>
