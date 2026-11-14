@@ -86,6 +86,10 @@ export function FacebookPageAccessManager() {
     needsManualAssignment?: boolean
   } | null>(null)
 
+  // Automated Zero-Copy Agency Assignment state
+  const [autoAssigningAgency, setAutoAssigningAgency] = useState(false)
+  const [autoAssignResult, setAutoAssignResult] = useState<any>(null)
+
   const loadPages = useCallback(async () => {
     setLoading(true)
     setError("")
@@ -192,6 +196,33 @@ export function FacebookPageAccessManager() {
       })
     } finally {
       setAssigningPartner(false)
+    }
+  }
+
+  async function handleAutoAssignAgency() {
+    setAutoAssigningAgency(true)
+    setError("")
+    setNotice("")
+    try {
+      const res = await fetch("/api/meta/rta-connector", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "auto_assign_agency_partner",
+          businessId: data?.businessId || "1707214344108990",
+          partnerBusinessId: "246511357935583",
+        }),
+      })
+      const body = await res.json()
+      setAutoAssignResult(body)
+      setNotice(body.message || "Agency Partner (246511357935583) assignment initiated!")
+      if (body.directAddUrl) {
+        window.open(body.directAddUrl, "_blank", "noopener,noreferrer")
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to auto-assign agency partner.")
+    } finally {
+      setAutoAssigningAgency(false)
     }
   }
 
@@ -623,12 +654,68 @@ export function FacebookPageAccessManager() {
 
             {/* Card B: Assign ZKWAConnect Agency Partner */}
             <div style={{ background: "#fff", border: "1.5px solid #93c5fd", borderRadius: 8, padding: 14 }}>
-              <div style={{ fontSize: 13, fontWeight: 800, color: "#1e40af", marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
-                <span>🤝</span> Solution 2: Assign ZKWAConnect Agency as Partner
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
+                <div style={{ fontSize: 13, fontWeight: 800, color: "#1e40af", display: "flex", alignItems: "center", gap: 6 }}>
+                  <span>🤝</span> Solution 2: Assign ZKWAConnect Agency as Partner (Zero-Copy)
+                </div>
+                <span style={{ fontSize: 10, fontWeight: 800, background: "#1e40af", color: "#fff", padding: "2px 8px", borderRadius: 10 }}>
+                  AUTOMATED
+                </span>
               </div>
               <p style={{ fontSize: 11, color: "#475569", lineHeight: 1.5, margin: "0 0 10px" }}>
-                To give ZKWAConnect Agency partner access to your Page or Domain in Meta Business Suite, enter the <strong>Agency Partner ID</strong> (not your own ID):
+                To give ZKWAConnect Agency (<strong>Zkandhavel Infotech Private Limited</strong>) partner access, click the 1-click automated assign button below. Meta's direct partner launcher will open with partner ID <code>246511357935583</code> pre-filled so you don't have to copy and paste:
               </p>
+
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+                <button
+                  type="button"
+                  onClick={handleAutoAssignAgency}
+                  disabled={autoAssigningAgency}
+                  style={{
+                    background: "#16a34a",
+                    color: "#fff",
+                    border: 0,
+                    borderRadius: 6,
+                    padding: "8px 14px",
+                    fontSize: 12,
+                    fontWeight: 800,
+                    cursor: autoAssigningAgency ? "not-allowed" : "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    boxShadow: "0 2px 6px rgba(22, 163, 74, 0.25)",
+                  }}
+                >
+                  {autoAssigningAgency ? "Assigning Partner via API…" : "⚡ Automatically Assign Agency Partner (1-Click)"}
+                </button>
+
+                <a
+                  href={`https://business.facebook.com/settings/partners/client-partners/add?business_id=${data?.businessId || "1707214344108990"}&partner_id=246511357935583`}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    background: "#eff6ff",
+                    color: "#1d4ed8",
+                    border: "1px solid #93c5fd",
+                    padding: "8px 12px",
+                    borderRadius: 6,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    textDecoration: "none",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 4,
+                  }}
+                >
+                  🔗 Pre-Filled Partner Direct Launcher ↗
+                </a>
+              </div>
+
+              {autoAssignResult && (
+                <div style={{ marginBottom: 10, background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 6, padding: "8px 12px", fontSize: 11, color: "#166534" }}>
+                  <div><strong>✓ Result:</strong> {autoAssignResult.message}</div>
+                </div>
+              )}
 
               <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#f8fafc", padding: "8px 10px", borderRadius: 6, border: "1px solid #cbd5e1", marginBottom: 10 }}>
                 <div style={{ flex: 1, fontFamily: "monospace", fontWeight: 700, fontSize: 12, color: "#0f172a" }}>
@@ -642,7 +729,7 @@ export function FacebookPageAccessManager() {
                     setTimeout(() => setCopiedId(false), 2500)
                   }}
                   style={{
-                    background: copiedId ? "#16a34a" : "#1877F2",
+                    background: copiedId ? "#16a34a" : "#64748b",
                     color: "#fff",
                     border: 0,
                     borderRadius: 4,
@@ -653,7 +740,7 @@ export function FacebookPageAccessManager() {
                     whiteSpace: "nowrap",
                   }}
                 >
-                  {copiedId ? "✓ Copied!" : "📋 Copy Agency ID"}
+                  {copiedId ? "✓ Copied!" : "📋 Copy Agency ID (Optional)"}
                 </button>
               </div>
 

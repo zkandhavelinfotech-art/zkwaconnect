@@ -102,6 +102,21 @@ export function RtaConnectorHub() {
   const [linkingWhatsApp, setLinkingWhatsApp] = useState(false)
   const [linkResult, setLinkResult] = useState<any>(null)
 
+  // AiSensy Provisioning & OTP Verification state
+  const [provisioningWaba, setProvisioningWaba] = useState(false)
+  const [provisionResult, setProvisionResult] = useState<any>(null)
+  const [requestingOtp, setRequestingOtp] = useState(false)
+  const [otpSent, setOtpSent] = useState(false)
+  const [otpCode, setOtpCode] = useState("")
+  const [otpPin, setOtpPin] = useState("123456")
+  const [verifyingOtp, setVerifyingOtp] = useState(false)
+  const [phoneVerified, setPhoneVerified] = useState(false)
+
+  // Agency Partner Auto-Assign state
+  const [assigningPartner, setAssigningPartner] = useState(false)
+  const [partnerAssigned, setPartnerAssigned] = useState(false)
+  const [partnerAssignResult, setPartnerAssignResult] = useState<any>(null)
+
   const loadData = useCallback(async () => {
     setLoading(true)
     setError("")
@@ -288,6 +303,123 @@ export function RtaConnectorHub() {
     }
   }
 
+  async function handleAiSensyProvision() {
+    setProvisioningWaba(true)
+    setError("")
+    setSuccessMsg("")
+    try {
+      const res = await fetch("/api/meta/rta-connector", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "aisensy_provision_waba_and_phone",
+          businessId: data?.businessPortfolio.id || "1707214344108990",
+          countryCode: "91",
+          phoneNumber: "7795783535",
+          displayName: "Recruitment Training Academy",
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || "Provisioning failed")
+      setProvisionResult(json)
+      setSuccessMsg(json.message)
+      await loadData()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to provision WABA and Phone")
+    } finally {
+      setProvisioningWaba(false)
+    }
+  }
+
+  async function handleRequestPhoneOtp(method: "SMS" | "VOICE") {
+    setRequestingOtp(true)
+    setError("")
+    setSuccessMsg("")
+    try {
+      const primaryPhone = data?.waba.livePhones[0]
+      const phoneId = provisionResult?.phoneNumberId || primaryPhone?.id || "1408496172352210"
+      const res = await fetch("/api/meta/rta-connector", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "request_phone_otp",
+          phoneNumberId: phoneId,
+          codeMethod: method,
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || "Failed to dispatch OTP")
+      setOtpSent(true)
+      setSuccessMsg(json.message)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to request OTP code")
+    } finally {
+      setRequestingOtp(false)
+    }
+  }
+
+  async function handleVerifyPhoneOtp(e: React.FormEvent) {
+    e.preventDefault()
+    if (!otpCode.trim() || otpCode.trim().length !== 6) {
+      setError("Please enter the complete 6-digit OTP code received on +91 77957 83535.")
+      return
+    }
+    setVerifyingOtp(true)
+    setError("")
+    setSuccessMsg("")
+    try {
+      const primaryPhone = data?.waba.livePhones[0]
+      const phoneId = provisionResult?.phoneNumberId || primaryPhone?.id || "1408496172352210"
+      const res = await fetch("/api/meta/rta-connector", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "verify_phone_otp",
+          phoneNumberId: phoneId,
+          code: otpCode.trim(),
+          pin: otpPin.trim() || "123456",
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || "OTP verification failed")
+      setPhoneVerified(true)
+      setSuccessMsg(json.message)
+      await loadData()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error verifying OTP code")
+    } finally {
+      setVerifyingOtp(false)
+    }
+  }
+
+  async function handleAutoAssignAgencyPartner() {
+    setAssigningPartner(true)
+    setError("")
+    setSuccessMsg("")
+    try {
+      const res = await fetch("/api/meta/rta-connector", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "auto_assign_agency_partner",
+          businessId: data?.businessPortfolio.id || "1707214344108990",
+          partnerBusinessId: "246511357935583",
+        }),
+      })
+      const json = await res.json()
+      setPartnerAssignResult(json)
+      setPartnerAssigned(true)
+      setSuccessMsg(json.message || "Agency Partner (246511357935583) assignment initiated!")
+      if (json.directAddUrl) {
+        window.open(json.directAddUrl, "_blank", "noopener,noreferrer")
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to auto-assign agency partner")
+    } finally {
+      setAssigningPartner(false)
+    }
+  }
+
   if (loading && !data) {
     return <div style={{ padding: 32, textAlign: "center", color: "#64748b" }}>Loading RTA WhatsApp & Facebook status…</div>
   }
@@ -461,6 +593,263 @@ export function RtaConnectorHub() {
                 {data?.waba.webhookSubscribed ? "● Subscribed & Active" : "○ Ready for Subscription"}
               </span>
             </div>
+          </div>
+
+          {/* ========================================================================= */}
+          {/* AISENSY-STYLE AUTOMATED WABA & PHONE PROVISIONING (NO MANUAL WABA NEEDED) */}
+          {/* ========================================================================= */}
+          <div
+            style={{
+              background: "linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)",
+              border: "1.5px solid #6ee7b7",
+              borderRadius: 10,
+              padding: 16,
+              marginBottom: 16,
+              boxShadow: "0 2px 8px rgba(16, 185, 129, 0.08)",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 20 }}>⚡</span>
+                <h4 style={{ fontSize: 14, fontWeight: 800, margin: 0, color: "#065f46", fontFamily: "Sora, sans-serif" }}>
+                  AiSensy Automated Onboarding: Provision WABA &amp; WhatsApp Phone
+                </h4>
+              </div>
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 800,
+                  background: "#059669",
+                  color: "#fff",
+                  padding: "3px 8px",
+                  borderRadius: 12,
+                  letterSpacing: "0.04em",
+                }}
+              >
+                NO META SUITE LOGIN NEEDED
+              </span>
+            </div>
+
+            <p style={{ fontSize: 12, color: "#047857", lineHeight: 1.5, margin: "0 0 12px" }}>
+              <strong>How AiSensy does it:</strong> AiSensy never asks clients to manually create a WABA in Meta Business Manager. Our system automatically calls the Meta Graph API under Business Portfolio <strong>{data?.businessPortfolio.id || "1707214344108990"}</strong> and Meta App <strong>{data?.metaAppId || "1710743377107186"}</strong> to provision the WABA ID, add WhatsApp Phone <strong>+91 77957 83535</strong>, and link it directly into your workspace.
+            </p>
+
+            <div style={{ background: "#fff", border: "1px solid #a7f3d0", borderRadius: 8, padding: 12, marginBottom: 12, fontSize: 11, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 8 }}>
+              <div>
+                <span style={{ color: "#64748b", display: "block" }}>🏢 Business Portfolio:</span>
+                <strong style={{ color: "#0f172a", fontFamily: "monospace" }}>{data?.businessPortfolio.id || "1707214344108990"}</strong>
+              </div>
+              <div>
+                <span style={{ color: "#64748b", display: "block" }}>🚀 Meta App ID:</span>
+                <strong style={{ color: "#0f172a", fontFamily: "monospace" }}>{data?.metaAppId || "1710743377107186"}</strong>
+              </div>
+              <div>
+                <span style={{ color: "#64748b", display: "block" }}>📱 WhatsApp Business Phone:</span>
+                <strong style={{ color: "#166534", fontFamily: "monospace" }}>+91 77957 83535</strong>
+              </div>
+              <div>
+                <span style={{ color: "#64748b", display: "block" }}>🏷️ Verified Business Name:</span>
+                <strong style={{ color: "#0f172a" }}>Recruitment Training Academy</strong>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleAiSensyProvision}
+              disabled={provisioningWaba}
+              style={{
+                background: "#059669",
+                color: "#fff",
+                border: 0,
+                borderRadius: 8,
+                padding: "10px 18px",
+                fontSize: 12,
+                fontWeight: 800,
+                cursor: provisioningWaba ? "not-allowed" : "pointer",
+                boxShadow: "0 2px 6px rgba(5, 150, 105, 0.3)",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                width: "100%",
+                justifyContent: "center",
+              }}
+            >
+              {provisioningWaba ? (
+                <>⏳ Provisioning WABA ID &amp; Registering Phone on Meta Graph API…</>
+              ) : (
+                <>⚡ 1-Click Provision WABA ID &amp; Add WhatsApp Phone (+91 77957 83535)</>
+              )}
+            </button>
+
+            {provisionResult && (
+              <div style={{ marginTop: 10, background: "#fff", border: "1px solid #86efac", borderRadius: 6, padding: "8px 12px", fontSize: 11, color: "#166534" }}>
+                <div><strong>✓ WABA ID Provisioned:</strong> <code>{provisionResult.wabaId}</code></div>
+                <div style={{ marginTop: 2 }}><strong>✓ Phone Number ID:</strong> <code>{provisionResult.phoneNumberId}</code></div>
+                <div style={{ marginTop: 2 }}><strong>✓ Display Phone:</strong> <code>{provisionResult.displayPhoneNumber}</code></div>
+              </div>
+            )}
+          </div>
+
+          {/* ========================================================================= */}
+          {/* INTERACTIVE "START VERIFICATION REQUIRED" UI FOR +91 77957 83535         */}
+          {/* ========================================================================= */}
+          <div
+            style={{
+              background: "#fff",
+              border: phoneVerified || data?.waba.livePhones[0]?.code_verification_status === "VERIFIED"
+                ? "1.5px solid #86efac"
+                : "1.5px solid #fde68a",
+              borderRadius: 10,
+              padding: 16,
+              marginBottom: 16,
+              boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 18 }}>🔐</span>
+                <h4 style={{ fontSize: 14, fontWeight: 800, margin: 0, color: "#0f172a", fontFamily: "Sora, sans-serif" }}>
+                  Start Verification Required: Verify +91 77957 83535
+                </h4>
+              </div>
+
+              {phoneVerified || data?.waba.livePhones[0]?.code_verification_status === "VERIFIED" ? (
+                <span style={{ background: "#dcfce7", color: "#166534", padding: "4px 10px", borderRadius: 12, fontSize: 11, fontWeight: 800 }}>
+                  ✓ VERIFIED &amp; LIVE
+                </span>
+              ) : (
+                <span style={{ background: "#fef3c7", color: "#b45309", padding: "4px 10px", borderRadius: 12, fontSize: 11, fontWeight: 800 }}>
+                  ⚠️ Verification Required
+                </span>
+              )}
+            </div>
+
+            <p style={{ fontSize: 12, color: "#64748b", lineHeight: 1.5, margin: "0 0 12px" }}>
+              To ensure phone ownership and unlock outbound WhatsApp messaging, Meta requires a one-time 6-digit OTP verification code on <strong>+91 77957 83535</strong>.
+            </p>
+
+            {/* Step A: Request OTP Buttons */}
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
+              <button
+                type="button"
+                onClick={() => handleRequestPhoneOtp("SMS")}
+                disabled={requestingOtp}
+                style={{
+                  background: "#1877F2",
+                  color: "#fff",
+                  border: 0,
+                  borderRadius: 6,
+                  padding: "8px 14px",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: requestingOtp ? "not-allowed" : "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                {requestingOtp ? "Sending OTP…" : "📲 Request SMS OTP (+91 77957 83535)"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleRequestPhoneOtp("VOICE")}
+                disabled={requestingOtp}
+                style={{
+                  background: "#fff",
+                  color: "#334155",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: 6,
+                  padding: "8px 14px",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: requestingOtp ? "not-allowed" : "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                📞 Request Voice Call OTP
+              </button>
+            </div>
+
+            {/* Step B: Form to Enter OTP & 2FA PIN */}
+            <form onSubmit={handleVerifyPhoneOtp} style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: 14, display: "grid", gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
+                <div>
+                  <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#334155", marginBottom: 4 }}>
+                    6-Digit OTP Code (from SMS/Call):
+                  </label>
+                  <input
+                    type="text"
+                    value={otpCode}
+                    onChange={e => setOtpCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))}
+                    placeholder="e.g. 849201"
+                    maxLength={6}
+                    style={{
+                      width: "100%",
+                      boxSizing: "border-box",
+                      border: "1.5px solid #cbd5e1",
+                      borderRadius: 6,
+                      padding: "8px 10px",
+                      fontSize: 14,
+                      fontWeight: 800,
+                      fontFamily: "monospace",
+                      letterSpacing: "0.2em",
+                      textAlign: "center",
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#334155", marginBottom: 4 }}>
+                    6-Digit 2FA Gateway PIN:
+                  </label>
+                  <input
+                    type="text"
+                    value={otpPin}
+                    onChange={e => setOtpPin(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))}
+                    placeholder="123456"
+                    maxLength={6}
+                    style={{
+                      width: "100%",
+                      boxSizing: "border-box",
+                      border: "1.5px solid #cbd5e1",
+                      borderRadius: 6,
+                      padding: "8px 10px",
+                      fontSize: 14,
+                      fontWeight: 800,
+                      fontFamily: "monospace",
+                      letterSpacing: "0.2em",
+                      textAlign: "center",
+                    }}
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={verifyingOtp || otpCode.length !== 6}
+                style={{
+                  background: otpCode.length === 6 ? "#16a34a" : "#94a3b8",
+                  color: "#fff",
+                  border: 0,
+                  borderRadius: 6,
+                  padding: "9px 16px",
+                  fontSize: 12,
+                  fontWeight: 800,
+                  cursor: verifyingOtp || otpCode.length !== 6 ? "not-allowed" : "pointer",
+                }}
+              >
+                {verifyingOtp ? "Verifying with Meta & Registering PIN…" : "✅ Verify OTP & Activate Cloud API Gateway"}
+              </button>
+            </form>
+
+            {phoneVerified && (
+              <div style={{ marginTop: 10, background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 6, padding: "8px 12px", color: "#166534", fontSize: 12, fontWeight: 700 }}>
+                🎉 WhatsApp Phone +91 77957 83535 is Verified &amp; LIVE! You can now test outbound messaging below.
+              </div>
+            )}
           </div>
 
           {/* Live Message Tester Form */}
@@ -880,6 +1269,97 @@ export function RtaConnectorHub() {
                   >
                     Open Page WhatsApp Connection Settings ↗
                   </a>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* ========================================================================= */}
+          {/* STEP 3: AUTOMATED AGENCY PARTNER ASSIGNMENT (ZERO-COPY)                  */}
+          {/* ========================================================================= */}
+          <div style={{ background: "#f0fdf4", border: "1.5px solid #86efac", borderRadius: 8, padding: 14, marginTop: 14 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: "#166534" }}>
+                Step 3: Automatically Assign Agency Partner (Zero-Copy)
+              </div>
+              <span style={{ fontSize: 10, fontWeight: 800, background: "#15803d", color: "#fff", padding: "2px 8px", borderRadius: 10 }}>
+                1-CLICK AUTOMATION
+              </span>
+            </div>
+
+            <p style={{ fontSize: 11, color: "#14532d", margin: "0 0 10px", lineHeight: 1.5 }}>
+              No need to manually copy and paste partner IDs! Grant ZKWAConnect Agency (<strong>Zkandhavel Infotech Private Limited</strong> &bull; ID: <code>246511357935583</code>) access to manage WhatsApp templates, broadcasts, and automations under Business Portfolio <strong>{data?.businessPortfolio.id || "1707214344108990"}</strong>.
+            </p>
+
+            <div style={{ background: "#fff", border: "1px solid #bbf7d0", padding: "8px 12px", borderRadius: 6, marginBottom: 10, fontSize: 11, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+              <div>
+                <span style={{ color: "#64748b" }}>Agency Partner:</span>{" "}
+                <strong style={{ color: "#0f172a" }}>Zkandhavel Infotech Private Limited</strong>
+              </div>
+              <div style={{ fontFamily: "monospace", fontWeight: 700, color: "#166534" }}>
+                ID: 246511357935583
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button
+                type="button"
+                onClick={handleAutoAssignAgencyPartner}
+                disabled={assigningPartner}
+                style={{
+                  background: "#16a34a",
+                  color: "#fff",
+                  border: 0,
+                  borderRadius: 6,
+                  padding: "9px 16px",
+                  fontSize: 12,
+                  fontWeight: 800,
+                  cursor: assigningPartner ? "not-allowed" : "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  boxShadow: "0 2px 6px rgba(22, 163, 74, 0.25)",
+                }}
+              >
+                {assigningPartner ? "Assigning Partner via API…" : "⚡ Automatically Assign Agency Partner (1-Click)"}
+              </button>
+
+              <a
+                href={`https://business.facebook.com/settings/partners/client-partners/add?business_id=${data?.businessPortfolio.id || "1707214344108990"}&partner_id=246511357935583`}
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  background: "#fff",
+                  color: "#166534",
+                  border: "1.5px solid #86efac",
+                  padding: "8px 14px",
+                  borderRadius: 6,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  textDecoration: "none",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                }}
+              >
+                🔗 Pre-Filled Partner Direct Launcher ↗
+              </a>
+            </div>
+
+            {partnerAssignResult && (
+              <div style={{ marginTop: 10, background: "#fff", border: "1px solid #86efac", borderRadius: 6, padding: 10, fontSize: 11, color: "#14532d" }}>
+                <div><strong>✓ Status:</strong> {partnerAssignResult.message}</div>
+                {partnerAssignResult.directAddUrl && (
+                  <div style={{ marginTop: 6 }}>
+                    <a
+                      href={partnerAssignResult.directAddUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ color: "#15803d", fontWeight: 700, textDecoration: "underline" }}
+                    >
+                      Click here to confirm partner permissions in Meta Business Suite ↗
+                    </a>
+                  </div>
                 )}
               </div>
             )}
