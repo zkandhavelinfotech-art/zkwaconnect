@@ -93,9 +93,19 @@ export default function LoginPage() {
   const [company,       setCompany]      = useState<{ email:string; exists:boolean; password:string|null; workspaces:string[] }[]>([])
   const brand = useBrand()
 
-  // Initialize with the first client account on first render
+  // Initialize with the first client account on first render (or Meta reviewer preset if query param present)
   useEffect(() => {
     try {
+      const params = new URLSearchParams(window.location.search)
+      const isMetaReviewer = params.get("reviewer") === "meta" || params.get("review") === "true" || params.get("ref") === "meta"
+      
+      if (isMetaReviewer) {
+        setAccountTab("ADMIN")
+        setActivePreset("admin")
+        setForm({ email: "admin@zkwaconnect.in", password: "admin2026!" })
+        return
+      }
+
       const saved = localStorage.getItem(EMAIL_KEY)
       if (saved) {
         setForm(f => f.email ? f : { ...f, email: saved })
@@ -173,9 +183,75 @@ export default function LoginPage() {
             v5.2.0 LIVE
           </span>
         </div>
-        <p style={{ fontSize:13, color:"#64748b", margin:"0 0 16px" }}>
+        <p style={{ fontSize:13, color:"#64748b", margin:"0 0 14px" }}>
           Choose customer client portal or product admin to prefill credentials
         </p>
+
+        {/* Meta App Reviewer Test Notice Banner */}
+        <div style={{
+          marginBottom: 14,
+          padding: "10px 12px",
+          background: "#eff6ff",
+          border: "1px solid #bfdbfe",
+          borderRadius: 10,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 8,
+          fontSize: 12,
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 16 }}>🔍</span>
+            <div>
+              <span style={{ fontWeight: 700, color: "#1e40af" }}>Meta App Reviewer Test Login: </span>
+              <code style={{ background: "#dbeafe", padding: "2px 6px", borderRadius: 4, color: "#1e3a8a", fontWeight: 600 }}>admin@zkwaconnect.in</code>
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button
+              type="button"
+              onClick={() => {
+                setAccountTab("ADMIN")
+                setActivePreset("admin")
+                setForm({ email: "admin@zkwaconnect.in", password: "admin2026!" })
+                setError("")
+              }}
+              style={{
+                background: "#1d4ed8",
+                color: "#ffffff",
+                border: "none",
+                borderRadius: 6,
+                padding: "5px 10px",
+                fontSize: 11,
+                fontWeight: 700,
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Fill Reviewer Credentials
+            </button>
+            <a
+              href="/meta-review/index.html"
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                background: "#ffffff",
+                color: "#1d4ed8",
+                border: "1px solid #93c5fd",
+                borderRadius: 6,
+                padding: "5px 8px",
+                fontSize: 11,
+                fontWeight: 700,
+                textDecoration: "none",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Review Guide ↗
+            </a>
+          </div>
+        </div>
 
         {/* Category Switcher: Customer Clients vs SaaS Admin */}
         <div style={{ marginBottom: 14 }}>

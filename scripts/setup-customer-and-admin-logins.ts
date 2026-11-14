@@ -229,6 +229,43 @@ async function main() {
   })
   console.log(`  ✅ WABA Root Admin: waba@zkandavelinfotech.com / waba1234`)
 
+  // 5. DEMO SANDBOX ACCOUNT (For Meta App Reviewers & Demos)
+  const demoPasswordHash = await bcrypt.hash("demo1234", 12)
+  const demoUser = await prisma.user.upsert({
+    where: { email: "demo@zkwaconnect.in" },
+    update: {
+      passwordHash: demoPasswordHash,
+      status: "ACTIVE",
+      name: "Demo Reviewer",
+      adminRole: "SUPER_ADMIN",
+    },
+    create: {
+      email: "demo@zkwaconnect.in",
+      name: "Demo Reviewer",
+      passwordHash: demoPasswordHash,
+      status: "ACTIVE",
+      adminRole: "SUPER_ADMIN",
+    },
+  })
+  if (rootOrg) {
+    await prisma.membership.upsert({
+      where: {
+        organizationId_userId: {
+          organizationId: rootOrg.id,
+          userId: demoUser.id,
+        },
+      },
+      update: { role: "OWNER", status: "ACTIVE" },
+      create: {
+        organizationId: rootOrg.id,
+        userId: demoUser.id,
+        role: "OWNER",
+        status: "ACTIVE",
+      },
+    })
+  }
+  console.log(`  ✅ Demo Reviewer: demo@zkwaconnect.in / demo1234`)
+
   console.log("\n==================================================")
   console.log("🎉 All Logins Configured Successfully!")
   console.log("==================================================")

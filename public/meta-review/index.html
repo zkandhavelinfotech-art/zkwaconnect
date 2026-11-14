@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ZKWAConnect — Meta App Review Verification Guide</title>
+  <meta name="description" content="Complete step-by-step walkthrough, test credentials, and permission demonstration for Meta App Review." />
+  <link rel="icon" href="/icons/favicon.ico" />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --primary: #075E54;
+      --primary-dark: #054c44;
+      --accent: #25D366;
+      --fb-blue: #1877F2;
+      --fb-blue-dark: #0d65d9;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      padding: 0 0 60px 0;
+    }
+    header {
+      background: linear-gradient(135deg, #075E54 0%, #128C7E 50%, #075E54 100%);
+      color: white;
+      padding: 40px 24px;
+      border-bottom: 3px solid var(--accent);
+    }
+    .header-container {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(37, 211, 102, 0.2);
+      color: #bbf7d0;
+      border: 1px solid rgba(37, 211, 102, 0.4);
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .container {
+      max-width: 1100px;
+      margin: 32px auto 0;
+      padding: 0 20px;
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 20px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 13.5px;
+      font-weight: 700;
+      text-decoration: none;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s ease;
+    }
+    .btn-fb {
+      background: var(--fb-blue);
+      color: white;
+    }
+    .btn-fb:hover {
+      background: var(--fb-blue-dark);
+      transform: translateY(-1px);
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+    .btn-primary:hover {
+      background: var(--primary-dark);
+    }
+    .btn-secondary {
+      background: #f1f5f9;
+      color: #334155;
+      border: 1px solid #cbd5e1;
+    }
+    .btn-secondary:hover {
+      background: #e2e8f0;
+    }
+    .code-box {
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 14px 18px;
+      border-radius: 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 8px;
+    }
+    .copy-btn {
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.25);
+      color: white;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .copy-btn:hover {
+      background: rgba(255,255,255,0.3);
+    }
+    .step-num {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+    .step-item {
+      display: flex;
+      gap: 16px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid #f1f5f9;
+      margin-bottom: 20px;
+    }
+    .step-item:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+      margin-bottom: 0;
+    }
+    .permission-tag {
+      background: #ecfdf5;
+      color: #065f46;
+      border: 1px solid #a7f3d0;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="header-container">
+      <div>
+        <div class="badge">Official Meta Reviewer Documentation</div>
+        <h1 style="font-size: 26px; font-weight: 800; letter-spacing: -0.5px;">ZKWAConnect — Meta App Review Verification Guide</h1>
+        <p style="font-size: 14px; opacity: 0.9; margin-top: 6px; max-width: 650px;">
+          Instructions, test credentials, and full end-to-end screen recording walkthrough for Meta reviewers verifying 
+          <strong>Facebook Login for Business</strong> and <strong>WhatsApp Cloud API permissions</strong>.
+        </p>
+      </div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <a href="/login?reviewer=meta" class="btn btn-fb">
+          🚀 Open Login Portal
+        </a>
+        <a href="/onboarding/meta-connect" class="btn" style="background:#fff; color:var(--primary)">
+          ⚡ Open Meta Connect
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+
+    <!-- 1. Reviewer Test Credentials Card -->
+    <div class="card" style="border: 2px solid #3b82f6; background: #eff6ff;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px;">
+        <div>
+          <span class="badge" style="background:#3b82f6; color:#fff; border:none;">Reviewer Test Account</span>
+          <h2 style="font-size: 20px; font-weight: 800; color: #1e3a8a;">Pre-configured Credentials for Meta Reviewers</h2>
+          <p style="color: #1e40af; font-size: 13.5px; margin-top: 4px;">
+            Please use these credentials to authenticate into the ZKWAConnect portal without Facebook Login first:
+          </p>
+        </div>
+        <a href="/login?reviewer=meta" class="btn btn-fb">
+          Sign In with 1-Click →
+        </a>
+      </div>
+
+      <div class="grid-2" style="margin-top: 18px;">
+        <div>
+          <div style="font-size: 12px; font-weight: 700; color: #1e40af;">LOGIN PORTAL URL:</div>
+          <div class="code-box">
+            <span id="txtUrl">https://app.zkwaconnect.in/login</span>
+            <button class="copy-btn" onclick="copyText('txtUrl')">Copy</button>
+          </div>
+        </div>
+        <div>
+          <div style="font-size: 12px; font-weight: 700; color: #1e40af;">REVIEWER EMAIL:</div>
+          <div class="code-box">
+            <span id="txtEmail">admin@zkwaconnect.in</span>
+            <button class="copy-btn" onclick="copyText('txtEmail')">Copy</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-2" style="margin-top: 14px;">
+        <div>
+          <div style="font-size: 12px; font-weight: 700; color: #1e40af;">REVIEWER PASSWORD:</div>
+          <div class="code-box">
+            <span id="txtPass">admin2026!</span>
+            <button class="copy-btn" onclick="copyText('txtPass')">Copy</button>
+          </div>
+        </div>
+        <div>
+          <div style="font-size: 12px; font-weight: 700; color: #1e40af;">WORKSPACE / ROLE:</div>
+          <div class="code-box">
+            <span>ZKandavel Infotech (SUPER_ADMIN)</span>
+            <span style="font-size:11px; color:#94a3b8">Active</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. Step-by-Step Complete Login & Permission Flow -->
+    <div class="card">
+      <h2 style="font-size: 20px; font-weight: 800; margin-bottom: 20px;">
+        Complete Login &amp; Authorization Demonstration Flow
+      </h2>
+
+      <div class="step-item">
+        <div class="step-num">1</div>
+        <div>
+          <h3 style="font-size: 16px; font-weight: 700;">Start Logged-Out (Show Address Bar)</h3>
+          <p style="font-size: 13.5px; color: var(--text-muted); margin-top: 4px;">
+            Open an Incognito / Private window and navigate to <code>https://app.zkwaconnect.in/login</code>.
+            Ensure the browser URL bar is clearly visible. The app shows the logged-out state with the native sign-in form.
+          </p>
+        </div>
+      </div>
+
+      <div class="step-item">
+        <div class="step-num">2</div>
+        <div>
+          <h3 style="font-size: 16px; font-weight: 700;">Log In with Native Email &amp; Password (No Facebook Login)</h3>
+          <p style="font-size: 13.5px; color: var(--text-muted); margin-top: 4px;">
+            Enter <code>admin@zkwaconnect.in</code> and <code>admin2026!</code> into the login fields.
+            Click <strong>Sign In</strong>. The user lands directly in the ZKWAConnect dashboard / project workspace.
+          </p>
+        </div>
+      </div>
+
+      <div class="step-item">
+        <div class="step-num">3</div>
+        <div>
+          <h3 style="font-size: 16px; font-weight: 700;">Navigate to Meta Connect Step</h3>
+          <p style="font-size: 13.5px; color: var(--text-muted); margin-top: 4px;">
+            Inside the app, open <strong>Settings → Meta Integration</strong> or go to <code>/onboarding/meta-connect</code>.
+            The user sees the <strong>"Log in to connect your Meta business"</strong> section featuring the official 
+            <strong>"Log in with Facebook"</strong> button and WhatsApp Embedded Signup card.
+          </p>
+        </div>
+      </div>
+
+      <div class="step-item">
+        <div class="step-num">4</div>
+        <div>
+          <h3 style="font-size: 16px; font-weight: 700;">Click "Log in with Facebook" &amp; Grant Permissions</h3>
+          <p style="font-size: 13.5px; color: var(--text-muted); margin-top: 4px;">
+            Click the blue <strong>"Log in with Facebook"</strong> button. The Meta OAuth popup dialog opens:
+          </p>
+          <ul style="font-size: 13px; color: var(--text-muted); margin: 8px 0 0 20px; line-height: 1.7;">
+            <li>User logs in with their Facebook account credentials.</li>
+            <li>Selects the Meta Business Portfolio.</li>
+            <li>Selects the WhatsApp Business Account (WABA) and phone number.</li>
+            <li>Grants the requested permissions: <code>whatsapp_business_management</code>, <code>whatsapp_business_messaging</code>, and <code>business_management</code>.</li>
+            <li>Clicks <strong>Done / Continue</strong>. The popup automatically closes.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="step-item">
+        <div class="step-num">5</div>
+        <div>
+          <h3 style="font-size: 16px; font-weight: 700;">Demonstrate Data Usage in the App</h3>
+          <p style="font-size: 13.5px; color: var(--text-muted); margin-top: 4px;">
+            ZKWAConnect receives the token securely and immediately demonstrates functional data usage:
+          </p>
+          <ul style="font-size: 13px; color: var(--text-muted); margin: 8px 0 0 20px; line-height: 1.7;">
+            <li><strong>WABA Listing:</strong> Lists all synced WhatsApp Business Accounts and Phone Numbers (<code>/onboarding/waba-setup</code>).</li>
+            <li><strong>Message Templates:</strong> Fetches and displays Meta message templates (<code>/templates</code>).</li>
+            <li><strong>Team Inbox:</strong> Demonstrates sending and receiving real-time WhatsApp messages (<code>/inbox</code>).</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. Permissions Requested & Data Usage Justification -->
+    <div class="card">
+      <h2 style="font-size: 20px; font-weight: 800; margin-bottom: 16px;">
+        Permissions &amp; Features Justification
+      </h2>
+      <div style="display:flex; flex-direction:column; gap:16px;">
+        
+        <div style="padding:16px; border:1px solid #e2e8f0; border-radius:8px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+            <span class="permission-tag">whatsapp_business_management</span>
+            <span style="font-size:12px; font-weight:700; color:#0369a1;">Feature: WABA &amp; Template Management</span>
+          </div>
+          <p style="font-size:13px; color:#334155; margin-top:8px;">
+            <strong>Purpose:</strong> Allows registered businesses to view their WhatsApp Business Account ID, verified phone numbers, 
+            quality ratings, and manage message templates directly within ZKWAConnect without needing to navigate Meta Business Manager.
+          </p>
+        </div>
+
+        <div style="padding:16px; border:1px solid #e2e8f0; border-radius:8px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+            <span class="permission-tag">whatsapp_business_messaging</span>
+            <span style="font-size:12px; font-weight:700; color:#0369a1;">Feature: Real-Time Messaging &amp; Inbox</span>
+          </div>
+          <p style="font-size:13px; color:#334155; margin-top:8px;">
+            <strong>Purpose:</strong> Enables customer service teams to receive inbound customer inquiries and send responses, 
+            transactional notifications, and broadcast messages via the WhatsApp Business API.
+          </p>
+        </div>
+
+        <div style="padding:16px; border:1px solid #e2e8f0; border-radius:8px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+            <span class="permission-tag">business_management</span>
+            <span style="font-size:12px; font-weight:700; color:#0369a1;">Feature: Portfolio Integration</span>
+          </div>
+          <p style="font-size:13px; color:#334155; margin-top:8px;">
+            <strong>Purpose:</strong> Allows the app to list the user's business portfolios to correctly associate the selected 
+            WABA with the user's tenant account in ZKWAConnect.
+          </p>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    function copyText(elementId) {
+      const text = document.getElementById(elementId).innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        alert('Copied to clipboard: ' + text);
+      });
+    }
+  </script>
+</body>
+</html>
