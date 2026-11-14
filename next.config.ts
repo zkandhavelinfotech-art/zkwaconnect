@@ -9,6 +9,31 @@ if (rawEnvVal === 'live' || rawEnvVal === 'prod' || rawEnvVal.includes('producti
   envMap.NODE_ENV = 'test'
 }
 
+import fs from 'node:fs'
+import path from 'node:path'
+
+// Auto-clean stale production build artifacts from .next whenever 'next dev' is booted.
+// Prevents webpack chunk mismatch collisions ('Cannot find module ./XXXX.js') when dev server
+// runs after 'next build'.
+const isDevSession =
+  envMap.NODE_ENV === 'development' ||
+  process.argv.some(arg => arg === 'dev' || arg.includes('next-dev'))
+
+if (isDevSession) {
+  try {
+    const nextDir = path.join(process.cwd(), '.next')
+    const buildIdPath = path.join(nextDir, 'BUILD_ID')
+    const stalePagesDir = path.join(nextDir, 'server', 'pages')
+    if (fs.existsSync(buildIdPath) || fs.existsSync(stalePagesDir)) {
+      fs.rmSync(path.join(nextDir, 'server'), { recursive: true, force: true })
+      fs.rmSync(path.join(nextDir, 'cache'), { recursive: true, force: true })
+      fs.rmSync(buildIdPath, { force: true })
+    }
+  } catch {
+    // ignore
+  }
+}
+
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
