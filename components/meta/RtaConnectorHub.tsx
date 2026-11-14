@@ -117,6 +117,9 @@ export function RtaConnectorHub() {
   const [partnerAssigned, setPartnerAssigned] = useState(false)
   const [partnerAssignResult, setPartnerAssignResult] = useState<any>(null)
 
+  // Service Partner Migration (AiSensy -> ZKWAConnect) state
+  const [copiedAiSensyEmail, setCopiedAiSensyEmail] = useState(false)
+
   const loadData = useCallback(async () => {
     setLoading(true)
     setError("")
@@ -420,6 +423,13 @@ export function RtaConnectorHub() {
     }
   }
 
+  function handleCopyAiSensyEmail() {
+    const text = `To: support@aisensy.com\nSubject: Urgent: Disconnect & Release WhatsApp Phone Number +91 77957 83535\n\nDear AiSensy Support Team,\n\nWe are migrating our WhatsApp business phone number +91 77957 83535 to our direct Meta Cloud API setup under our own Meta Business Portfolio (Portfolio ID: 1707214344108990).\n\nPlease turn off Two-Step Verification (2FA) and delete/disconnect +91 77957 83535 from your WABA infrastructure immediately so that Meta releases the number for our new ZKWAConnect gateway.\n\nBusiness Name: Recruitment Training Academy\nWhatsApp Phone: +91 77957 83535\nTarget Portfolio ID: 1707214344108990\n\nThank you,\nRecruitment Training Academy Team`
+    navigator.clipboard.writeText(text)
+    setCopiedAiSensyEmail(true)
+    setTimeout(() => setCopiedAiSensyEmail(false), 3000)
+  }
+
   if (loading && !data) {
     return <div style={{ padding: 32, textAlign: "center", color: "#64748b" }}>Loading RTA WhatsApp & Facebook status…</div>
   }
@@ -682,12 +692,219 @@ export function RtaConnectorHub() {
             </button>
 
             {provisionResult && (
-              <div style={{ marginTop: 10, background: "#fff", border: "1px solid #86efac", borderRadius: 6, padding: "8px 12px", fontSize: 11, color: "#166534" }}>
+              <div style={{ marginTop: 10, background: "#fff", border: `1px solid ${provisionResult.partnerConflict ? "#fde68a" : "#86efac"}`, borderRadius: 6, padding: "8px 12px", fontSize: 11, color: provisionResult.partnerConflict ? "#92400e" : "#166534" }}>
                 <div><strong>✓ WABA ID Provisioned:</strong> <code>{provisionResult.wabaId}</code></div>
                 <div style={{ marginTop: 2 }}><strong>✓ Phone Number ID:</strong> <code>{provisionResult.phoneNumberId}</code></div>
                 <div style={{ marginTop: 2 }}><strong>✓ Display Phone:</strong> <code>{provisionResult.displayPhoneNumber}</code></div>
+                {provisionResult.partnerConflict && (
+                  <div style={{ marginTop: 6, fontWeight: 700, color: "#b45309" }}>
+                    ⚠️ {provisionResult.partnerConflictMessage || "AiSensy service partner conflict detected. See migration guide below."}
+                  </div>
+                )}
               </div>
             )}
+          </div>
+
+          {/* ========================================================================= */}
+          {/* SERVICE PARTNER MIGRATION HUB: REMOVE AISENSY ➔ CONNECT ZKWACONNECT       */}
+          {/* ========================================================================= */}
+          <div
+            style={{
+              background: "#fffbeb",
+              border: "1.5px solid #f59e0b",
+              borderRadius: 10,
+              padding: 16,
+              marginBottom: 16,
+              boxShadow: "0 2px 8px rgba(245, 158, 11, 0.08)",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 20 }}>🔄</span>
+                <h4 style={{ fontSize: 14, fontWeight: 800, margin: 0, color: "#92400e", fontFamily: "Sora, sans-serif" }}>
+                  Service Partner Migration: Remove AiSensy ➔ Connect ZKWAConnect
+                </h4>
+              </div>
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 800,
+                  background: "#b45309",
+                  color: "#fff",
+                  padding: "3px 8px",
+                  borderRadius: 12,
+                }}
+              >
+                MIGRATION GUIDE
+              </span>
+            </div>
+
+            {/* Error Alert Box */}
+            <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: 12, marginBottom: 12, fontSize: 12, color: "#991b1b", lineHeight: 1.5 }}>
+              <div style={{ fontWeight: 800, marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
+                <span>🚨</span> Why Meta displays this message:
+              </div>
+              <blockquote style={{ margin: "4px 0 8px", paddingLeft: 12, borderLeft: "3px solid #ef4444", fontStyle: "italic", fontFamily: "monospace", fontSize: 11 }}>
+                &ldquo;This number is already on a WhatsApp Business account in a business portfolio you don't manage. Ask an admin of that portfolio for admin access, or to remove the number. Or enter a different number&rdquo;
+              </blockquote>
+              <div>
+                <strong>The Cause:</strong> The number <strong>+91 77957 83535</strong> is currently tied to <strong>AiSensy's Business Portfolio</strong>. Meta enforces <em>1 number = 1 WABA</em>. Because your personal Facebook login is not an administrator of AiSensy's internal partner portfolio, Meta blocks adding it until AiSensy releases the number.
+              </div>
+            </div>
+
+            <div style={{ fontSize: 12, color: "#78350f", lineHeight: 1.5, marginBottom: 12 }}>
+              Follow these 4 simple steps to remove AiSensy and bring your number directly to <strong>ZKWAConnect Gateway</strong> under Business Portfolio <strong>{data?.businessPortfolio.id || "1707214344108990"}</strong>:
+            </div>
+
+            <div style={{ display: "grid", gap: 10, marginBottom: 14 }}>
+              {/* Step 1: Disconnect / Release from AiSensy */}
+              <div style={{ background: "#fff", border: "1px solid #fde68a", borderRadius: 8, padding: 12 }}>
+                <div style={{ fontWeight: 800, color: "#92400e", fontSize: 12, marginBottom: 4 }}>
+                  Step 1: Disconnect &amp; Release Number in AiSensy
+                </div>
+                <p style={{ margin: "0 0 8px", fontSize: 11, color: "#475569" }}>
+                  Log in to your AiSensy dashboard and disconnect the number, or copy our ready-to-send support email ticket:
+                </p>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <a
+                    href="https://app.aisensy.com/"
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      background: "#1877F2",
+                      color: "#fff",
+                      padding: "6px 12px",
+                      borderRadius: 6,
+                      fontSize: 11,
+                      fontWeight: 700,
+                      textDecoration: "none",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 4,
+                    }}
+                  >
+                    Open AiSensy Dashboard (app.aisensy.com) ↗
+                  </a>
+
+                  <button
+                    type="button"
+                    onClick={handleCopyAiSensyEmail}
+                    style={{
+                      background: copiedAiSensyEmail ? "#16a34a" : "#0284c7",
+                      color: "#fff",
+                      border: 0,
+                      borderRadius: 6,
+                      padding: "6px 12px",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 4,
+                    }}
+                  >
+                    {copiedAiSensyEmail ? "✓ Email Template Copied!" : "📋 Copy AiSensy Support Release Ticket"}
+                  </button>
+                </div>
+              </div>
+
+              {/* Step 2: Delete from WhatsApp Business App on Phone */}
+              <div style={{ background: "#fff", border: "1px solid #fde68a", borderRadius: 8, padding: 12 }}>
+                <div style={{ fontWeight: 800, color: "#92400e", fontSize: 12, marginBottom: 4 }}>
+                  Step 2: Delete Account from WhatsApp Mobile App (If on phone)
+                </div>
+                <p style={{ margin: "0", fontSize: 11, color: "#475569", lineHeight: 1.5 }}>
+                  If the SIM card <strong>+91 77957 83535</strong> is currently active on the WhatsApp Business mobile app on your Android or iPhone device, Meta blocks Cloud API registration.
+                  <br />
+                  👉 Open <strong>WhatsApp Business App</strong> ➔ <strong>Settings</strong> ➔ <strong>Account</strong> ➔ <strong>Delete My Account</strong>.
+                  <br />
+                  <em style={{ color: "#64748b" }}>(Do not just uninstall the app — you must tap &ldquo;Delete My Account&rdquo; so Meta drops the mobile routing).</em>
+                </p>
+              </div>
+
+              {/* Step 3: Turn Off 2FA in Meta WhatsApp Manager */}
+              <div style={{ background: "#fff", border: "1px solid #fde68a", borderRadius: 8, padding: 12 }}>
+                <div style={{ fontWeight: 800, color: "#92400e", fontSize: 12, marginBottom: 4 }}>
+                  Step 3: Turn Off Two-Step Verification (2FA) in Meta
+                </div>
+                <p style={{ margin: "0 0 8px", fontSize: 11, color: "#475569" }}>
+                  If you have access to the Meta WhatsApp Manager for the number, turn off 2FA to allow instant migration:
+                </p>
+                <a
+                  href={`https://business.facebook.com/latest/whatsapp_manager/phone_numbers?business_id=${data?.businessPortfolio.id || "1707214344108990"}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    background: "#fff",
+                    color: "#1877F2",
+                    border: "1.5px solid #93c5fd",
+                    padding: "6px 12px",
+                    borderRadius: 6,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    textDecoration: "none",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 4,
+                  }}
+                >
+                  Open Meta WhatsApp Manager Phone Numbers ↗
+                </a>
+              </div>
+
+              {/* Step 4: Assign ZKWAConnect Agency Partner (246511357935583) */}
+              <div style={{ background: "#fff", border: "1.5px solid #86efac", borderRadius: 8, padding: 12 }}>
+                <div style={{ fontWeight: 800, color: "#166534", fontSize: 12, marginBottom: 4 }}>
+                  Step 4: Assign ZKWAConnect as New Agency Partner (Zero-Copy)
+                </div>
+                <p style={{ margin: "0 0 8px", fontSize: 11, color: "#475569" }}>
+                  Grant <strong>Zkandhavel Infotech Private Limited (Agency Partner ID: 246511357935583)</strong> management permissions under Business Portfolio {data?.businessPortfolio.id || "1707214344108990"}:
+                </p>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <button
+                    type="button"
+                    onClick={handleAutoAssignAgencyPartner}
+                    disabled={assigningPartner}
+                    style={{
+                      background: "#16a34a",
+                      color: "#fff",
+                      border: 0,
+                      borderRadius: 6,
+                      padding: "7px 14px",
+                      fontSize: 11,
+                      fontWeight: 800,
+                      cursor: assigningPartner ? "not-allowed" : "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 4,
+                    }}
+                  >
+                    {assigningPartner ? "Assigning Partner via API…" : "⚡ 1-Click Assign ZKWAConnect Agency Partner"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleAiSensyProvision}
+                    disabled={provisioningWaba}
+                    style={{
+                      background: "#059669",
+                      color: "#fff",
+                      border: 0,
+                      borderRadius: 6,
+                      padding: "7px 14px",
+                      fontSize: 11,
+                      fontWeight: 800,
+                      cursor: provisioningWaba ? "not-allowed" : "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 4,
+                    }}
+                  >
+                    {provisioningWaba ? "Retrying Migration…" : "⚡ Retry 1-Click Provision & Add (+91 77957 83535)"}
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* ========================================================================= */}

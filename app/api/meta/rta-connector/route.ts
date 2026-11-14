@@ -350,7 +350,10 @@ export async function POST(request: NextRequest) {
         }
       } catch (_) {}
 
-      // If phone not yet added to WABA, add it via Meta Graph API
+      let partnerConflict = false
+      let partnerConflictMessage = ""
+
+      // If phone not yet added to WABA, add it via Meta Graph API with migrate_phone_number flag
       if (!resolvedPhoneId) {
         try {
           const addPhoneRes = await metaGraph<{ id: string }>(
@@ -363,11 +366,22 @@ export async function POST(request: NextRequest) {
                 cc,
                 phone_number: rawNumber,
                 verified_name: name,
+                migrate_phone_number: true,
               }),
             }
           )
           resolvedPhoneId = addPhoneRes.id
         } catch (addErr: any) {
+          const msg = addErr.message || ""
+          if (
+            msg.includes("business portfolio you don't manage") ||
+            msg.includes("already on a WhatsApp Business account") ||
+            msg.includes("portfolio") ||
+            msg.includes("registered")
+          ) {
+            partnerConflict = true
+            partnerConflictMessage = msg || "This number is already on a WhatsApp Business account in a business portfolio you don't manage (e.g. AiSensy)."
+          }
           // If limit reached on sandbox or already created, use standard phone ID fallback
           resolvedPhoneId = "1408496172352210"
         }
@@ -430,7 +444,11 @@ export async function POST(request: NextRequest) {
         verifiedName: name,
         verificationStatus,
         isNewWaba,
-        message: `✓ WABA (${resolvedWabaId}) & WhatsApp Phone (${fullDisplayPhone}) successfully provisioned under Business Portfolio ${targetBizId}! Please click 'Request SMS OTP' below to verify.`,
+        partnerConflict,
+        partnerConflictMessage: partnerConflict ? (partnerConflictMessage || "This number is already on a WhatsApp Business account in a business portfolio you don't manage (e.g. AiSensy).") : null,
+        message: partnerConflict
+          ? `⚠️ Service Partner Conflict: Phone ${fullDisplayPhone} is still connected to AiSensy. Follow the release steps below to disconnect AiSensy and link to ZKWAConnect.`
+          : `✓ WABA (${resolvedWabaId}) & WhatsApp Phone (${fullDisplayPhone}) successfully provisioned under Business Portfolio ${targetBizId}! Please click 'Request SMS OTP' below to verify.`,
         waba,
         phone,
       })
