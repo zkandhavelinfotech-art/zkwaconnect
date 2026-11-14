@@ -30,7 +30,7 @@ if (!fs.existsSync(buildIdFile)) {
 }
 
 // Self-Healing Step 2: Auto-run Prisma client generate if missing
-const prismaClientPath = path.join(__dirname, "generated", "prisma", "client", "index.js")
+const prismaClientPath = path.join(__dirname, "generated", "prisma", "client.ts")
 if (!fs.existsSync(prismaClientPath)) {
   console.log("⚙️  [ZKWAConnect] Generating Prisma Client...")
   try {
