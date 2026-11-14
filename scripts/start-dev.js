@@ -20,7 +20,28 @@ if (isProduction) {
 } else {
   const { spawn } = require("node:child_process")
   const path = require("node:path")
+  const fs = require("node:fs")
   const port = process.env.PORT || 3002
+
+  // Auto-clean stale production chunks from .next to prevent 'Cannot find module ./XXXX.js' collisions in next dev
+  const rootPath = path.resolve(__dirname, "..")
+  const nextDir = path.join(rootPath, ".next")
+  const buildIdFile = path.join(nextDir, "BUILD_ID")
+
+  if (fs.existsSync(buildIdFile)) {
+    console.log("==================================================================")
+    console.log("🧹 [ZKWAConnect] Detected production build artifacts in .next directory.")
+    console.log("⚙️  Cleaning stale production webpack cache to prevent chunk collisions...")
+    try {
+      fs.rmSync(path.join(nextDir, "server"), { recursive: true, force: true })
+      fs.rmSync(path.join(nextDir, "cache"), { recursive: true, force: true })
+      fs.rmSync(buildIdFile, { force: true })
+      console.log("✅ [ZKWAConnect] Dev cache cleaned successfully!")
+    } catch (cleanErr) {
+      console.warn("⚠️ [ZKWAConnect] Cache clean notice:", cleanErr?.message || cleanErr)
+    }
+    console.log("==================================================================")
+  }
 
   console.log(`[ZKWAConnect] Starting local development server on port ${port}...`)
   
@@ -28,7 +49,7 @@ if (isProduction) {
   const nextBin = path.join(__dirname, "..", "node_modules", "next", "dist", "bin", "next")
   const child = spawn(process.execPath, [nextBin, "dev", "-p", String(port)], {
     stdio: "inherit",
-    cwd: path.resolve(__dirname, ".."),
+    cwd: rootPath,
     env: { ...process.env, PORT: String(port) },
   })
 
