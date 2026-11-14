@@ -37,6 +37,9 @@ if (isDevSession) {
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
+  // Isolate development cache (.next-dev) from production build (.next)
+  // This permanently guarantees that 'next dev' and 'next build' / 'server.js' never collide or cause missing chunk errors.
+  distDir: (envMap.NODE_ENV === 'development' || isDevSession) ? '.next-dev' : '.next',
   reactStrictMode: true,
   typescript: {
     // When switching between PostgreSQL and MySQL schemas, Prisma type definitions differ slightly (e.g. insensitive mode, json path syntax).
