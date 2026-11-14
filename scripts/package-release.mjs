@@ -41,7 +41,11 @@ const localBuildId = path.join(localNextDir, "BUILD_ID")
 if (!fs.existsSync(localBuildId)) {
   console.log("⚙️  Building optimized production Next.js bundle before packaging...")
   try {
-    execSync("npx next build", { stdio: "inherit", cwd: rootDir, env: { ...process.env, NODE_ENV: "production" } })
+    execSync("npx next build", {
+      stdio: "inherit",
+      cwd: rootDir,
+      env: { ...process.env, NODE_ENV: "production", NODE_OPTIONS: "--max-old-space-size=4096" },
+    })
     console.log("✅ Production Next.js build completed!")
   } catch (buildErr) {
     console.warn("⚠️ Production build warning:", buildErr?.message || buildErr)
