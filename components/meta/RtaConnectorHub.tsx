@@ -590,7 +590,9 @@ export function RtaConnectorHub() {
               <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0, color: "#0f172a", fontFamily: "Sora, sans-serif" }}>
                 WhatsApp Gateway: Recruitment Training Academy
               </h2>
-              <span
+              <button
+                type="button"
+                onClick={() => setActiveStep(3)}
                 style={{
                   background: isVerifiedLive ? "#dcfce7" : "#fef3c7",
                   color: isVerifiedLive ? "#15803d" : "#b45309",
@@ -598,10 +600,15 @@ export function RtaConnectorHub() {
                   borderRadius: 12,
                   fontSize: 11,
                   fontWeight: 800,
+                  border: isVerifiedLive ? "1px solid #86efac" : "1px solid #fde68a",
+                  cursor: isVerifiedLive ? "default" : "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
                 }}
               >
-                {isVerifiedLive ? "● LIVE & VERIFIED" : "⚠️ ACTION REQUIRED: VERIFICATION PENDING"}
-              </span>
+                {isVerifiedLive ? "● LIVE & VERIFIED" : "⚠️ ACTION REQUIRED: VERIFY NOW &rarr;"}
+              </button>
             </div>
             <p style={{ margin: "4px 0 0", fontSize: 13, color: "#64748b" }}>
               Direct Cloud API gateway operates under Meta Business Portfolio <strong>{data?.businessPortfolio.id || "1707214344108990"}</strong>. (No Facebook Page required for messaging).
@@ -609,6 +616,29 @@ export function RtaConnectorHub() {
           </div>
 
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            {!isVerifiedLive && (
+              <button
+                type="button"
+                onClick={() => setActiveStep(3)}
+                style={{
+                  background: "#f59e0b",
+                  color: "#fff",
+                  border: 0,
+                  borderRadius: 8,
+                  padding: "8px 16px",
+                  fontSize: 12,
+                  fontWeight: 800,
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  boxShadow: "0 2px 6px rgba(245, 158, 11, 0.3)",
+                }}
+              >
+                <span>🔐</span> Complete Verification Now &rarr;
+              </button>
+            )}
+
             <button
               type="button"
               onClick={handleSyncWaba}
@@ -699,6 +729,47 @@ export function RtaConnectorHub() {
             <div style={{ fontSize: 11, color: "#64748b" }}>Live Chat Inbox Sync Active</div>
           </div>
         </div>
+
+        {/* Action Required Banner when Verification is Pending */}
+        {!isVerifiedLive && (
+          <div
+            style={{
+              marginTop: 14,
+              background: "#fffbeb",
+              border: "1px solid #fde68a",
+              borderRadius: 8,
+              padding: "10px 14px",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: 10,
+            }}
+          >
+            <div style={{ fontSize: 12, color: "#92400e" }}>
+              <strong>⚠️ Action Required:</strong> WhatsApp Phone (<code>+91 77957 83535</code>) requires a 1-time 6-digit SMS OTP verification to unlock live outbound WhatsApp Cloud API messaging on Meta.
+            </div>
+            <button
+              type="button"
+              onClick={() => setActiveStep(3)}
+              style={{
+                background: "#d97706",
+                color: "#fff",
+                border: 0,
+                borderRadius: 6,
+                padding: "7px 14px",
+                fontSize: 12,
+                fontWeight: 800,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+              }}
+            >
+              Verify Code in Step 3 &rarr;
+            </button>
+          </div>
+        )}
       </div>
 
       {error && (
