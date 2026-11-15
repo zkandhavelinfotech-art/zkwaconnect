@@ -595,6 +595,135 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // ACTION: CREATE BRAND NEW WABA DIRECTLY ON META GRAPH API (AUTOMATED)
+    if (action === "create_new_waba") {
+      const { businessId, name, currency, timezone } = body
+      const targetBizId = businessId || RTA_BUSINESS_ID
+      const wabaName = (name || "Recruitment Training Academy WABA").trim()
+      const curr = currency || "INR"
+      const tz = timezone || "1" // Asia/Kolkata
+
+      try {
+        const createRes = await metaGraph<{ id: string }>(
+          `${targetBizId}/owned_whatsapp_business_accounts`,
+          token,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: wabaName,
+              currency: curr,
+              timezone_id: tz,
+            }),
+          }
+        )
+
+        const newWabaId = createRes.id
+
+        // Upsert in DB
+        const rtaOrg = await prisma.organization.findFirst({
+          where: { slug: { in: ["rta", "recruitment-training-academy"] } },
+        })
+        const targetOrgId = rtaOrg?.id || organizationId
+
+        const savedWaba = await prisma.waba.upsert({
+          where: { wabaId: newWabaId },
+          update: {
+            organizationId: targetOrgId,
+            name: wabaName,
+            status: "CONNECTED",
+            metaBusinessId: targetBizId,
+            currency: curr,
+            timezone: "Asia/Kolkata",
+          },
+          create: {
+            wabaId: newWabaId,
+            organizationId: targetOrgId,
+            name: wabaName,
+            status: "CONNECTED",
+            metaBusinessId: targetBizId,
+            currency: curr,
+            timezone: "Asia/Kolkata",
+          },
+        })
+
+        // Subscribe webhooks
+        try { await subscribeWaba(newWabaId, token) } catch (_) {}
+
+        return NextResponse.json({
+          ok: true,
+          wabaId: newWabaId,
+          name: wabaName,
+          businessId: targetBizId,
+          waba: savedWaba,
+          message: `✓ Brand New WABA created on Meta (WABA ID: ${newWabaId}) under Business Portfolio ${targetBizId}! You can now add and verify phone numbers.`,
+        })
+      } catch (err: any) {
+        return NextResponse.json({
+          ok: false,
+          error: `Meta rejected automated WABA creation: ${err.message}`,
+          manualUrl: `https://business.facebook.com/latest/settings/whatsapp_accounts?business_id=${targetBizId}`,
+          hint: "If your user token lacks permission to create WABAs directly, you can create it via the manual option in Meta Business Suite in 1 click.",
+        }, { status: 400 })
+      }
+    }
+
+    // ACTION: DISCONNECT EXISTING WABA & DEREGISTER PHONE FROM CLOUD API
+    if (action === "disconnect_waba") {
+      const { wabaId, phoneNumberId, deregisterFromMeta } = body
+      const rtaOrg = await prisma.organization.findFirst({
+        where: { slug: { in: ["rta", "recruitment-training-academy"] } },
+      })
+      const targetOrgId = rtaOrg?.id || organizationId
+
+      let deregisterSuccess = false
+      let deregisterError = null
+
+      if (deregisterFromMeta && phoneNumberId) {
+        try {
+          await metaGraph(
+            `${phoneNumberId}/deregister`,
+            token,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            }
+          )
+          deregisterSuccess = true
+        } catch (err: any) {
+          deregisterError = err.message
+        }
+      }
+
+      // Disconnect in DB
+      if (wabaId) {
+        await prisma.phoneNumber.updateMany({
+          where: { waba: { wabaId, organizationId: targetOrgId } },
+          data: { status: "DISCONNECTED", verificationStatus: "NOT_VERIFIED" },
+        })
+        await prisma.waba.updateMany({
+          where: { wabaId, organizationId: targetOrgId },
+          data: { status: "DISCONNECTED" },
+        })
+      } else {
+        await prisma.phoneNumber.updateMany({
+          where: { waba: { organizationId: targetOrgId } },
+          data: { status: "DISCONNECTED", verificationStatus: "NOT_VERIFIED" },
+        })
+        await prisma.waba.updateMany({
+          where: { organizationId: targetOrgId },
+          data: { status: "DISCONNECTED" },
+        })
+      }
+
+      return NextResponse.json({
+        ok: true,
+        deregisterSuccess,
+        deregisterError,
+        message: "✓ WhatsApp Account disconnected from this workspace. You can now create a new WABA or link a different number.",
+      })
+    }
+
     // ACTION 1: Sync WABA and Phone from Meta into Workspace DB so user can send/receive messages immediately
     if (action === "sync_waba") {
       const { wabaId, phoneNumberId, displayPhoneNumber, verifiedName } = body

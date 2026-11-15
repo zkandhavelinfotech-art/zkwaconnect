@@ -120,6 +120,13 @@ export function RtaConnectorHub() {
   // Service Partner Migration (AiSensy -> ZKWAConnect) state
   const [copiedAiSensyEmail, setCopiedAiSensyEmail] = useState(false)
 
+  // Two Options Mode: 1 = Automated API (AiSensy Style), 2 = Manual Meta Suite
+  const [wabaMode, setWabaMode] = useState<"automated" | "manual">("automated")
+  const [newWabaName, setNewWabaName] = useState("Recruitment Training Academy WABA")
+  const [creatingWaba, setCreatingWaba] = useState(false)
+  const [disconnectingWaba, setDisconnectingWaba] = useState(false)
+  const [newWabaCreated, setNewWabaCreated] = useState<any>(null)
+
   const loadData = useCallback(async () => {
     setLoading(true)
     setError("")
@@ -430,6 +437,65 @@ export function RtaConnectorHub() {
     setTimeout(() => setCopiedAiSensyEmail(false), 3000)
   }
 
+  async function handleCreateNewWaba(e: React.FormEvent) {
+    e.preventDefault()
+    setCreatingWaba(true)
+    setError("")
+    setSuccessMsg("")
+    try {
+      const res = await fetch("/api/meta/rta-connector", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "create_new_waba",
+          businessId: data?.businessPortfolio.id || "1707214344108990",
+          name: newWabaName.trim() || "Recruitment Training Academy WABA",
+          currency: "INR",
+          timezone: "1",
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || "Failed to create WABA on Meta")
+      setNewWabaCreated(json)
+      setSuccessMsg(json.message)
+      await loadData()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create new WABA")
+    } finally {
+      setCreatingWaba(false)
+    }
+  }
+
+  async function handleDisconnectWaba() {
+    if (!window.confirm("Are you sure you want to disconnect this WhatsApp Account from this workspace? You can create a new WABA or link a different one immediately.")) {
+      return
+    }
+    setDisconnectingWaba(true)
+    setError("")
+    setSuccessMsg("")
+    try {
+      const primaryPhone = data?.waba.livePhones[0]
+      const res = await fetch("/api/meta/rta-connector", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "disconnect_waba",
+          wabaId: data?.waba.primaryWaba?.id,
+          phoneNumberId: primaryPhone?.id,
+          deregisterFromMeta: true,
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || "Failed to disconnect WABA")
+      setSuccessMsg(json.message)
+      await loadData()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error disconnecting WABA")
+    } finally {
+      setDisconnectingWaba(false)
+    }
+  }
+
   if (loading && !data) {
     return <div style={{ padding: 32, textAlign: "center", color: "#64748b" }}>Loading RTA WhatsApp & Facebook status…</div>
   }
@@ -603,7 +669,152 @@ export function RtaConnectorHub() {
                 {data?.waba.webhookSubscribed ? "● Subscribed & Active" : "○ Ready for Subscription"}
               </span>
             </div>
+
+            {/* Disconnect Action */}
+            <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+              <span style={{ fontSize: 11, color: "#64748b" }}>
+                Need to remove existing service partner (AiSensy) or start with a brand new WABA?
+              </span>
+              <button
+                type="button"
+                onClick={handleDisconnectWaba}
+                disabled={disconnectingWaba}
+                style={{
+                  background: "#fff",
+                  color: "#b91c1c",
+                  border: "1.5px solid #fecaca",
+                  borderRadius: 6,
+                  padding: "5px 12px",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  cursor: disconnectingWaba ? "not-allowed" : "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                }}
+              >
+                {disconnectingWaba ? "Disconnecting…" : "🛑 Disconnect / Release Current WABA & Phone"}
+              </button>
+            </div>
           </div>
+
+          {/* ========================================================================= */}
+          {/* TWO OPTIONS SWITCH: 1 = AUTOMATED API MODE, 2 = MANUAL META SUITE MODE   */}
+          {/* ========================================================================= */}
+          <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+            <button
+              type="button"
+              onClick={() => setWabaMode("automated")}
+              style={{
+                flex: 1,
+                minWidth: 200,
+                padding: "10px 14px",
+                borderRadius: 8,
+                border: wabaMode === "automated" ? "2px solid #059669" : "1.5px solid #cbd5e1",
+                background: wabaMode === "automated" ? "#f0fdf4" : "#fff",
+                color: wabaMode === "automated" ? "#065f46" : "#475569",
+                fontWeight: 800,
+                fontSize: 12,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                boxShadow: wabaMode === "automated" ? "0 2px 6px rgba(5, 150, 105, 0.15)" : "none",
+              }}
+            >
+              <span>⚡ Option 1: Automated Mode (AiSensy Style API)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setWabaMode("manual")}
+              style={{
+                flex: 1,
+                minWidth: 200,
+                padding: "10px 14px",
+                borderRadius: 8,
+                border: wabaMode === "manual" ? "2px solid #1877F2" : "1.5px solid #cbd5e1",
+                background: wabaMode === "manual" ? "#eff6ff" : "#fff",
+                color: wabaMode === "manual" ? "#1e40af" : "#475569",
+                fontWeight: 800,
+                fontSize: 12,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                boxShadow: wabaMode === "manual" ? "0 2px 6px rgba(24, 119, 242, 0.15)" : "none",
+              }}
+            >
+              <span>🛠️ Option 2: Manual Mode (Direct Meta Suite)</span>
+            </button>
+          </div>
+
+          {wabaMode === "automated" ? (
+            <>
+              {/* Card: Auto-Create Brand New WABA */}
+              <div
+                style={{
+                  background: "#fff",
+                  border: "1.5px solid #cbd5e1",
+                  borderRadius: 10,
+                  padding: 14,
+                  marginBottom: 16,
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, flexWrap: "wrap", gap: 6 }}>
+                  <div style={{ fontWeight: 800, fontSize: 13, color: "#0f172a", display: "flex", alignItems: "center", gap: 6 }}>
+                    <span>✨</span> Create Brand New WABA Account (Automated)
+                  </div>
+                  <span style={{ fontSize: 10, fontWeight: 800, background: "#e2e8f0", color: "#334155", padding: "2px 8px", borderRadius: 10 }}>
+                    NEW WABA GENERATOR
+                  </span>
+                </div>
+                <p style={{ margin: "0 0 10px", fontSize: 11, color: "#64748b", lineHeight: 1.4 }}>
+                  If your existing WABA is blocked by an old service partner or full, click below to automatically create a fresh WABA ID on Meta under Portfolio <strong>{data?.businessPortfolio.id || "1707214344108990"}</strong>:
+                </p>
+
+                <form onSubmit={handleCreateNewWaba} style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <input
+                    type="text"
+                    value={newWabaName}
+                    onChange={e => setNewWabaName(e.target.value)}
+                    placeholder="New WABA Name"
+                    style={{
+                      flex: 1,
+                      minWidth: 200,
+                      border: "1px solid #cbd5e1",
+                      borderRadius: 6,
+                      padding: "8px 10px",
+                      fontSize: 12,
+                    }}
+                  />
+                  <button
+                    type="submit"
+                    disabled={creatingWaba}
+                    style={{
+                      background: "#0f172a",
+                      color: "#fff",
+                      border: 0,
+                      borderRadius: 6,
+                      padding: "8px 16px",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: creatingWaba ? "not-allowed" : "pointer",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {creatingWaba ? "Creating on Meta…" : "✨ Create New WABA ID on Meta"}
+                  </button>
+                </form>
+
+                {newWabaCreated && (
+                  <div style={{ marginTop: 8, background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 6, padding: "6px 10px", fontSize: 11, color: "#166534" }}>
+                    ✓ Created New WABA: <strong>{newWabaCreated.name}</strong> (ID: <code>{newWabaCreated.wabaId}</code>)
+                  </div>
+                )}
+              </div>
 
           {/* ========================================================================= */}
           {/* AISENSY-STYLE AUTOMATED WABA & PHONE PROVISIONING (NO MANUAL WABA NEEDED) */}
@@ -1068,6 +1279,229 @@ export function RtaConnectorHub() {
               </div>
             )}
           </div>
+            </>
+          ) : (
+            /* ========================================================================= */
+            /* OPTION 2: MANUAL MODE (META BUSINESS SUITE DIRECT LINKS & INPUT FORM)     */
+            /* ========================================================================= */
+            <div
+              style={{
+                background: "#f8fafc",
+                border: "1.5px solid #93c5fd",
+                borderRadius: 10,
+                padding: 16,
+                marginBottom: 16,
+                boxShadow: "0 2px 8px rgba(24, 119, 242, 0.08)",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 20 }}>🛠️</span>
+                  <h4 style={{ fontSize: 14, fontWeight: 800, margin: 0, color: "#1e40af", fontFamily: "Sora, sans-serif" }}>
+                    Manual Meta Business Suite Setup &amp; Direct Links
+                  </h4>
+                </div>
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 800,
+                    background: "#1877F2",
+                    color: "#fff",
+                    padding: "3px 8px",
+                    borderRadius: 12,
+                  }}
+                >
+                  MANUAL SETUP
+                </span>
+              </div>
+
+              <p style={{ fontSize: 12, color: "#334155", lineHeight: 1.5, margin: "0 0 12px" }}>
+                Prefer to configure everything directly inside Meta Business Manager? Use these pre-filled direct links to create or release your WABA, then paste the IDs below:
+              </p>
+
+              {/* 3 Step Direct Launchers */}
+              <div style={{ display: "grid", gap: 8, marginBottom: 14 }}>
+                <a
+                  href={`https://business.facebook.com/latest/settings/whatsapp_accounts?business_id=${data?.businessPortfolio.id || "1707214344108990"}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    background: "#fff",
+                    border: "1px solid #bfdbfe",
+                    borderRadius: 6,
+                    padding: "8px 12px",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: "#1d4ed8",
+                    textDecoration: "none",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <span>➕ Step 1: Open Meta Business Suite &rarr; WhatsApp Accounts (Create WABA)</span>
+                  <span>↗</span>
+                </a>
+
+                <a
+                  href={`https://business.facebook.com/latest/whatsapp_manager/phone_numbers?business_id=${data?.businessPortfolio.id || "1707214344108990"}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    background: "#fff",
+                    border: "1px solid #bfdbfe",
+                    borderRadius: 6,
+                    padding: "8px 12px",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: "#1d4ed8",
+                    textDecoration: "none",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <span>📱 Step 2: Open WhatsApp Manager &rarr; Phone Numbers (Manage/Release &amp; Turn off 2FA)</span>
+                  <span>↗</span>
+                </a>
+
+                <a
+                  href={`https://business.facebook.com/settings/partners/client-partners/add?business_id=${data?.businessPortfolio.id || "1707214344108990"}&partner_id=246511357935583`}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    background: "#fff",
+                    border: "1px solid #86efac",
+                    borderRadius: 6,
+                    padding: "8px 12px",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: "#15803d",
+                    textDecoration: "none",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <span>🤝 Step 3: Assign Agency Partner (Zkandhavel Infotech: 246511357935583 &bull; Pre-filled)</span>
+                  <span>↗</span>
+                </a>
+              </div>
+
+              {/* Manual Connect Form */}
+              <div style={{ background: "#fff", border: "1px solid #cbd5e1", borderRadius: 8, padding: 14 }}>
+                <div style={{ fontWeight: 800, fontSize: 12, color: "#0f172a", marginBottom: 10 }}>
+                  Link Manually Created WABA &amp; Phone to Workspace:
+                </div>
+
+                <form onSubmit={handleConnectOfficialWaba} style={{ display: "grid", gap: 10 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 8 }}>
+                    <div>
+                      <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#334155", marginBottom: 2 }}>
+                        WABA ID:
+                      </label>
+                      <input
+                        type="text"
+                        value={officialWabaId}
+                        onChange={e => setOfficialWabaId(e.target.value)}
+                        placeholder="e.g. 1169391638991834"
+                        style={{
+                          width: "100%",
+                          boxSizing: "border-box",
+                          border: "1px solid #cbd5e1",
+                          borderRadius: 6,
+                          padding: "6px 8px",
+                          fontSize: 12,
+                          fontFamily: "monospace",
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#334155", marginBottom: 2 }}>
+                        Phone Number ID:
+                      </label>
+                      <input
+                        type="text"
+                        value={officialPhoneId}
+                        onChange={e => setOfficialPhoneId(e.target.value)}
+                        placeholder="e.g. 1408496172352210"
+                        style={{
+                          width: "100%",
+                          boxSizing: "border-box",
+                          border: "1px solid #cbd5e1",
+                          borderRadius: 6,
+                          padding: "6px 8px",
+                          fontSize: 12,
+                          fontFamily: "monospace",
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 8 }}>
+                    <div>
+                      <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#334155", marginBottom: 2 }}>
+                        Display Phone Number:
+                      </label>
+                      <input
+                        type="text"
+                        value={officialPhoneNumber}
+                        onChange={e => setOfficialPhoneNumber(e.target.value)}
+                        placeholder="+91 77957 83535"
+                        style={{
+                          width: "100%",
+                          boxSizing: "border-box",
+                          border: "1px solid #cbd5e1",
+                          borderRadius: 6,
+                          padding: "6px 8px",
+                          fontSize: 12,
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#334155", marginBottom: 2 }}>
+                        Verified Business Name:
+                      </label>
+                      <input
+                        type="text"
+                        value={officialVerifiedName}
+                        onChange={e => setOfficialVerifiedName(e.target.value)}
+                        placeholder="Recruitment Training Academy"
+                        style={{
+                          width: "100%",
+                          boxSizing: "border-box",
+                          border: "1px solid #cbd5e1",
+                          borderRadius: 6,
+                          padding: "6px 8px",
+                          fontSize: 12,
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={connectingOfficial || !officialWabaId.trim() || !officialPhoneId.trim()}
+                    style={{
+                      background: "#1877F2",
+                      color: "#fff",
+                      border: 0,
+                      borderRadius: 6,
+                      padding: "8px 16px",
+                      fontSize: 12,
+                      fontWeight: 800,
+                      cursor: connectingOfficial || !officialWabaId.trim() || !officialPhoneId.trim() ? "not-allowed" : "pointer",
+                      marginTop: 4,
+                    }}
+                  >
+                    {connectingOfficial ? "Verifying & Connecting…" : "💾 Save & Connect Manual WABA to Workspace"}
+                  </button>
+                </form>
+              </div>
+            </div>
+          )}
 
           {/* Live Message Tester Form */}
           <div style={{ border: "1.5px solid #a7f3d0", borderRadius: 8, padding: 16, background: "#f0fdf4" }}>
