@@ -110,6 +110,7 @@ export function RtaConnectorHub() {
   // AiSensy Provisioning & OTP Verification state
   const [provisioningWaba, setProvisioningWaba] = useState(false)
   const [provisionResult, setProvisionResult] = useState<any>(null)
+  const [phoneIdInput, setPhoneIdInput] = useState("")
   const [requestingOtp, setRequestingOtp] = useState(false)
   const [otpSent, setOtpSent] = useState(false)
   const [otpCode, setOtpCode] = useState("")
@@ -351,7 +352,10 @@ export function RtaConnectorHub() {
     setSuccessMsg("")
     try {
       const primaryPhone = data?.waba.livePhones[0]
-      const phoneId = provisionResult?.phoneNumberId || primaryPhone?.id || "1408496172352210"
+      const phoneId = phoneIdInput.trim() || provisionResult?.phoneNumberId || (primaryPhone?.id && primaryPhone.id !== "1408496172352210" ? primaryPhone.id : "")
+      if (!phoneId) {
+        throw new Error("Phone +91 77957 83535 is not yet attached to a WABA on Meta. Please enter your Meta Phone Number ID from Meta WhatsApp Manager below before requesting OTP. (ID 1408496172352210 is Meta's US test number).")
+      }
       const res = await fetch("/api/meta/rta-connector", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -383,7 +387,7 @@ export function RtaConnectorHub() {
     setSuccessMsg("")
     try {
       const primaryPhone = data?.waba.livePhones[0]
-      const phoneId = provisionResult?.phoneNumberId || primaryPhone?.id || "1408496172352210"
+      const phoneId = phoneIdInput.trim() || provisionResult?.phoneNumberId || primaryPhone?.id || "1408496172352210"
       const res = await fetch("/api/meta/rta-connector", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1414,6 +1418,48 @@ export function RtaConnectorHub() {
               >
                 {isVerifiedLive ? "✓ VERIFIED & LIVE" : "VERIFICATION REQUIRED"}
               </span>
+            </div>
+
+            {/* Target Meta Phone Number ID Selector */}
+            <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: 12, marginBottom: 14 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, flexWrap: "wrap", gap: 6 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "#334155" }}>
+                  Target Phone Number ID for +91 77957 83535:
+                </label>
+                <a
+                  href={`https://business.facebook.com/latest/whatsapp_manager/phone_numbers?business_id=${data?.businessPortfolio.id || "1707214344108990"}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ fontSize: 11, color: "#1877F2", fontWeight: 700, textDecoration: "none" }}
+                >
+                  Open Meta WhatsApp Manager Phone Numbers ↗
+                </a>
+              </div>
+
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <input
+                  type="text"
+                  value={phoneIdInput}
+                  onChange={e => setPhoneIdInput(e.target.value.trim())}
+                  placeholder={provisionResult?.phoneNumberId || (data?.waba.livePhones[0]?.id && data.waba.livePhones[0].id !== "1408496172352210" ? data.waba.livePhones[0].id : "Paste Meta Phone Number ID (e.g. 582910481239...)")}
+                  style={{
+                    flex: 1,
+                    border: "1px solid #cbd5e1",
+                    borderRadius: 6,
+                    padding: "7px 10px",
+                    fontSize: 12,
+                    fontFamily: "monospace",
+                  }}
+                />
+              </div>
+
+              {(!phoneIdInput && (!data?.waba.livePhones[0]?.id || data.waba.livePhones[0].id === "1408496172352210")) && (
+                <div style={{ marginTop: 8, background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 6, padding: "8px 10px", fontSize: 11, color: "#92400e", lineHeight: 1.4 }}>
+                  ⚠️ <strong>Why you didn&apos;t receive SMS:</strong> Phone <code>+91 77957 83535</code> is not yet attached to a WABA on Meta, or fallback ID <code>1408496172352210</code> was used (which is Meta&apos;s US virtual sandbox test phone <code>+1 555-140-6238</code>).
+                  <br />
+                  👉 Open <strong><a href={`https://business.facebook.com/latest/whatsapp_manager/phone_numbers?business_id=${data?.businessPortfolio.id || "1707214344108990"}`} target="_blank" rel="noreferrer" style={{ color: "#b45309", textDecoration: "underline", fontWeight: 700 }}>Meta WhatsApp Manager &rarr; Phone Numbers</a></strong>, click <strong>&ldquo;Add Phone Number&rdquo;</strong>, then paste the assigned <strong>Phone Number ID</strong> above!
+                </div>
+              )}
             </div>
 
             <p style={{ fontSize: 12, color: "#64748b", margin: "0 0 12px" }}>

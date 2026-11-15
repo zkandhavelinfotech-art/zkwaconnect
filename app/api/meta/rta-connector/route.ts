@@ -457,8 +457,18 @@ export async function POST(request: NextRequest) {
     // ACTION: REQUEST PHONE OTP (SMS OR VOICE)
     if (action === "request_phone_otp") {
       const { phoneNumberId, codeMethod } = body
-      const targetPhoneId = phoneNumberId || "1408496172352210"
+      const targetPhoneId = (phoneNumberId || "").trim()
       const method = codeMethod === "VOICE" ? "VOICE" : "SMS"
+
+      if (!targetPhoneId || targetPhoneId === "1408496172352210") {
+        return NextResponse.json({
+          ok: false,
+          isSandboxFallback: true,
+          error: `Phone +91 77957 83535 has not been assigned a Meta Phone Number ID yet (ID 1408496172352210 is Meta's fictitious sandbox test phone +1 555-140-6238). Meta cannot send an SMS to your SIM until +91 77957 83535 is added in Meta WhatsApp Manager or released by AiSensy in Step 2.`,
+          manualUrl: `https://business.facebook.com/latest/whatsapp_manager/phone_numbers?business_id=${RTA_BUSINESS_ID}`,
+          hint: "Open Meta WhatsApp Manager > Add Phone Number (+91 77957 83535), then paste its Phone Number ID below to verify via OTP.",
+        }, { status: 400 })
+      }
 
       try {
         const bodyParams = new URLSearchParams({ code_method: method, language: "en_US" })
@@ -475,7 +485,7 @@ export async function POST(request: NextRequest) {
           ok: true,
           phoneNumberId: targetPhoneId,
           codeMethod: method,
-          message: `✓ 6-digit verification code successfully sent via ${method} to +91 77957 83535! Check your SMS/Phone and enter the code below.`,
+          message: `✓ 6-digit verification code successfully sent via ${method} to phone ID ${targetPhoneId}! Check your phone and enter the code below.`,
         })
       } catch (err: any) {
         return NextResponse.json({
