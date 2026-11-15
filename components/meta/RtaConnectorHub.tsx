@@ -1146,6 +1146,152 @@ export function RtaConnectorHub() {
               </div>
             )}
           </div>
+
+          {/* ============================================================== */}
+          {/* RESOLUTION HUB: 4 DUPLICATE GHOST ACCOUNTS (AUTOMATED & MANUAL)*/}
+          {/* ============================================================== */}
+          <div style={{ marginTop: 18, background: "#f8fafc", border: "1.5px solid #cbd5e1", borderRadius: 10, padding: 18 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 20 }}>🧹</span>
+                <h4 style={{ fontSize: 14, fontWeight: 800, margin: 0, color: "#0f172a", fontFamily: "Sora, sans-serif" }}>
+                  Resolution Hub: Clean Up 4 Duplicate Ghost WhatsApp Accounts
+                </h4>
+              </div>
+              <span style={{ fontSize: 10, fontWeight: 800, background: "#0f172a", color: "#fff", padding: "3px 8px", borderRadius: 12 }}>
+                DUAL: AUTOMATED &amp; MANUAL
+              </span>
+            </div>
+
+            <p style={{ fontSize: 12, color: "#475569", lineHeight: 1.5, margin: "0 0 12px" }}>
+              In your Meta Business Suite screenshots (<em>Users &rarr; People</em> and <em>Users &rarr; Partners</em>), there are <strong>4 duplicate WhatsApp accounts</strong> named &ldquo;Recruitment Training Academy&rdquo;. These were created when WhatsApp was linked to the Facebook Page, but <strong>none of them have a phone number verified yet</strong>. Follow either path below:
+            </p>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 14 }}>
+              {/* Path 1: Automated In-App Way */}
+              <div style={{ background: "#fff", border: "1px solid #86efac", borderRadius: 8, padding: 14 }}>
+                <div style={{ fontWeight: 800, fontSize: 12, color: "#166534", marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
+                  <span>⚡</span> Path 1: Automated In-App Actions
+                </div>
+                <p style={{ margin: "0 0 10px", fontSize: 11, color: "#475569", lineHeight: 1.4 }}>
+                  Use our background API to sync live Meta status, release stale bindings, or auto-assign ZKWAConnect:
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <button
+                    type="button"
+                    onClick={handleSyncWaba}
+                    disabled={syncing}
+                    style={{
+                      background: "#10b981",
+                      color: "#fff",
+                      border: 0,
+                      borderRadius: 6,
+                      padding: "7px 12px",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      textAlign: "left",
+                    }}
+                  >
+                    {syncing ? "Syncing…" : "🔄 1-Click Refresh & Sync All Meta WABAs"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleDisconnectWaba}
+                    disabled={disconnectingWaba}
+                    style={{
+                      background: "#fff",
+                      color: "#b91c1c",
+                      border: "1px solid #fecaca",
+                      borderRadius: 6,
+                      padding: "7px 12px",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      cursor: disconnectingWaba ? "not-allowed" : "pointer",
+                      textAlign: "left",
+                    }}
+                  >
+                    {disconnectingWaba ? "Disconnecting…" : "🛑 Disconnect / Reset Current Workspace Binding"}
+                  </button>
+                </div>
+              </div>
+
+              {/* Path 2: Manual Direct Links (Exact Screenshots) */}
+              <div style={{ background: "#fff", border: "1px solid #93c5fd", borderRadius: 8, padding: 14 }}>
+                <div style={{ fontWeight: 800, fontSize: 12, color: "#1e40af", marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
+                  <span>🛠️</span> Path 2: Manual Meta Business Suite Deep Links
+                </div>
+                <p style={{ margin: "0 0 10px", fontSize: 11, color: "#475569", lineHeight: 1.4 }}>
+                  Direct links to your exact Meta Business Suite screens to delete duplicates or add your number:
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <a
+                    href={`https://business.facebook.com/latest/settings/business_users?business_id=${data?.businessPortfolio.id || "1707214344108990"}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      background: "#eff6ff",
+                      color: "#1d4ed8",
+                      border: "1px solid #bfdbfe",
+                      borderRadius: 6,
+                      padding: "6px 10px",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      textDecoration: "none",
+                      display: "flex",
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    <span>🗑️ Delete 3 Duplicate Accounts (Image 1 Screen)</span>
+                    <span>↗</span>
+                  </a>
+
+                  <a
+                    href={`https://business.facebook.com/latest/settings/whatsapp_business_presence?business_id=${data?.businessPortfolio.id || "1707214344108990"}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      background: "#eff6ff",
+                      color: "#1d4ed8",
+                      border: "1px solid #bfdbfe",
+                      borderRadius: 6,
+                      padding: "6px 10px",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      textDecoration: "none",
+                      display: "flex",
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    <span>📱 Add Phone Number in Asset (Image 4 Screen)</span>
+                    <span>↗</span>
+                  </a>
+
+                  <a
+                    href={`https://business.facebook.com/latest/whatsapp_manager/phone_numbers?business_id=${data?.businessPortfolio.id || "1707214344108990"}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      background: "#f8fafc",
+                      color: "#334155",
+                      border: "1px solid #cbd5e1",
+                      borderRadius: 6,
+                      padding: "6px 10px",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      textDecoration: "none",
+                      display: "flex",
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    <span>⚙️ Open Official WhatsApp Manager</span>
+                    <span>↗</span>
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
