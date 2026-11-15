@@ -1,6 +1,5 @@
 "use client"
 import { useCallback, useEffect, useState } from "react"
-import { ProductionUpgradeManager } from "@/components/meta/ProductionUpgradeManager"
 
 type WabaInfo = {
   id: string
@@ -79,17 +78,23 @@ export function RtaConnectorHub() {
   const [error, setError] = useState("")
   const [successMsg, setSuccessMsg] = useState("")
 
+  // Stepper active step (1: WABA Account, 2: WhatsApp Number & Migration, 3: Verification & Test)
+  const [activeStep, setActiveStep] = useState<1 | 2 | 3>(1)
+
+  // Two Options Switcher: "automated" = AiSensy-style Graph API, "manual" = Direct Meta Suite
+  const [wabaMode, setWabaMode] = useState<"automated" | "manual">("automated")
+
   // Sync state
   const [syncing, setSyncing] = useState(false)
 
   // Test message state
   const [testRecipient, setTestRecipient] = useState("919632108103")
   const [recipientLabel, setRecipientLabel] = useState("Customer RTA")
-  const [testText, setTestText] = useState("Hello from Recruitment Training Academy (+91 77957 83535)! Your direct WhatsApp messaging is active.")
+  const [testText, setTestText] = useState("Hello from Recruitment Training Academy (+91 77957 83535)! Your direct WhatsApp messaging gateway is active.")
   const [sendingTest, setSendingTest] = useState(false)
   const [testResult, setTestResult] = useState<any>(null)
 
-  // Official Production WABA state
+  // Official Production WABA state (Manual Mode)
   const [officialWabaId, setOfficialWabaId] = useState("1169391638991834")
   const [officialPhoneId, setOfficialPhoneId] = useState("")
   const [officialPhoneNumber, setOfficialPhoneNumber] = useState("+91 77957 83535")
@@ -117,11 +122,10 @@ export function RtaConnectorHub() {
   const [partnerAssigned, setPartnerAssigned] = useState(false)
   const [partnerAssignResult, setPartnerAssignResult] = useState<any>(null)
 
-  // Service Partner Migration (AiSensy -> ZKWAConnect) state
+  // Service Partner Migration state
   const [copiedAiSensyEmail, setCopiedAiSensyEmail] = useState(false)
 
-  // Two Options Mode: 1 = Automated API (AiSensy Style), 2 = Manual Meta Suite
-  const [wabaMode, setWabaMode] = useState<"automated" | "manual">("automated")
+  // New WABA Generator state
   const [newWabaName, setNewWabaName] = useState("Recruitment Training Academy WABA")
   const [creatingWaba, setCreatingWaba] = useState(false)
   const [disconnectingWaba, setDisconnectingWaba] = useState(false)
@@ -301,9 +305,7 @@ export function RtaConnectorHub() {
       })
       const json = await res.json()
       setLinkResult(json)
-      if (json.ok) {
-        setSuccessMsg(json.message)
-      } else if (json.message) {
+      if (json.ok || json.message) {
         setSuccessMsg(json.message)
       }
     } catch (err) {
@@ -333,6 +335,7 @@ export function RtaConnectorHub() {
       if (!res.ok) throw new Error(json.error || "Provisioning failed")
       setProvisionResult(json)
       setSuccessMsg(json.message)
+      setActiveStep(3)
       await loadData()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to provision WABA and Phone")
@@ -458,6 +461,7 @@ export function RtaConnectorHub() {
       if (!res.ok) throw new Error(json.error || "Failed to create WABA on Meta")
       setNewWabaCreated(json)
       setSuccessMsg(json.message)
+      setActiveStep(2)
       await loadData()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create new WABA")
@@ -480,14 +484,13 @@ export function RtaConnectorHub() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "disconnect_waba",
-          wabaId: data?.waba.primaryWaba?.id,
           phoneNumberId: primaryPhone?.id,
-          deregisterFromMeta: true,
         }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || "Failed to disconnect WABA")
       setSuccessMsg(json.message)
+      setActiveStep(1)
       await loadData()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error disconnecting WABA")
@@ -497,19 +500,26 @@ export function RtaConnectorHub() {
   }
 
   if (loading && !data) {
-    return <div style={{ padding: 32, textAlign: "center", color: "#64748b" }}>Loading RTA WhatsApp & Facebook status…</div>
+    return (
+      <div style={{ padding: 40, textAlign: "center", color: "#64748b", background: "#fff", borderRadius: 12, border: "1px solid #e2e8f0" }}>
+        <div style={{ fontSize: 24, marginBottom: 8 }}>⏳</div>
+        <p style={{ fontWeight: 700, margin: 0 }}>Loading WhatsApp Cloud API Status…</p>
+      </div>
+    )
   }
 
+  const isVerifiedLive = phoneVerified || data?.waba.livePhones[0]?.code_verification_status === "VERIFIED"
+
   return (
-    <div style={{ display: "grid", gap: 20, fontFamily: "DM Sans, system-ui, sans-serif" }}>
-      {/* Multi-Tenant Workspace Selector Banner */}
+    <div style={{ display: "grid", gap: 20 }}>
+      {/* Workspace Selector Bar */}
       {data?.activeWorkspace && (
         <div
           style={{
             background: data.activeWorkspace.isRta ? "#f0fdf4" : "#fffbeb",
             border: `1.5px solid ${data.activeWorkspace.isRta ? "#86efac" : "#fde68a"}`,
             borderRadius: 12,
-            padding: "14px 18px",
+            padding: "12px 18px",
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
@@ -519,12 +529,12 @@ export function RtaConnectorHub() {
         >
           <div>
             <div style={{ fontSize: 12, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", color: data.activeWorkspace.isRta ? "#15803d" : "#b45309" }}>
-              🏢 Active Project Workspace: <strong>{data.activeWorkspace.name}</strong>
+              🏢 Active Workspace: <strong>{data.activeWorkspace.name}</strong>
             </div>
             <p style={{ margin: "2px 0 0", fontSize: 12, color: "#475569" }}>
               {data.activeWorkspace.isRta
-                ? "✓ You are currently operating inside the Recruitment Training Academy project workspace with WABA 1169391638991834."
-                : `You are in "${data.activeWorkspace.name}". Switch to Recruitment Training Academy to isolate its WABA, contacts, and live inbox.`}
+                ? "Operating inside Recruitment Training Academy workspace (WABA ID: 1169391638991834)."
+                : `Currently in "${data.activeWorkspace.name}". Switch to Recruitment Training Academy to isolate its WABA.`}
             </p>
           </div>
 
@@ -541,7 +551,7 @@ export function RtaConnectorHub() {
                     color: w.isRta ? "#fff" : "#334155",
                     border: w.isRta ? 0 : "1px solid #cbd5e1",
                     borderRadius: 6,
-                    padding: "7px 14px",
+                    padding: "6px 12px",
                     fontSize: 12,
                     fontWeight: 700,
                     cursor: "pointer",
@@ -554,70 +564,44 @@ export function RtaConnectorHub() {
         </div>
       )}
 
-      {/* Top Banner: Explaining Direct WhatsApp Cloud API without Facebook Page */}
+      {/* ============================================================== */}
+      {/* HERO COMPONENT: AISENSY-STYLE ACCOUNT HEALTH STATUS CARD       */}
+      {/* ============================================================== */}
       <div
         style={{
-          background: "linear-gradient(135deg, #065f46 0%, #047857 100%)",
+          background: "#fff",
+          border: isVerifiedLive ? "2px solid #10b981" : "2px solid #e2e8f0",
           borderRadius: 14,
-          padding: "24px 26px",
-          color: "#fff",
-          boxShadow: "0 4px 14px rgba(6, 95, 70, 0.25)",
+          padding: 22,
+          boxShadow: isVerifiedLive ? "0 4px 14px rgba(16, 185, 129, 0.12)" : "0 2px 6px rgba(0,0,0,0.04)",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-          <span style={{ fontSize: 24 }}>💡</span>
-          <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0, fontFamily: "Sora, sans-serif" }}>
-            Good News for WhatsApp Business: A Facebook Page is NOT Required!
-          </h2>
-        </div>
-        <p style={{ fontSize: 13, lineHeight: 1.6, color: "#d1fae5", margin: "0 0 14px", maxWidth: 900 }}>
-          Your WhatsApp Cloud API gateway operates <strong>directly</strong> on your WhatsApp Business Account (WABA ID:{" "}
-          <strong style={{ color: "#fff" }}>{data?.waba.primaryWaba?.id || "1169391638991834"}</strong>) under Business Portfolio{" "}
-          <strong style={{ color: "#fff" }}>{data?.businessPortfolio.id || "1707214344108990"}</strong> (
-          <em>{data?.businessPortfolio.name}</em>). You can send broadcasts, chat with candidates, and trigger automated alerts immediately without waiting for Facebook Page approval!
-        </p>
-
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-          <span style={{ background: "rgba(255,255,255,0.2)", padding: "4px 12px", borderRadius: 20, fontSize: 12, fontWeight: 700 }}>
-            ⚡ Business Portfolio: {data?.businessPortfolio.id || "1707214344108990"}
-          </span>
-          <span style={{ background: "rgba(255,255,255,0.2)", padding: "4px 12px", borderRadius: 20, fontSize: 12, fontWeight: 700 }}>
-            📱 WhatsApp Phone: +91 77957 83535
-          </span>
-          <span style={{ background: "rgba(255,255,255,0.2)", padding: "4px 12px", borderRadius: 20, fontSize: 12, fontWeight: 700 }}>
-            🚀 Meta App: {data?.metaAppId || "1710743377107186"}
-          </span>
-        </div>
-      </div>
-
-      {error && (
-        <div style={{ background: "#fef2f2", border: "1px solid #fecaca", padding: "12px 16px", borderRadius: 8, color: "#991b1b", fontSize: 13 }}>
-          <strong>Error:</strong> {error}
-        </div>
-      )}
-
-      {successMsg && (
-        <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", padding: "12px 16px", borderRadius: 8, color: "#166534", fontSize: 13 }}>
-          {successMsg}
-        </div>
-      )}
-
-      {/* Main Grid: Left = Direct WhatsApp Cloud API; Right = Facebook Page Linking */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 480px), 1fr))", gap: 20 }}>
-        
-        {/* ============================================================== */}
-        {/* SECTION 1: HOW TO USE DIRECT WHATSAPP CLOUD API FOR RTA       */}
-        {/* ============================================================== */}
-        <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 22, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: "#059669" }}>
-                Part 1 &bull; Direct WhatsApp Cloud API
-              </div>
-              <h3 style={{ fontSize: 16, fontWeight: 800, margin: "4px 0 0", color: "#0f172a", fontFamily: "Sora, sans-serif" }}>
-                ⚡ How to Use WhatsApp for RTA Now
-              </h3>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 14, marginBottom: 18 }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 20 }}>{isVerifiedLive ? "🟢" : "🟡"}</span>
+              <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0, color: "#0f172a", fontFamily: "Sora, sans-serif" }}>
+                WhatsApp Gateway: Recruitment Training Academy
+              </h2>
+              <span
+                style={{
+                  background: isVerifiedLive ? "#dcfce7" : "#fef3c7",
+                  color: isVerifiedLive ? "#15803d" : "#b45309",
+                  padding: "3px 10px",
+                  borderRadius: 12,
+                  fontSize: 11,
+                  fontWeight: 800,
+                }}
+              >
+                {isVerifiedLive ? "● LIVE & VERIFIED" : "⚠️ ACTION REQUIRED: VERIFICATION PENDING"}
+              </span>
             </div>
+            <p style={{ margin: "4px 0 0", fontSize: 13, color: "#64748b" }}>
+              Direct Cloud API gateway operates under Meta Business Portfolio <strong>{data?.businessPortfolio.id || "1707214344108990"}</strong>. (No Facebook Page required for messaging).
+            </p>
+          </div>
+
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <button
               type="button"
               onClick={handleSyncWaba}
@@ -626,252 +610,459 @@ export function RtaConnectorHub() {
                 background: data?.waba.dbSynced ? "#f0fdf4" : "#10b981",
                 color: data?.waba.dbSynced ? "#166534" : "#fff",
                 border: data?.waba.dbSynced ? "1px solid #bbf7d0" : 0,
+                borderRadius: 8,
+                padding: "8px 14px",
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
+              <span>{syncing ? "⏳" : "🔄"}</span>
+              {syncing ? "Syncing…" : data?.waba.dbSynced ? "✓ Synced with Workspace" : "Sync WABA to Inbox"}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleDisconnectWaba}
+              disabled={disconnectingWaba}
+              style={{
+                background: "#fff",
+                color: "#b91c1c",
+                border: "1.5px solid #fecaca",
+                borderRadius: 8,
+                padding: "8px 14px",
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: disconnectingWaba ? "not-allowed" : "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
+              <span>🛑</span>
+              {disconnectingWaba ? "Disconnecting…" : "Disconnect / Switch WABA"}
+            </button>
+          </div>
+        </div>
+
+        {/* 4 Health Status Badges */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
+            gap: 12,
+            background: "#f8fafc",
+            border: "1px solid #e2e8f0",
+            borderRadius: 10,
+            padding: 14,
+          }}
+        >
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>Active Phone Number</div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: "#166534", marginTop: 2 }}>
+              📱 +91 77957 83535
+            </div>
+            <div style={{ fontSize: 11, color: "#64748b" }}>Recruitment Training Academy</div>
+          </div>
+
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>WABA Account ID</div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: "#0f172a", marginTop: 2, fontFamily: "monospace" }}>
+              {data?.waba.primaryWaba?.id || "1169391638991834"}
+            </div>
+            <div style={{ fontSize: 11, color: "#64748b" }}>Portfolio: {data?.businessPortfolio.id || "1707214344108990"}</div>
+          </div>
+
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>Quality Rating &amp; Limit</div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: "#059669", marginTop: 2 }}>
+              🟢 High &bull; 1,000 msgs/day
+            </div>
+            <div style={{ fontSize: 11, color: "#64748b" }}>Tier 1 Outbound Messaging</div>
+          </div>
+
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>Webhook Health</div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: data?.waba.webhookSubscribed ? "#166534" : "#b45309", marginTop: 2 }}>
+              {data?.waba.webhookSubscribed ? "● Subscribed & Active" : "○ Subscribing…"}
+            </div>
+            <div style={{ fontSize: 11, color: "#64748b" }}>Live Chat Inbox Sync Active</div>
+          </div>
+        </div>
+      </div>
+
+      {error && (
+        <div style={{ background: "#fef2f2", border: "1px solid #fecaca", padding: "12px 16px", borderRadius: 10, color: "#991b1b", fontSize: 13 }}>
+          <strong>Error:</strong> {error}
+        </div>
+      )}
+
+      {successMsg && (
+        <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", padding: "12px 16px", borderRadius: 10, color: "#166534", fontSize: 13 }}>
+          {successMsg}
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* TWO OPTIONS SWITCHER: 1 = AUTOMATED API, 2 = MANUAL META SUITE  */}
+      {/* ============================================================== */}
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <button
+          type="button"
+          onClick={() => setWabaMode("automated")}
+          style={{
+            flex: 1,
+            minWidth: 260,
+            padding: "12px 16px",
+            borderRadius: 10,
+            border: wabaMode === "automated" ? "2px solid #059669" : "1.5px solid #cbd5e1",
+            background: wabaMode === "automated" ? "#ecfdf5" : "#fff",
+            color: wabaMode === "automated" ? "#065f46" : "#475569",
+            fontWeight: 800,
+            fontSize: 13,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            boxShadow: wabaMode === "automated" ? "0 2px 6px rgba(5, 150, 105, 0.15)" : "none",
+          }}
+        >
+          <span>⚡ Option 1: Automated Mode (AiSensy Style Graph API &bull; Recommended)</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setWabaMode("manual")}
+          style={{
+            flex: 1,
+            minWidth: 260,
+            padding: "12px 16px",
+            borderRadius: 10,
+            border: wabaMode === "manual" ? "2px solid #1877F2" : "1.5px solid #cbd5e1",
+            background: wabaMode === "manual" ? "#eff6ff" : "#fff",
+            color: wabaMode === "manual" ? "#1e40af" : "#475569",
+            fontWeight: 800,
+            fontSize: 13,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            boxShadow: wabaMode === "manual" ? "0 2px 6px rgba(24, 119, 242, 0.15)" : "none",
+          }}
+        >
+          <span>🛠️ Option 2: Manual Mode (Direct Meta Business Suite)</span>
+        </button>
+      </div>
+
+      {/* ============================================================== */}
+      {/* 3-STEP GUIDED ONBOARDING STEPPER (PROGRESSIVE DISCLOSURE)       */}
+      {/* ============================================================== */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+          gap: 12,
+          background: "#fff",
+          border: "1px solid #e2e8f0",
+          borderRadius: 12,
+          padding: 8,
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => setActiveStep(1)}
+          style={{
+            border: activeStep === 1 ? "1.5px solid #059669" : "1px solid transparent",
+            background: activeStep === 1 ? "#ecfdf5" : "transparent",
+            borderRadius: 8,
+            padding: "10px 14px",
+            cursor: "pointer",
+            textAlign: "left",
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+          }}
+        >
+          <div
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: "50%",
+              background: activeStep === 1 ? "#059669" : "#e2e8f0",
+              color: activeStep === 1 ? "#fff" : "#64748b",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontWeight: 800,
+              fontSize: 12,
+            }}
+          >
+            1
+          </div>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 13, color: activeStep === 1 ? "#065f46" : "#0f172a" }}>
+              Step 1: WABA Account
+            </div>
+            <div style={{ fontSize: 11, color: "#64748b" }}>Create, Connect or Disconnect</div>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveStep(2)}
+          style={{
+            border: activeStep === 2 ? "1.5px solid #059669" : "1px solid transparent",
+            background: activeStep === 2 ? "#ecfdf5" : "transparent",
+            borderRadius: 8,
+            padding: "10px 14px",
+            cursor: "pointer",
+            textAlign: "left",
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+          }}
+        >
+          <div
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: "50%",
+              background: activeStep === 2 ? "#059669" : "#e2e8f0",
+              color: activeStep === 2 ? "#fff" : "#64748b",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontWeight: 800,
+              fontSize: 12,
+            }}
+          >
+            2
+          </div>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 13, color: activeStep === 2 ? "#065f46" : "#0f172a" }}>
+              Step 2: Number &amp; Migration
+            </div>
+            <div style={{ fontSize: 11, color: "#64748b" }}>Register +91 77957 83535 / AiSensy</div>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveStep(3)}
+          style={{
+            border: activeStep === 3 ? "1.5px solid #059669" : "1px solid transparent",
+            background: activeStep === 3 ? "#ecfdf5" : "transparent",
+            borderRadius: 8,
+            padding: "10px 14px",
+            cursor: "pointer",
+            textAlign: "left",
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+          }}
+        >
+          <div
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: "50%",
+              background: activeStep === 3 ? "#059669" : "#e2e8f0",
+              color: activeStep === 3 ? "#fff" : "#64748b",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontWeight: 800,
+              fontSize: 12,
+            }}
+          >
+            3
+          </div>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 13, color: activeStep === 3 ? "#065f46" : "#0f172a" }}>
+              Step 3: Verification &amp; Test
+            </div>
+            <div style={{ fontSize: 11, color: "#64748b" }}>OTP Code &amp; Outbound Tester</div>
+          </div>
+        </button>
+      </div>
+
+      {/* ============================================================== */}
+      {/* STEP 1: WABA ACCOUNT MANAGEMENT                                */}
+      {/* ============================================================== */}
+      {activeStep === 1 && (
+        <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 22, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 10 }}>
+            <div>
+              <span style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", color: "#059669" }}>
+                Step 1 of 3
+              </span>
+              <h3 style={{ fontSize: 16, fontWeight: 800, margin: "2px 0 0", color: "#0f172a", fontFamily: "Sora, sans-serif" }}>
+                WhatsApp Business Account (WABA) Configuration
+              </h3>
+            </div>
+            <button
+              type="button"
+              onClick={() => setActiveStep(2)}
+              style={{
+                background: "#059669",
+                color: "#fff",
+                border: 0,
                 borderRadius: 6,
-                padding: "6px 12px",
+                padding: "8px 16px",
                 fontSize: 12,
                 fontWeight: 700,
                 cursor: "pointer",
               }}
             >
-              {syncing ? "Syncing…" : data?.waba.dbSynced ? "✓ Synced with Workspace" : "🔄 Sync WABA to Inbox"}
+              Continue to Step 2: Register Number &rarr;
             </button>
           </div>
 
-          <p style={{ fontSize: 12, color: "#64748b", lineHeight: 1.5, margin: "0 0 16px" }}>
-            WhatsApp Cloud API sends and receives messages <strong>without</strong> passing through a Facebook Page. Here are your verified Cloud API credentials:
+          <p style={{ fontSize: 13, color: "#64748b", lineHeight: 1.5, margin: "0 0 16px" }}>
+            Every WhatsApp business requires a verified WABA ID directly under your Meta Business Portfolio. You can use your existing WABA (<code>1169391638991834</code>), or create a brand new one automatically with 1 click.
           </p>
 
-          {/* WABA & Phone Details */}
-          <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: 14, marginBottom: 16, fontSize: 12 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "150px 1fr", gap: "8px 12px", alignItems: "center" }}>
-              <span style={{ color: "#64748b", fontWeight: 600 }}>Active WhatsApp Phone:</span>
-              <span style={{ fontWeight: 800, color: "#166534", fontSize: 13, background: "#dcfce7", padding: "3px 8px", borderRadius: 4, display: "inline-block" }}>
-                📱 +91 77957 83535 (Official Business Phone &bull; RTA)
-              </span>
-
-              <span style={{ color: "#64748b", fontWeight: 600 }}>WABA Account:</span>
-              <span style={{ fontWeight: 700, color: "#0f172a" }}>
-                {data?.waba.primaryWaba?.name || "Test Messaging Account"} (ID: {data?.waba.primaryWaba?.id || "1169391638991834"})
-              </span>
-
-              <span style={{ color: "#64748b", fontWeight: 600 }}>Cloud API Phone ID:</span>
-              <span style={{ fontWeight: 700, color: "#0f172a" }}>
-                {data?.waba.livePhones[0]?.id || "1408496172352210"} ({data?.waba.livePhones[0]?.display_phone_number || "+1 555-140-6238"})
-              </span>
-
-              <span style={{ color: "#64748b", fontWeight: 600 }}>Webhook URL:</span>
-              <code style={{ fontSize: 11, background: "#e2e8f0", padding: "2px 6px", borderRadius: 4, overflowX: "auto" }}>
-                {data?.waba.webhookUrl}
-              </code>
-
-              <span style={{ color: "#64748b", fontWeight: 600 }}>Webhook Status:</span>
-              <span style={{ color: data?.waba.webhookSubscribed ? "#166534" : "#b45309", fontWeight: 700 }}>
-                {data?.waba.webhookSubscribed ? "● Subscribed & Active" : "○ Ready for Subscription"}
-              </span>
+          {/* Current WABA details card */}
+          <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: 16, marginBottom: 18 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, fontSize: 12 }}>
+              <div>
+                <span style={{ color: "#64748b", display: "block" }}>Meta Business Portfolio:</span>
+                <strong style={{ color: "#0f172a", fontFamily: "monospace", fontSize: 13 }}>{data?.businessPortfolio.id || "1707214344108990"}</strong>
+              </div>
+              <div>
+                <span style={{ color: "#64748b", display: "block" }}>Current Connected WABA:</span>
+                <strong style={{ color: "#0f172a", fontFamily: "monospace", fontSize: 13 }}>{data?.waba.primaryWaba?.id || "1169391638991834"}</strong>
+              </div>
+              <div>
+                <span style={{ color: "#64748b", display: "block" }}>WABA Name:</span>
+                <strong style={{ color: "#0f172a" }}>{data?.waba.primaryWaba?.name || "Recruitment Training Academy WABA"}</strong>
+              </div>
             </div>
+          </div>
 
-            {/* Disconnect Action */}
-            <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-              <span style={{ fontSize: 11, color: "#64748b" }}>
-                Need to remove existing service partner (AiSensy) or start with a brand new WABA?
-              </span>
-              <button
-                type="button"
-                onClick={handleDisconnectWaba}
-                disabled={disconnectingWaba}
+          {/* Form: Create Brand New WABA */}
+          <div style={{ background: "#f0fdf4", border: "1.5px solid #86efac", borderRadius: 10, padding: 16 }}>
+            <div style={{ fontWeight: 800, fontSize: 13, color: "#065f46", marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
+              <span>✨</span> Need a Fresh WABA? Auto-Create Brand New Account on Meta (1-Click)
+            </div>
+            <p style={{ margin: "0 0 12px", fontSize: 12, color: "#166534", lineHeight: 1.4 }}>
+              If your current WABA is tied to a previous partner or has errors, our API can create a clean, brand new WABA ID directly on Meta under Portfolio <strong>{data?.businessPortfolio.id || "1707214344108990"}</strong>:
+            </p>
+
+            <form onSubmit={handleCreateNewWaba} style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <input
+                type="text"
+                value={newWabaName}
+                onChange={e => setNewWabaName(e.target.value)}
+                placeholder="New WABA Name"
                 style={{
-                  background: "#fff",
-                  color: "#b91c1c",
-                  border: "1.5px solid #fecaca",
+                  flex: 1,
+                  minWidth: 240,
+                  border: "1px solid #86efac",
                   borderRadius: 6,
-                  padding: "5px 12px",
-                  fontSize: 11,
-                  fontWeight: 700,
-                  cursor: disconnectingWaba ? "not-allowed" : "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4,
+                  padding: "9px 12px",
+                  fontSize: 13,
+                }}
+              />
+              <button
+                type="submit"
+                disabled={creatingWaba}
+                style={{
+                  background: "#065f46",
+                  color: "#fff",
+                  border: 0,
+                  borderRadius: 6,
+                  padding: "9px 18px",
+                  fontSize: 12,
+                  fontWeight: 800,
+                  cursor: creatingWaba ? "not-allowed" : "pointer",
+                  whiteSpace: "nowrap",
                 }}
               >
-                {disconnectingWaba ? "Disconnecting…" : "🛑 Disconnect / Release Current WABA & Phone"}
+                {creatingWaba ? "Creating on Meta Graph API…" : "✨ 1-Click Create New WABA ID"}
+              </button>
+            </form>
+
+            {newWabaCreated && (
+              <div style={{ marginTop: 10, background: "#fff", border: "1px solid #86efac", borderRadius: 6, padding: "8px 12px", fontSize: 12, color: "#166534" }}>
+                ✓ Created New WABA: <strong>{newWabaCreated.name}</strong> (ID: <code>{newWabaCreated.wabaId}</code>)
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* STEP 2: WHATSAPP NUMBER & AISENSY MIGRATION RESOLVER            */}
+      {/* ============================================================== */}
+      {activeStep === 2 && (
+        <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 22, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 10 }}>
+            <div>
+              <span style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", color: "#059669" }}>
+                Step 2 of 3
+              </span>
+              <h3 style={{ fontSize: 16, fontWeight: 800, margin: "2px 0 0", color: "#0f172a", fontFamily: "Sora, sans-serif" }}>
+                Register Phone Number (+91 77957 83535) &amp; Partner Migration
+              </h3>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                type="button"
+                onClick={() => setActiveStep(1)}
+                style={{
+                  background: "#f1f5f9",
+                  color: "#475569",
+                  border: 0,
+                  borderRadius: 6,
+                  padding: "8px 14px",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                &larr; Back to Step 1
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveStep(3)}
+                style={{
+                  background: "#059669",
+                  color: "#fff",
+                  border: 0,
+                  borderRadius: 6,
+                  padding: "8px 16px",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Continue to Step 3: Verify &rarr;
               </button>
             </div>
           </div>
 
-          {/* ========================================================================= */}
-          {/* TWO OPTIONS SWITCH: 1 = AUTOMATED API MODE, 2 = MANUAL META SUITE MODE   */}
-          {/* ========================================================================= */}
-          <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-            <button
-              type="button"
-              onClick={() => setWabaMode("automated")}
-              style={{
-                flex: 1,
-                minWidth: 200,
-                padding: "10px 14px",
-                borderRadius: 8,
-                border: wabaMode === "automated" ? "2px solid #059669" : "1.5px solid #cbd5e1",
-                background: wabaMode === "automated" ? "#f0fdf4" : "#fff",
-                color: wabaMode === "automated" ? "#065f46" : "#475569",
-                fontWeight: 800,
-                fontSize: 12,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 6,
-                boxShadow: wabaMode === "automated" ? "0 2px 6px rgba(5, 150, 105, 0.15)" : "none",
-              }}
-            >
-              <span>⚡ Option 1: Automated Mode (AiSensy Style API)</span>
-            </button>
+          <p style={{ fontSize: 13, color: "#64748b", lineHeight: 1.5, margin: "0 0 16px" }}>
+            Add phone number <strong>+91 77957 83535</strong> to your WABA. If this number was previously active on <strong>AiSensy</strong> or another WhatsApp Business Solution Provider, Meta requires disconnecting it first.
+          </p>
 
-            <button
-              type="button"
-              onClick={() => setWabaMode("manual")}
-              style={{
-                flex: 1,
-                minWidth: 200,
-                padding: "10px 14px",
-                borderRadius: 8,
-                border: wabaMode === "manual" ? "2px solid #1877F2" : "1.5px solid #cbd5e1",
-                background: wabaMode === "manual" ? "#eff6ff" : "#fff",
-                color: wabaMode === "manual" ? "#1e40af" : "#475569",
-                fontWeight: 800,
-                fontSize: 12,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 6,
-                boxShadow: wabaMode === "manual" ? "0 2px 6px rgba(24, 119, 242, 0.15)" : "none",
-              }}
-            >
-              <span>🛠️ Option 2: Manual Mode (Direct Meta Suite)</span>
-            </button>
-          </div>
-
-          {wabaMode === "automated" ? (
-            <>
-              {/* Card: Auto-Create Brand New WABA */}
-              <div
-                style={{
-                  background: "#fff",
-                  border: "1.5px solid #cbd5e1",
-                  borderRadius: 10,
-                  padding: 14,
-                  marginBottom: 16,
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, flexWrap: "wrap", gap: 6 }}>
-                  <div style={{ fontWeight: 800, fontSize: 13, color: "#0f172a", display: "flex", alignItems: "center", gap: 6 }}>
-                    <span>✨</span> Create Brand New WABA Account (Automated)
-                  </div>
-                  <span style={{ fontSize: 10, fontWeight: 800, background: "#e2e8f0", color: "#334155", padding: "2px 8px", borderRadius: 10 }}>
-                    NEW WABA GENERATOR
-                  </span>
-                </div>
-                <p style={{ margin: "0 0 10px", fontSize: 11, color: "#64748b", lineHeight: 1.4 }}>
-                  If your existing WABA is blocked by an old service partner or full, click below to automatically create a fresh WABA ID on Meta under Portfolio <strong>{data?.businessPortfolio.id || "1707214344108990"}</strong>:
+          {/* 1-Click Provision Button */}
+          <div style={{ background: "#f0fdf4", border: "1.5px solid #6ee7b7", borderRadius: 10, padding: 18, marginBottom: 18 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, marginBottom: 12 }}>
+              <div>
+                <strong style={{ fontSize: 14, color: "#065f46" }}>Automated Provisioning &amp; Phone Attachment</strong>
+                <p style={{ margin: "2px 0 0", fontSize: 12, color: "#047857" }}>
+                  Calls Meta Graph API <code>POST /{'{wabaId}'}/phone_numbers</code> with <code>migrate_phone_number: true</code>.
                 </p>
-
-                <form onSubmit={handleCreateNewWaba} style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <input
-                    type="text"
-                    value={newWabaName}
-                    onChange={e => setNewWabaName(e.target.value)}
-                    placeholder="New WABA Name"
-                    style={{
-                      flex: 1,
-                      minWidth: 200,
-                      border: "1px solid #cbd5e1",
-                      borderRadius: 6,
-                      padding: "8px 10px",
-                      fontSize: 12,
-                    }}
-                  />
-                  <button
-                    type="submit"
-                    disabled={creatingWaba}
-                    style={{
-                      background: "#0f172a",
-                      color: "#fff",
-                      border: 0,
-                      borderRadius: 6,
-                      padding: "8px 16px",
-                      fontSize: 12,
-                      fontWeight: 700,
-                      cursor: creatingWaba ? "not-allowed" : "pointer",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {creatingWaba ? "Creating on Meta…" : "✨ Create New WABA ID on Meta"}
-                  </button>
-                </form>
-
-                {newWabaCreated && (
-                  <div style={{ marginTop: 8, background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 6, padding: "6px 10px", fontSize: 11, color: "#166534" }}>
-                    ✓ Created New WABA: <strong>{newWabaCreated.name}</strong> (ID: <code>{newWabaCreated.wabaId}</code>)
-                  </div>
-                )}
               </div>
-
-          {/* ========================================================================= */}
-          {/* AISENSY-STYLE AUTOMATED WABA & PHONE PROVISIONING (NO MANUAL WABA NEEDED) */}
-          {/* ========================================================================= */}
-          <div
-            style={{
-              background: "linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)",
-              border: "1.5px solid #6ee7b7",
-              borderRadius: 10,
-              padding: 16,
-              marginBottom: 16,
-              boxShadow: "0 2px 8px rgba(16, 185, 129, 0.08)",
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 20 }}>⚡</span>
-                <h4 style={{ fontSize: 14, fontWeight: 800, margin: 0, color: "#065f46", fontFamily: "Sora, sans-serif" }}>
-                  AiSensy Automated Onboarding: Provision WABA &amp; WhatsApp Phone
-                </h4>
-              </div>
-              <span
-                style={{
-                  fontSize: 10,
-                  fontWeight: 800,
-                  background: "#059669",
-                  color: "#fff",
-                  padding: "3px 8px",
-                  borderRadius: 12,
-                  letterSpacing: "0.04em",
-                }}
-              >
-                NO META SUITE LOGIN NEEDED
+              <span style={{ fontSize: 11, fontWeight: 800, background: "#059669", color: "#fff", padding: "3px 10px", borderRadius: 12 }}>
+                1-CLICK AUTOMATION
               </span>
-            </div>
-
-            <p style={{ fontSize: 12, color: "#047857", lineHeight: 1.5, margin: "0 0 12px" }}>
-              <strong>How AiSensy does it:</strong> AiSensy never asks clients to manually create a WABA in Meta Business Manager. Our system automatically calls the Meta Graph API under Business Portfolio <strong>{data?.businessPortfolio.id || "1707214344108990"}</strong> and Meta App <strong>{data?.metaAppId || "1710743377107186"}</strong> to provision the WABA ID, add WhatsApp Phone <strong>+91 77957 83535</strong>, and link it directly into your workspace.
-            </p>
-
-            <div style={{ background: "#fff", border: "1px solid #a7f3d0", borderRadius: 8, padding: 12, marginBottom: 12, fontSize: 11, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 8 }}>
-              <div>
-                <span style={{ color: "#64748b", display: "block" }}>🏢 Business Portfolio:</span>
-                <strong style={{ color: "#0f172a", fontFamily: "monospace" }}>{data?.businessPortfolio.id || "1707214344108990"}</strong>
-              </div>
-              <div>
-                <span style={{ color: "#64748b", display: "block" }}>🚀 Meta App ID:</span>
-                <strong style={{ color: "#0f172a", fontFamily: "monospace" }}>{data?.metaAppId || "1710743377107186"}</strong>
-              </div>
-              <div>
-                <span style={{ color: "#64748b", display: "block" }}>📱 WhatsApp Business Phone:</span>
-                <strong style={{ color: "#166534", fontFamily: "monospace" }}>+91 77957 83535</strong>
-              </div>
-              <div>
-                <span style={{ color: "#64748b", display: "block" }}>🏷️ Verified Business Name:</span>
-                <strong style={{ color: "#0f172a" }}>Recruitment Training Academy</strong>
-              </div>
             </div>
 
             <button
@@ -883,11 +1074,11 @@ export function RtaConnectorHub() {
                 color: "#fff",
                 border: 0,
                 borderRadius: 8,
-                padding: "10px 18px",
-                fontSize: 12,
+                padding: "11px 20px",
+                fontSize: 13,
                 fontWeight: 800,
                 cursor: provisioningWaba ? "not-allowed" : "pointer",
-                boxShadow: "0 2px 6px rgba(5, 150, 105, 0.3)",
+                boxShadow: "0 2px 6px rgba(5, 150, 105, 0.25)",
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 8,
@@ -896,107 +1087,56 @@ export function RtaConnectorHub() {
               }}
             >
               {provisioningWaba ? (
-                <>⏳ Provisioning WABA ID &amp; Registering Phone on Meta Graph API…</>
+                <>⏳ Provisioning &amp; Attaching +91 77957 83535 on Meta Graph API…</>
               ) : (
-                <>⚡ 1-Click Provision WABA ID &amp; Add WhatsApp Phone (+91 77957 83535)</>
+                <>⚡ 1-Click Provision WABA &amp; Attach WhatsApp Phone (+91 77957 83535)</>
               )}
             </button>
 
             {provisionResult && (
-              <div style={{ marginTop: 10, background: "#fff", border: `1px solid ${provisionResult.partnerConflict ? "#fde68a" : "#86efac"}`, borderRadius: 6, padding: "8px 12px", fontSize: 11, color: provisionResult.partnerConflict ? "#92400e" : "#166534" }}>
+              <div style={{ marginTop: 12, background: "#fff", border: `1px solid ${provisionResult.partnerConflict ? "#fde68a" : "#86efac"}`, borderRadius: 8, padding: 12, fontSize: 12, color: provisionResult.partnerConflict ? "#92400e" : "#166534" }}>
                 <div><strong>✓ WABA ID Provisioned:</strong> <code>{provisionResult.wabaId}</code></div>
                 <div style={{ marginTop: 2 }}><strong>✓ Phone Number ID:</strong> <code>{provisionResult.phoneNumberId}</code></div>
                 <div style={{ marginTop: 2 }}><strong>✓ Display Phone:</strong> <code>{provisionResult.displayPhoneNumber}</code></div>
                 {provisionResult.partnerConflict && (
                   <div style={{ marginTop: 6, fontWeight: 700, color: "#b45309" }}>
-                    ⚠️ {provisionResult.partnerConflictMessage || "AiSensy service partner conflict detected. See migration guide below."}
+                    ⚠️ {provisionResult.partnerConflictMessage || "AiSensy service partner conflict detected. See migration resolver below."}
                   </div>
                 )}
               </div>
             )}
           </div>
 
-          {/* ========================================================================= */}
-          {/* SERVICE PARTNER MIGRATION HUB: REMOVE AISENSY ➔ CONNECT ZKWACONNECT       */}
-          {/* ========================================================================= */}
-          <div
-            style={{
-              background: "#fffbeb",
-              border: "1.5px solid #f59e0b",
-              borderRadius: 10,
-              padding: 16,
-              marginBottom: 16,
-              boxShadow: "0 2px 8px rgba(245, 158, 11, 0.08)",
-            }}
-          >
+          {/* ============================================================== */}
+          {/* AISENSY MIGRATION RESOLVER (NUMBER ON ANOTHER PORTFOLIO)       */}
+          {/* ============================================================== */}
+          <div style={{ background: "#fffbeb", border: "1.5px solid #f59e0b", borderRadius: 10, padding: 18 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={{ fontSize: 20 }}>🔄</span>
                 <h4 style={{ fontSize: 14, fontWeight: 800, margin: 0, color: "#92400e", fontFamily: "Sora, sans-serif" }}>
-                  Service Partner Migration: Remove AiSensy ➔ Connect ZKWAConnect
+                  AiSensy Migration Resolver: Release Number &rarr; Connect ZKWAConnect
                 </h4>
               </div>
-              <span
-                style={{
-                  fontSize: 10,
-                  fontWeight: 800,
-                  background: "#b45309",
-                  color: "#fff",
-                  padding: "3px 8px",
-                  borderRadius: 12,
-                }}
-              >
-                MIGRATION GUIDE
+              <span style={{ fontSize: 10, fontWeight: 800, background: "#b45309", color: "#fff", padding: "3px 8px", borderRadius: 12 }}>
+                MIGRATION RESOLUTION
               </span>
             </div>
 
-            {/* Error Alert Box */}
             <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: 12, marginBottom: 12, fontSize: 12, color: "#991b1b", lineHeight: 1.5 }}>
-              <div style={{ fontWeight: 800, marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
-                <span>🚨</span> Why Meta displays this message:
-              </div>
-              <blockquote style={{ margin: "4px 0 8px", paddingLeft: 12, borderLeft: "3px solid #ef4444", fontStyle: "italic", fontFamily: "monospace", fontSize: 11 }}>
-                &ldquo;This number is already on a WhatsApp Business account in a business portfolio you don't manage. Ask an admin of that portfolio for admin access, or to remove the number. Or enter a different number&rdquo;
-              </blockquote>
-              <div>
-                <strong>The Cause:</strong> The number <strong>+91 77957 83535</strong> is currently tied to <strong>AiSensy's Business Portfolio</strong>. Meta enforces <em>1 number = 1 WABA</em>. Because your personal Facebook login is not an administrator of AiSensy's internal partner portfolio, Meta blocks adding it until AiSensy releases the number.
-              </div>
+              <strong style={{ display: "block", marginBottom: 2 }}>Why Meta shows: &ldquo;This number is already on a WhatsApp Business account in a business portfolio you don&apos;t manage&rdquo;</strong>
+              <span>
+                The number <strong>+91 77957 83535</strong> is currently locked under <strong>AiSensy&apos;s Business Portfolio WABA</strong>. Because Meta enforces <em>1 Number = 1 WABA</em>, follow these 3 quick steps to release it:
+              </span>
             </div>
 
-            <div style={{ fontSize: 12, color: "#78350f", lineHeight: 1.5, marginBottom: 12 }}>
-              Follow these 4 simple steps to remove AiSensy and bring your number directly to <strong>ZKWAConnect Gateway</strong> under Business Portfolio <strong>{data?.businessPortfolio.id || "1707214344108990"}</strong>:
-            </div>
-
-            <div style={{ display: "grid", gap: 10, marginBottom: 14 }}>
-              {/* Step 1: Disconnect / Release from AiSensy */}
+            <div style={{ display: "grid", gap: 10 }}>
               <div style={{ background: "#fff", border: "1px solid #fde68a", borderRadius: 8, padding: 12 }}>
-                <div style={{ fontWeight: 800, color: "#92400e", fontSize: 12, marginBottom: 4 }}>
-                  Step 1: Disconnect &amp; Release Number in AiSensy
-                </div>
-                <p style={{ margin: "0 0 8px", fontSize: 11, color: "#475569" }}>
-                  Log in to your AiSensy dashboard and disconnect the number, or copy our ready-to-send support email ticket:
+                <strong style={{ fontSize: 12, color: "#92400e" }}>Action 1: Send 1-Click Release Request to AiSensy</strong>
+                <p style={{ margin: "2px 0 8px", fontSize: 11, color: "#475569" }}>
+                  Send our pre-formatted support email to <code>support@aisensy.com</code> asking them to disconnect the phone:
                 </p>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <a
-                    href="https://app.aisensy.com/"
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{
-                      background: "#1877F2",
-                      color: "#fff",
-                      padding: "6px 12px",
-                      borderRadius: 6,
-                      fontSize: 11,
-                      fontWeight: 700,
-                      textDecoration: "none",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 4,
-                    }}
-                  >
-                    Open AiSensy Dashboard (app.aisensy.com) ↗
-                  </a>
-
                   <button
                     type="button"
                     onClick={handleCopyAiSensyEmail}
@@ -1005,159 +1145,134 @@ export function RtaConnectorHub() {
                       color: "#fff",
                       border: 0,
                       borderRadius: 6,
-                      padding: "6px 12px",
+                      padding: "6px 14px",
                       fontSize: 11,
                       fontWeight: 700,
                       cursor: "pointer",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 4,
                     }}
                   >
-                    {copiedAiSensyEmail ? "✓ Email Template Copied!" : "📋 Copy AiSensy Support Release Ticket"}
+                    {copiedAiSensyEmail ? "✓ Copied Support Ticket!" : "📋 Copy Ready-to-Send Release Ticket"}
                   </button>
+                  <a
+                    href="https://app.aisensy.com/"
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      background: "#fff",
+                      color: "#1877F2",
+                      border: "1px solid #93c5fd",
+                      padding: "6px 12px",
+                      borderRadius: 6,
+                      fontSize: 11,
+                      fontWeight: 700,
+                      textDecoration: "none",
+                    }}
+                  >
+                    Open AiSensy Dashboard ↗
+                  </a>
                 </div>
               </div>
 
-              {/* Step 2: Delete from WhatsApp Business App on Phone */}
               <div style={{ background: "#fff", border: "1px solid #fde68a", borderRadius: 8, padding: 12 }}>
-                <div style={{ fontWeight: 800, color: "#92400e", fontSize: 12, marginBottom: 4 }}>
-                  Step 2: Delete Account from WhatsApp Mobile App (If on phone)
-                </div>
-                <p style={{ margin: "0", fontSize: 11, color: "#475569", lineHeight: 1.5 }}>
-                  If the SIM card <strong>+91 77957 83535</strong> is currently active on the WhatsApp Business mobile app on your Android or iPhone device, Meta blocks Cloud API registration.
-                  <br />
-                  👉 Open <strong>WhatsApp Business App</strong> ➔ <strong>Settings</strong> ➔ <strong>Account</strong> ➔ <strong>Delete My Account</strong>.
-                  <br />
-                  <em style={{ color: "#64748b" }}>(Do not just uninstall the app — you must tap &ldquo;Delete My Account&rdquo; so Meta drops the mobile routing).</em>
+                <strong style={{ fontSize: 12, color: "#92400e" }}>Action 2: Delete Account in Mobile WhatsApp App (If on phone)</strong>
+                <p style={{ margin: "2px 0 0", fontSize: 11, color: "#475569", lineHeight: 1.5 }}>
+                  If the SIM is installed in a phone running the WhatsApp Business app, open the app &rarr; <strong>Settings</strong> &rarr; <strong>Account</strong> &rarr; <strong>Delete My Account</strong>. (Do not just delete the app; you must tap Delete Account so Meta drops the mobile routing).
                 </p>
               </div>
 
-              {/* Step 3: Turn Off 2FA in Meta WhatsApp Manager */}
-              <div style={{ background: "#fff", border: "1px solid #fde68a", borderRadius: 8, padding: 12 }}>
-                <div style={{ fontWeight: 800, color: "#92400e", fontSize: 12, marginBottom: 4 }}>
-                  Step 3: Turn Off Two-Step Verification (2FA) in Meta
-                </div>
-                <p style={{ margin: "0 0 8px", fontSize: 11, color: "#475569" }}>
-                  If you have access to the Meta WhatsApp Manager for the number, turn off 2FA to allow instant migration:
+              <div style={{ background: "#fff", border: "1.5px solid #86efac", borderRadius: 8, padding: 12 }}>
+                <strong style={{ fontSize: 12, color: "#166534" }}>Action 3: Retry Automated Attachment</strong>
+                <p style={{ margin: "2px 0 8px", fontSize: 11, color: "#475569" }}>
+                  Once released, click below to immediately attach +91 77957 83535 into your ZKWAConnect WABA:
                 </p>
-                <a
-                  href={`https://business.facebook.com/latest/whatsapp_manager/phone_numbers?business_id=${data?.businessPortfolio.id || "1707214344108990"}`}
-                  target="_blank"
-                  rel="noreferrer"
+                <button
+                  type="button"
+                  onClick={handleAiSensyProvision}
+                  disabled={provisioningWaba}
                   style={{
-                    background: "#fff",
-                    color: "#1877F2",
-                    border: "1.5px solid #93c5fd",
-                    padding: "6px 12px",
+                    background: "#16a34a",
+                    color: "#fff",
+                    border: 0,
                     borderRadius: 6,
+                    padding: "7px 14px",
                     fontSize: 11,
-                    fontWeight: 700,
-                    textDecoration: "none",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 4,
+                    fontWeight: 800,
+                    cursor: provisioningWaba ? "not-allowed" : "pointer",
                   }}
                 >
-                  Open Meta WhatsApp Manager Phone Numbers ↗
-                </a>
-              </div>
-
-              {/* Step 4: Assign ZKWAConnect Agency Partner (246511357935583) */}
-              <div style={{ background: "#fff", border: "1.5px solid #86efac", borderRadius: 8, padding: 12 }}>
-                <div style={{ fontWeight: 800, color: "#166534", fontSize: 12, marginBottom: 4 }}>
-                  Step 4: Assign ZKWAConnect as New Agency Partner (Zero-Copy)
-                </div>
-                <p style={{ margin: "0 0 8px", fontSize: 11, color: "#475569" }}>
-                  Grant <strong>Zkandhavel Infotech Private Limited (Agency Partner ID: 246511357935583)</strong> management permissions under Business Portfolio {data?.businessPortfolio.id || "1707214344108990"}:
-                </p>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <button
-                    type="button"
-                    onClick={handleAutoAssignAgencyPartner}
-                    disabled={assigningPartner}
-                    style={{
-                      background: "#16a34a",
-                      color: "#fff",
-                      border: 0,
-                      borderRadius: 6,
-                      padding: "7px 14px",
-                      fontSize: 11,
-                      fontWeight: 800,
-                      cursor: assigningPartner ? "not-allowed" : "pointer",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 4,
-                    }}
-                  >
-                    {assigningPartner ? "Assigning Partner via API…" : "⚡ 1-Click Assign ZKWAConnect Agency Partner"}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleAiSensyProvision}
-                    disabled={provisioningWaba}
-                    style={{
-                      background: "#059669",
-                      color: "#fff",
-                      border: 0,
-                      borderRadius: 6,
-                      padding: "7px 14px",
-                      fontSize: 11,
-                      fontWeight: 800,
-                      cursor: provisioningWaba ? "not-allowed" : "pointer",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 4,
-                    }}
-                  >
-                    {provisioningWaba ? "Retrying Migration…" : "⚡ Retry 1-Click Provision & Add (+91 77957 83535)"}
-                  </button>
-                </div>
+                  {provisioningWaba ? "Attaching Phone…" : "⚡ Retry 1-Click Provision & Attach (+91 77957 83535)"}
+                </button>
               </div>
             </div>
           </div>
+        </div>
+      )}
 
-          {/* ========================================================================= */}
-          {/* INTERACTIVE "START VERIFICATION REQUIRED" UI FOR +91 77957 83535         */}
-          {/* ========================================================================= */}
+      {/* ============================================================== */}
+      {/* STEP 3: OTP VERIFICATION & LIVE TEST TRANSMISSION               */}
+      {/* ============================================================== */}
+      {activeStep === 3 && (
+        <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 22, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 10 }}>
+            <div>
+              <span style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", color: "#059669" }}>
+                Step 3 of 3
+              </span>
+              <h3 style={{ fontSize: 16, fontWeight: 800, margin: "2px 0 0", color: "#0f172a", fontFamily: "Sora, sans-serif" }}>
+                OTP Verification &amp; Outbound Message Tester
+              </h3>
+            </div>
+            <button
+              type="button"
+              onClick={() => setActiveStep(2)}
+              style={{
+                background: "#f1f5f9",
+                color: "#475569",
+                border: 0,
+                borderRadius: 6,
+                padding: "8px 14px",
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              &larr; Back to Step 2
+            </button>
+          </div>
+
+          {/* Sub-Card A: OTP Verification Form */}
           <div
             style={{
-              background: "#fff",
-              border: phoneVerified || data?.waba.livePhones[0]?.code_verification_status === "VERIFIED"
-                ? "1.5px solid #86efac"
-                : "1.5px solid #fde68a",
+              background: isVerifiedLive ? "#f0fdf4" : "#fff",
+              border: isVerifiedLive ? "1.5px solid #86efac" : "1.5px solid #cbd5e1",
               borderRadius: 10,
               padding: 16,
-              marginBottom: 16,
-              boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
+              marginBottom: 18,
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 18 }}>🔐</span>
-                <h4 style={{ fontSize: 14, fontWeight: 800, margin: 0, color: "#0f172a", fontFamily: "Sora, sans-serif" }}>
-                  Start Verification Required: Verify +91 77957 83535
-                </h4>
+              <div style={{ fontWeight: 800, fontSize: 13, color: "#0f172a" }}>
+                🔐 Verify Ownership of +91 77957 83535 (Meta OTP)
               </div>
-
-              {phoneVerified || data?.waba.livePhones[0]?.code_verification_status === "VERIFIED" ? (
-                <span style={{ background: "#dcfce7", color: "#166534", padding: "4px 10px", borderRadius: 12, fontSize: 11, fontWeight: 800 }}>
-                  ✓ VERIFIED &amp; LIVE
-                </span>
-              ) : (
-                <span style={{ background: "#fef3c7", color: "#b45309", padding: "4px 10px", borderRadius: 12, fontSize: 11, fontWeight: 800 }}>
-                  ⚠️ Verification Required
-                </span>
-              )}
+              <span
+                style={{
+                  background: isVerifiedLive ? "#dcfce7" : "#fef3c7",
+                  color: isVerifiedLive ? "#166534" : "#b45309",
+                  padding: "3px 8px",
+                  borderRadius: 10,
+                  fontSize: 11,
+                  fontWeight: 800,
+                }}
+              >
+                {isVerifiedLive ? "✓ VERIFIED & LIVE" : "VERIFICATION REQUIRED"}
+              </span>
             </div>
 
-            <p style={{ fontSize: 12, color: "#64748b", lineHeight: 1.5, margin: "0 0 12px" }}>
-              To ensure phone ownership and unlock outbound WhatsApp messaging, Meta requires a one-time 6-digit OTP verification code on <strong>+91 77957 83535</strong>.
+            <p style={{ fontSize: 12, color: "#64748b", margin: "0 0 12px" }}>
+              Request a one-time 6-digit verification code to <strong>+91 77957 83535</strong> via SMS or Voice Call:
             </p>
 
-            {/* Step A: Request OTP Buttons */}
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
               <button
                 type="button"
                 onClick={() => handleRequestPhoneOtp("SMS")}
@@ -1171,12 +1286,9 @@ export function RtaConnectorHub() {
                   fontSize: 12,
                   fontWeight: 700,
                   cursor: requestingOtp ? "not-allowed" : "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
                 }}
               >
-                {requestingOtp ? "Sending OTP…" : "📲 Request SMS OTP (+91 77957 83535)"}
+                {requestingOtp ? "Sending OTP…" : "📲 Request SMS OTP"}
               </button>
 
               <button
@@ -1192,21 +1304,17 @@ export function RtaConnectorHub() {
                   fontSize: 12,
                   fontWeight: 700,
                   cursor: requestingOtp ? "not-allowed" : "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
                 }}
               >
                 📞 Request Voice Call OTP
               </button>
             </div>
 
-            {/* Step B: Form to Enter OTP & 2FA PIN */}
-            <form onSubmit={handleVerifyPhoneOtp} style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: 14, display: "grid", gap: 12 }}>
+            <form onSubmit={handleVerifyPhoneOtp} style={{ display: "grid", gap: 10, background: "#f8fafc", padding: 12, borderRadius: 8, border: "1px solid #e2e8f0" }}>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
                 <div>
                   <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#334155", marginBottom: 4 }}>
-                    6-Digit OTP Code (from SMS/Call):
+                    6-Digit OTP Code:
                   </label>
                   <input
                     type="text"
@@ -1269,252 +1377,22 @@ export function RtaConnectorHub() {
                   cursor: verifyingOtp || otpCode.length !== 6 ? "not-allowed" : "pointer",
                 }}
               >
-                {verifyingOtp ? "Verifying with Meta & Registering PIN…" : "✅ Verify OTP & Activate Cloud API Gateway"}
+                {verifyingOtp ? "Verifying with Meta…" : "✅ Verify OTP & Activate Cloud API Gateway"}
               </button>
             </form>
-
-            {phoneVerified && (
-              <div style={{ marginTop: 10, background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 6, padding: "8px 12px", color: "#166534", fontSize: 12, fontWeight: 700 }}>
-                🎉 WhatsApp Phone +91 77957 83535 is Verified &amp; LIVE! You can now test outbound messaging below.
-              </div>
-            )}
           </div>
-            </>
-          ) : (
-            /* ========================================================================= */
-            /* OPTION 2: MANUAL MODE (META BUSINESS SUITE DIRECT LINKS & INPUT FORM)     */
-            /* ========================================================================= */
-            <div
-              style={{
-                background: "#f8fafc",
-                border: "1.5px solid #93c5fd",
-                borderRadius: 10,
-                padding: 16,
-                marginBottom: 16,
-                boxShadow: "0 2px 8px rgba(24, 119, 242, 0.08)",
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 20 }}>🛠️</span>
-                  <h4 style={{ fontSize: 14, fontWeight: 800, margin: 0, color: "#1e40af", fontFamily: "Sora, sans-serif" }}>
-                    Manual Meta Business Suite Setup &amp; Direct Links
-                  </h4>
-                </div>
-                <span
-                  style={{
-                    fontSize: 10,
-                    fontWeight: 800,
-                    background: "#1877F2",
-                    color: "#fff",
-                    padding: "3px 8px",
-                    borderRadius: 12,
-                  }}
-                >
-                  MANUAL SETUP
-                </span>
-              </div>
 
-              <p style={{ fontSize: 12, color: "#334155", lineHeight: 1.5, margin: "0 0 12px" }}>
-                Prefer to configure everything directly inside Meta Business Manager? Use these pre-filled direct links to create or release your WABA, then paste the IDs below:
-              </p>
-
-              {/* 3 Step Direct Launchers */}
-              <div style={{ display: "grid", gap: 8, marginBottom: 14 }}>
-                <a
-                  href={`https://business.facebook.com/latest/settings/whatsapp_accounts?business_id=${data?.businessPortfolio.id || "1707214344108990"}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{
-                    background: "#fff",
-                    border: "1px solid #bfdbfe",
-                    borderRadius: 6,
-                    padding: "8px 12px",
-                    fontSize: 12,
-                    fontWeight: 700,
-                    color: "#1d4ed8",
-                    textDecoration: "none",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <span>➕ Step 1: Open Meta Business Suite &rarr; WhatsApp Accounts (Create WABA)</span>
-                  <span>↗</span>
-                </a>
-
-                <a
-                  href={`https://business.facebook.com/latest/whatsapp_manager/phone_numbers?business_id=${data?.businessPortfolio.id || "1707214344108990"}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{
-                    background: "#fff",
-                    border: "1px solid #bfdbfe",
-                    borderRadius: 6,
-                    padding: "8px 12px",
-                    fontSize: 12,
-                    fontWeight: 700,
-                    color: "#1d4ed8",
-                    textDecoration: "none",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <span>📱 Step 2: Open WhatsApp Manager &rarr; Phone Numbers (Manage/Release &amp; Turn off 2FA)</span>
-                  <span>↗</span>
-                </a>
-
-                <a
-                  href={`https://business.facebook.com/settings/partners/client-partners/add?business_id=${data?.businessPortfolio.id || "1707214344108990"}&partner_id=246511357935583`}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{
-                    background: "#fff",
-                    border: "1px solid #86efac",
-                    borderRadius: 6,
-                    padding: "8px 12px",
-                    fontSize: 12,
-                    fontWeight: 700,
-                    color: "#15803d",
-                    textDecoration: "none",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <span>🤝 Step 3: Assign Agency Partner (Zkandhavel Infotech: 246511357935583 &bull; Pre-filled)</span>
-                  <span>↗</span>
-                </a>
-              </div>
-
-              {/* Manual Connect Form */}
-              <div style={{ background: "#fff", border: "1px solid #cbd5e1", borderRadius: 8, padding: 14 }}>
-                <div style={{ fontWeight: 800, fontSize: 12, color: "#0f172a", marginBottom: 10 }}>
-                  Link Manually Created WABA &amp; Phone to Workspace:
-                </div>
-
-                <form onSubmit={handleConnectOfficialWaba} style={{ display: "grid", gap: 10 }}>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 8 }}>
-                    <div>
-                      <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#334155", marginBottom: 2 }}>
-                        WABA ID:
-                      </label>
-                      <input
-                        type="text"
-                        value={officialWabaId}
-                        onChange={e => setOfficialWabaId(e.target.value)}
-                        placeholder="e.g. 1169391638991834"
-                        style={{
-                          width: "100%",
-                          boxSizing: "border-box",
-                          border: "1px solid #cbd5e1",
-                          borderRadius: 6,
-                          padding: "6px 8px",
-                          fontSize: 12,
-                          fontFamily: "monospace",
-                        }}
-                      />
-                    </div>
-
-                    <div>
-                      <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#334155", marginBottom: 2 }}>
-                        Phone Number ID:
-                      </label>
-                      <input
-                        type="text"
-                        value={officialPhoneId}
-                        onChange={e => setOfficialPhoneId(e.target.value)}
-                        placeholder="e.g. 1408496172352210"
-                        style={{
-                          width: "100%",
-                          boxSizing: "border-box",
-                          border: "1px solid #cbd5e1",
-                          borderRadius: 6,
-                          padding: "6px 8px",
-                          fontSize: 12,
-                          fontFamily: "monospace",
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 8 }}>
-                    <div>
-                      <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#334155", marginBottom: 2 }}>
-                        Display Phone Number:
-                      </label>
-                      <input
-                        type="text"
-                        value={officialPhoneNumber}
-                        onChange={e => setOfficialPhoneNumber(e.target.value)}
-                        placeholder="+91 77957 83535"
-                        style={{
-                          width: "100%",
-                          boxSizing: "border-box",
-                          border: "1px solid #cbd5e1",
-                          borderRadius: 6,
-                          padding: "6px 8px",
-                          fontSize: 12,
-                        }}
-                      />
-                    </div>
-
-                    <div>
-                      <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#334155", marginBottom: 2 }}>
-                        Verified Business Name:
-                      </label>
-                      <input
-                        type="text"
-                        value={officialVerifiedName}
-                        onChange={e => setOfficialVerifiedName(e.target.value)}
-                        placeholder="Recruitment Training Academy"
-                        style={{
-                          width: "100%",
-                          boxSizing: "border-box",
-                          border: "1px solid #cbd5e1",
-                          borderRadius: 6,
-                          padding: "6px 8px",
-                          fontSize: 12,
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={connectingOfficial || !officialWabaId.trim() || !officialPhoneId.trim()}
-                    style={{
-                      background: "#1877F2",
-                      color: "#fff",
-                      border: 0,
-                      borderRadius: 6,
-                      padding: "8px 16px",
-                      fontSize: 12,
-                      fontWeight: 800,
-                      cursor: connectingOfficial || !officialWabaId.trim() || !officialPhoneId.trim() ? "not-allowed" : "pointer",
-                      marginTop: 4,
-                    }}
-                  >
-                    {connectingOfficial ? "Verifying & Connecting…" : "💾 Save & Connect Manual WABA to Workspace"}
-                  </button>
-                </form>
-              </div>
+          {/* Sub-Card B: Live Message Tester */}
+          <div style={{ background: "#f0fdf4", border: "1.5px solid #a7f3d0", borderRadius: 10, padding: 16 }}>
+            <div style={{ fontWeight: 800, fontSize: 13, color: "#065f46", marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+              <span>🚀</span> Live Message Transmission Tester (Outbound &bull; Saves to Inbox)
             </div>
-          )}
 
-          {/* Live Message Tester Form */}
-          <div style={{ border: "1.5px solid #a7f3d0", borderRadius: 8, padding: 16, background: "#f0fdf4" }}>
-            <div style={{ fontSize: 13, fontWeight: 800, color: "#065f46", marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
-              <span>🚀</span> Test Live WhatsApp Transmission &amp; Live Chat Inbox
-            </div>
-            <form onSubmit={handleSendTestMessage} style={{ display: "grid", gap: 12 }}>
+            <form onSubmit={handleSendTestMessage} style={{ display: "grid", gap: 10 }}>
               <div>
-                <label style={{ display: "block", fontSize: 11, fontWeight: 800, color: "#334155", marginBottom: 6 }}>
-                  Target Phone (Select recipient to test):
+                <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#334155", marginBottom: 6 }}>
+                  Select Recipient to Test:
                 </label>
-                
-                {/* 2 Quick Select Buttons */}
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
                   <button
                     type="button"
@@ -1526,18 +1404,14 @@ export function RtaConnectorHub() {
                       background: testRecipient === "919632108103" ? "#065f46" : "#fff",
                       color: testRecipient === "919632108103" ? "#fff" : "#1e293b",
                       border: `1.5px solid ${testRecipient === "919632108103" ? "#065f46" : "#cbd5e1"}`,
-                      borderRadius: 8,
-                      padding: "8px 12px",
+                      borderRadius: 6,
+                      padding: "6px 12px",
                       fontSize: 12,
                       fontWeight: 700,
                       cursor: "pointer",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 6,
                     }}
                   >
-                    <span>🎯 1. Customer RTA:</span>
-                    <span style={{ fontFamily: "monospace", fontWeight: 800 }}>+91 96321 08103</span>
+                    Customer RTA: +91 96321 08103
                   </button>
 
                   <button
@@ -1550,23 +1424,19 @@ export function RtaConnectorHub() {
                       background: testRecipient === "917824055618" ? "#065f46" : "#fff",
                       color: testRecipient === "917824055618" ? "#fff" : "#1e293b",
                       border: `1.5px solid ${testRecipient === "917824055618" ? "#065f46" : "#cbd5e1"}`,
-                      borderRadius: 8,
-                      padding: "8px 12px",
+                      borderRadius: 6,
+                      padding: "6px 12px",
                       fontSize: 12,
                       fontWeight: 700,
                       cursor: "pointer",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 6,
                     }}
                   >
-                    <span>🎯 2. ZKandavel Infotech:</span>
-                    <span style={{ fontFamily: "monospace", fontWeight: 800 }}>+91 78240 55618</span>
+                    ZKandavel Infotech: +91 78240 55618
                   </button>
                 </div>
 
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>Or custom number:</span>
+                  <span style={{ fontSize: 11, color: "#64748b" }}>Or Custom:</span>
                   <input
                     type="text"
                     value={testRecipient}
@@ -1574,10 +1444,9 @@ export function RtaConnectorHub() {
                       setTestRecipient(e.target.value)
                       setRecipientLabel(`Custom ${e.target.value}`)
                     }}
-                    placeholder="e.g. 919632108103"
+                    placeholder="919632108103"
                     style={{
                       flex: 1,
-                      boxSizing: "border-box",
                       border: "1px solid #cbd5e1",
                       borderRadius: 6,
                       padding: "6px 10px",
@@ -1590,7 +1459,7 @@ export function RtaConnectorHub() {
 
               <div>
                 <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#334155", marginBottom: 4 }}>
-                  Message Text (Sent from +91 77957 83535):
+                  Message Text:
                 </label>
                 <textarea
                   value={testText}
@@ -1601,16 +1470,15 @@ export function RtaConnectorHub() {
                     boxSizing: "border-box",
                     border: "1px solid #cbd5e1",
                     borderRadius: 6,
-                    padding: "8px 10px",
+                    padding: "6px 10px",
                     fontSize: 12,
-                    fontFamily: "inherit",
                   }}
                 />
               </div>
 
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
                 <span style={{ fontSize: 11, color: "#065f46" }}>
-                  Transmits via WhatsApp Cloud API &amp; records in Live Chat Inbox
+                  Sends from +91 77957 83535 &amp; syncs to Live Chat Inbox
                 </span>
                 <button
                   type="submit"
@@ -1620,409 +1488,241 @@ export function RtaConnectorHub() {
                     color: "#fff",
                     border: 0,
                     borderRadius: 6,
-                    padding: "9px 18px",
+                    padding: "8px 16px",
                     fontSize: 12,
                     fontWeight: 800,
                     cursor: "pointer",
                   }}
                 >
-                  {sendingTest ? "Transmitting…" : "🚀 Send & View in Inbox"}
+                  {sendingTest ? "Transmitting…" : "🚀 Send WhatsApp & View in Inbox"}
                 </button>
               </div>
             </form>
 
             {testResult && (
-              <div style={{ marginTop: 14, background: "#fff", border: `1.5px solid ${testResult.ok ? "#86efac" : "#fde68a"}`, borderRadius: 8, padding: 14, fontSize: 12 }}>
-                <div style={{ color: testResult.ok ? "#166534" : "#b45309", fontWeight: 800, fontSize: 13, marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
-                  <span>{testResult.ok ? "✓" : "⚠️"}</span>
-                  {testResult.ok
-                    ? "Transmitted to Meta & Saved to Live Chat Inbox!"
-                    : "Logged in Live Chat Inbox (Meta Sandbox Recipient Verification Notice)"}
-                </div>
-                <div style={{ color: "#334155", marginBottom: 4 }}>
-                  <strong>Sender Business Phone:</strong> <span style={{ color: "#166534", fontWeight: 700 }}>+91 77957 83535</span> (Recruitment Training Academy)
-                </div>
-                <div style={{ color: "#334155", marginBottom: 4 }}>
-                  <strong>Recipient Target:</strong> <strong>{testResult.contactName || recipientLabel}</strong> (+{testResult.recipient})
+              <div style={{ marginTop: 12, background: "#fff", border: `1px solid ${testResult.ok ? "#86efac" : "#fde68a"}`, borderRadius: 8, padding: 12, fontSize: 12 }}>
+                <div style={{ color: testResult.ok ? "#166534" : "#b45309", fontWeight: 800, marginBottom: 4 }}>
+                  {testResult.ok ? "✓ Transmitted to Meta & Saved to Live Chat Inbox!" : "⚠️ Logged in Live Chat Inbox"}
                 </div>
                 {testResult.messageId && (
-                  <div style={{ color: "#334155", marginBottom: 8 }}>
-                    <strong>WhatsApp Message ID:</strong> <code style={{ background: "#f1f5f9", padding: "2px 6px", borderRadius: 4 }}>{testResult.messageId}</code>
-                  </div>
+                  <div>Message ID: <code>{testResult.messageId}</code></div>
                 )}
-
-                {testResult.error && (
-                  <div style={{ background: "#fffbeb", border: "1px solid #fef3c7", borderRadius: 6, padding: "8px 12px", marginTop: 8, marginBottom: 8, color: "#92400e", fontSize: 11, lineHeight: 1.5 }}>
-                    <div style={{ fontWeight: 700, marginBottom: 2 }}>Meta Cloud API Response:</div>
-                    <div>{testResult.error}</div>
-                    {testResult.error.includes("allowed list") && (
-                      <div style={{ marginTop: 6 }}>
-                        💡 <strong>Meta Sandbox Rule:</strong> Test numbers can only deliver WhatsApp messages to recipient numbers verified in Meta App Console.
-                        <a
-                          href="https://developers.facebook.com/apps/1710743377107186/whatsapp-business/wa-dev-console/"
-                          target="_blank"
-                          rel="noreferrer"
-                          style={{ marginLeft: 6, color: "#b45309", fontWeight: 800, textDecoration: "underline" }}
-                        >
-                          Add +{testResult.recipient} to Meta Allowed Numbers ↗
-                        </a>
-                      </div>
-                    )}
-                  </div>
-                )}
-
                 {testResult.inboxUrl && (
-                  <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #e2e8f0", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                  <div style={{ marginTop: 8 }}>
                     <a
                       href={testResult.inboxUrl}
                       style={{
                         background: "#16a34a",
                         color: "#fff",
-                        padding: "8px 16px",
+                        padding: "6px 12px",
                         borderRadius: 6,
-                        fontSize: 12,
+                        fontSize: 11,
                         fontWeight: 800,
                         textDecoration: "none",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 6,
-                        boxShadow: "0 2px 6px rgba(22, 163, 74, 0.3)",
+                        display: "inline-block",
                       }}
                     >
-                      💬 Open Conversation in Live Chat Inbox ➔
+                      💬 Open in Live Chat Inbox ➔
                     </a>
-                    <span style={{ fontSize: 11, color: "#64748b" }}>
-                      See live message thread, candidate notes &amp; replies
-                    </span>
                   </div>
                 )}
               </div>
             )}
           </div>
         </div>
+      )}
 
-        {/* ============================================================== */}
-        {/* SECTION 2: FACEBOOK PAGE INTEGRATION & WHATSAPP BUTTON LINKING */}
-        {/* ============================================================== */}
-        <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 22, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: "#1877F2" }}>
-                Part 2 &bull; Facebook Page Integration
-              </div>
-              <h3 style={{ fontSize: 16, fontWeight: 800, margin: "4px 0 0", color: "#0f172a", fontFamily: "Sora, sans-serif" }}>
-                📄 Link Facebook Page & WhatsApp CTA
-              </h3>
+      {/* ============================================================== */}
+      {/* OPTION 2: MANUAL MODE DRAWER (WHEN MANUAL MODE IS SELECTED)     */}
+      {/* ============================================================== */}
+      {wabaMode === "manual" && (
+        <div style={{ background: "#f8fafc", border: "1.5px solid #93c5fd", borderRadius: 14, padding: 20 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
+            <div style={{ fontWeight: 800, fontSize: 14, color: "#1e40af", display: "flex", alignItems: "center", gap: 6 }}>
+              <span>🛠️</span> Manual Meta Business Suite Setup &amp; Direct Links
             </div>
+            <span style={{ fontSize: 10, fontWeight: 800, background: "#1877F2", color: "#fff", padding: "3px 8px", borderRadius: 12 }}>
+              DIRECT META MANAGER
+            </span>
+          </div>
+
+          <p style={{ fontSize: 12, color: "#334155", margin: "0 0 12px" }}>
+            Use these pre-filled links to configure or release your WABA directly in Meta Business Manager, then paste the IDs below:
+          </p>
+
+          <div style={{ display: "grid", gap: 8, marginBottom: 14 }}>
             <a
-              href="https://www.facebook.com/Recruitmenttrainingacademy"
+              href={`https://business.facebook.com/latest/settings/whatsapp_accounts?business_id=${data?.businessPortfolio.id || "1707214344108990"}`}
               target="_blank"
               rel="noreferrer"
               style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: "#1877F2",
-                textDecoration: "none",
-                background: "#eff6ff",
-                padding: "4px 10px",
-                borderRadius: 6,
+                background: "#fff",
                 border: "1px solid #bfdbfe",
+                borderRadius: 6,
+                padding: "8px 12px",
+                fontSize: 12,
+                fontWeight: 700,
+                color: "#1d4ed8",
+                textDecoration: "none",
+                display: "flex",
+                justifyContent: "space-between",
               }}
             >
-              Open Page ↗
+              <span>➕ Step 1: Open Meta Business Suite &rarr; WhatsApp Accounts</span>
+              <span>↗</span>
+            </a>
+
+            <a
+              href={`https://business.facebook.com/latest/whatsapp_manager/phone_numbers?business_id=${data?.businessPortfolio.id || "1707214344108990"}`}
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                background: "#fff",
+                border: "1px solid #bfdbfe",
+                borderRadius: 6,
+                padding: "8px 12px",
+                fontSize: 12,
+                fontWeight: 700,
+                color: "#1d4ed8",
+                textDecoration: "none",
+                display: "flex",
+                justifyContent: "space-between",
+              }}
+            >
+              <span>📱 Step 2: Open WhatsApp Manager &rarr; Phone Numbers (Manage 2FA/Release)</span>
+              <span>↗</span>
+            </a>
+
+            <a
+              href={`https://business.facebook.com/settings/partners/client-partners/add?business_id=${data?.businessPortfolio.id || "1707214344108990"}&partner_id=246511357935583`}
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                background: "#fff",
+                border: "1px solid #86efac",
+                borderRadius: 6,
+                padding: "8px 12px",
+                fontSize: 12,
+                fontWeight: 700,
+                color: "#15803d",
+                textDecoration: "none",
+                display: "flex",
+                justifyContent: "space-between",
+              }}
+            >
+              <span>🤝 Step 3: Assign Agency Partner (Zkandhavel Infotech: 246511357935583 &bull; Pre-filled)</span>
+              <span>↗</span>
             </a>
           </div>
 
-          <p style={{ fontSize: 12, color: "#64748b", lineHeight: 1.5, margin: "0 0 14px" }}>
-            Connecting your Facebook Page lets you put a prominent <strong>“Send WhatsApp Message”</strong> chat button on your Facebook Page header, directing candidates to your WhatsApp number <code>+91 77957 83535</code>.
-          </p>
-
-          {/* Diagnostic Box for Recruitmenttrainingacademy */}
-          <div style={{ background: "#f8fafc", border: "1.5px solid #cbd5e1", borderRadius: 8, padding: 14, marginBottom: 14 }}>
-            <div style={{ fontSize: 13, fontWeight: 800, color: "#0f172a", marginBottom: 8 }}>
-              🔍 Live Facebook Detection: <span style={{ fontFamily: "monospace", color: "#1877F2" }}>/Recruitmenttrainingacademy</span>
-            </div>
-
-            <div style={{ fontSize: 12, display: "grid", gap: 6 }}>
+          <form onSubmit={handleConnectOfficialWaba} style={{ background: "#fff", border: "1px solid #cbd5e1", borderRadius: 8, padding: 14, display: "grid", gap: 10 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 8 }}>
               <div>
-                <strong>Page / Account Title:</strong> {data?.pageIntegration.inspection.title || "Recruitment Training Academy - RTA"}
+                <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#334155", marginBottom: 2 }}>WABA ID:</label>
+                <input
+                  type="text"
+                  value={officialWabaId}
+                  onChange={e => setOfficialWabaId(e.target.value)}
+                  placeholder="1169391638991834"
+                  style={{ width: "100%", boxSizing: "border-box", border: "1px solid #cbd5e1", borderRadius: 6, padding: "6px 8px", fontSize: 12, fontFamily: "monospace" }}
+                />
               </div>
+
               <div>
-                <strong>Resolved Numeric ID:</strong> <code>{data?.pageIntegration.inspection.numericId || "100075867504434"}</code>
-              </div>
-              <div>
-                <strong>Account Type:</strong>{" "}
-                {data?.pageIntegration.inspection.isProfile ? (
-                  <span style={{ color: "#d97706", fontWeight: 700, background: "#fef3c7", padding: "2px 8px", borderRadius: 4 }}>
-                    ⚠️ Personal Facebook Profile (1000...)
-                  </span>
-                ) : (
-                  <span style={{ color: "#166534", fontWeight: 700, background: "#dcfce7", padding: "2px 8px", borderRadius: 4 }}>
-                    ✓ Official Facebook Page
-                  </span>
-                )}
+                <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#334155", marginBottom: 2 }}>Phone ID:</label>
+                <input
+                  type="text"
+                  value={officialPhoneId}
+                  onChange={e => setOfficialPhoneId(e.target.value)}
+                  placeholder="1408496172352210"
+                  style={{ width: "100%", boxSizing: "border-box", border: "1px solid #cbd5e1", borderRadius: 6, padding: "6px 8px", fontSize: 12, fontFamily: "monospace" }}
+                />
               </div>
             </div>
 
-            {/* Explanation if currently a personal profile */}
-            {data?.pageIntegration.inspection.isProfile && (
-              <div style={{ marginTop: 12, background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 6, padding: 10, fontSize: 11, color: "#92400e", lineHeight: 1.5 }}>
-                <strong>Important Meta Rule:</strong> Account ID <code>100075867504434</code> is registered as a personal user profile. Meta's WhatsApp API and Business Suite only allow official <strong>Facebook Business Pages</strong> to be linked to WhatsApp Business accounts.
-              </div>
-            )}
+            <button
+              type="submit"
+              disabled={connectingOfficial || !officialWabaId.trim() || !officialPhoneId.trim()}
+              style={{
+                background: "#1877F2",
+                color: "#fff",
+                border: 0,
+                borderRadius: 6,
+                padding: "8px 16px",
+                fontSize: 12,
+                fontWeight: 800,
+                cursor: connectingOfficial || !officialWabaId.trim() || !officialPhoneId.trim() ? "not-allowed" : "pointer",
+              }}
+            >
+              {connectingOfficial ? "Connecting…" : "💾 Save & Connect Manual WABA to Workspace"}
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* QUICK ASSIGN AGENCY PARTNER BAR                                */}
+      {/* ============================================================== */}
+      <div
+        style={{
+          background: "#f0fdf4",
+          border: "1px solid #bbf7d0",
+          borderRadius: 12,
+          padding: "14px 18px",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 12,
+        }}
+      >
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "#166534" }}>
+            🤝 Assign Agency Partner: Zkandhavel Infotech (246511357935583)
           </div>
-
-          {/* Step A: Create or Connect Official Page */}
-          <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 8, padding: 12, marginBottom: 14 }}>
-            <div style={{ fontSize: 12, fontWeight: 800, color: "#1e40af", marginBottom: 4 }}>
-              Step 1: Add or Create Official Page in Portfolio 1707214344108990
-            </div>
-            <p style={{ fontSize: 11, color: "#3b82f6", margin: "0 0 10px", lineHeight: 1.4 }}>
-              If you have already created the official Page, paste its numeric Page ID below to claim it into your Business Portfolio:
-            </p>
-
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: "#1e40af" }}>Official Page:</span>
-              <button
-                type="button"
-                onClick={() => setCustomPageId("1466798486509943")}
-                style={{
-                  background: "#fff",
-                  border: "1px solid #93c5fd",
-                  color: "#1d4ed8",
-                  padding: "3px 8px",
-                  borderRadius: 6,
-                  fontSize: 11,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                }}
-              >
-                👉 Use Official Page ID: 1466798486509943
-              </button>
-            </div>
-
-            <form onSubmit={handleClaimPage} style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
-              <input
-                type="text"
-                value={customPageId}
-                onChange={e => setCustomPageId(e.target.value)}
-                placeholder="Enter Official Page ID or URL"
-                style={{
-                  flex: 1,
-                  minWidth: 180,
-                  border: "1px solid #cbd5e1",
-                  borderRadius: 6,
-                  padding: "6px 10px",
-                  fontSize: 12,
-                }}
-              />
-              <button
-                type="submit"
-                disabled={claimingPage}
-                style={{
-                  background: "#1877F2",
-                  color: "#fff",
-                  border: 0,
-                  borderRadius: 6,
-                  padding: "6px 14px",
-                  fontSize: 12,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                }}
-              >
-                {claimingPage ? "Adding…" : "Add to Portfolio 1707214344108990"}
-              </button>
-            </form>
-
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <a
-                href={`https://business.facebook.com/settings/pages?business_id=${data?.businessPortfolio.id || "1707214344108990"}`}
-                target="_blank"
-                rel="noreferrer"
-                style={{
-                  background: "#fff",
-                  color: "#1877F2",
-                  border: "1px solid #93c5fd",
-                  padding: "6px 12px",
-                  borderRadius: 6,
-                  fontSize: 11,
-                  fontWeight: 700,
-                  textDecoration: "none",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4,
-                }}
-              >
-                ➕ Create/Add Page in Meta Business Suite ↗
-              </a>
-            </div>
-          </div>
-
-          {/* Step B: Link WhatsApp Number to Facebook Page */}
-          <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: 14 }}>
-            <div style={{ fontSize: 12, fontWeight: 800, color: "#0f172a", marginBottom: 4 }}>
-              Step 2: Connect WhatsApp Number (+91 77957 83535) as Chat CTA
-            </div>
-            <p style={{ fontSize: 11, color: "#64748b", margin: "0 0 10px", lineHeight: 1.4 }}>
-              This enables the green WhatsApp button on your Facebook Page header:
-            </p>
-
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button
-                type="button"
-                onClick={handleLinkWhatsAppToPage}
-                disabled={linkingWhatsApp}
-                style={{
-                  background: "#16a34a",
-                  color: "#fff",
-                  border: 0,
-                  borderRadius: 6,
-                  padding: "8px 14px",
-                  fontSize: 12,
-                  fontWeight: 800,
-                  cursor: "pointer",
-                }}
-              >
-                {linkingWhatsApp ? "Connecting…" : "🔗 Link WhatsApp to Facebook Page"}
-              </button>
-
-              <a
-                href={`https://business.facebook.com/latest/settings/whatsapp_accounts?business_id=${data?.businessPortfolio.id || "1707214344108990"}`}
-                target="_blank"
-                rel="noreferrer"
-                style={{
-                  background: "#f8fafc",
-                  color: "#334155",
-                  border: "1px solid #cbd5e1",
-                  padding: "8px 12px",
-                  borderRadius: 6,
-                  fontSize: 11,
-                  fontWeight: 700,
-                  textDecoration: "none",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4,
-                }}
-              >
-                Open Business Suite WhatsApp Settings ↗
-              </a>
-            </div>
-
-            {linkResult && (
-              <div style={{ marginTop: 10, background: "#f8fafc", border: "1px solid #cbd5e1", borderRadius: 6, padding: 10, fontSize: 11 }}>
-                <p style={{ margin: "0 0 6px", color: "#0f172a", lineHeight: 1.4 }}>{linkResult.message}</p>
-                {linkResult.pageWhatsappSettingsUrl && (
-                  <a
-                    href={linkResult.pageWhatsappSettingsUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{ color: "#1877F2", fontWeight: 700, textDecoration: "underline" }}
-                  >
-                    Open Page WhatsApp Connection Settings ↗
-                  </a>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* ========================================================================= */}
-          {/* STEP 3: AUTOMATED AGENCY PARTNER ASSIGNMENT (ZERO-COPY)                  */}
-          {/* ========================================================================= */}
-          <div style={{ background: "#f0fdf4", border: "1.5px solid #86efac", borderRadius: 8, padding: 14, marginTop: 14 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
-              <div style={{ fontSize: 12, fontWeight: 800, color: "#166534" }}>
-                Step 3: Automatically Assign Agency Partner (Zero-Copy)
-              </div>
-              <span style={{ fontSize: 10, fontWeight: 800, background: "#15803d", color: "#fff", padding: "2px 8px", borderRadius: 10 }}>
-                1-CLICK AUTOMATION
-              </span>
-            </div>
-
-            <p style={{ fontSize: 11, color: "#14532d", margin: "0 0 10px", lineHeight: 1.5 }}>
-              No need to manually copy and paste partner IDs! Grant ZKWAConnect Agency (<strong>Zkandhavel Infotech Private Limited</strong> &bull; ID: <code>246511357935583</code>) access to manage WhatsApp templates, broadcasts, and automations under Business Portfolio <strong>{data?.businessPortfolio.id || "1707214344108990"}</strong>.
-            </p>
-
-            <div style={{ background: "#fff", border: "1px solid #bbf7d0", padding: "8px 12px", borderRadius: 6, marginBottom: 10, fontSize: 11, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-              <div>
-                <span style={{ color: "#64748b" }}>Agency Partner:</span>{" "}
-                <strong style={{ color: "#0f172a" }}>Zkandhavel Infotech Private Limited</strong>
-              </div>
-              <div style={{ fontFamily: "monospace", fontWeight: 700, color: "#166534" }}>
-                ID: 246511357935583
-              </div>
-            </div>
-
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button
-                type="button"
-                onClick={handleAutoAssignAgencyPartner}
-                disabled={assigningPartner}
-                style={{
-                  background: "#16a34a",
-                  color: "#fff",
-                  border: 0,
-                  borderRadius: 6,
-                  padding: "9px 16px",
-                  fontSize: 12,
-                  fontWeight: 800,
-                  cursor: assigningPartner ? "not-allowed" : "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                  boxShadow: "0 2px 6px rgba(22, 163, 74, 0.25)",
-                }}
-              >
-                {assigningPartner ? "Assigning Partner via API…" : "⚡ Automatically Assign Agency Partner (1-Click)"}
-              </button>
-
-              <a
-                href={`https://business.facebook.com/settings/partners/client-partners/add?business_id=${data?.businessPortfolio.id || "1707214344108990"}&partner_id=246511357935583`}
-                target="_blank"
-                rel="noreferrer"
-                style={{
-                  background: "#fff",
-                  color: "#166534",
-                  border: "1.5px solid #86efac",
-                  padding: "8px 14px",
-                  borderRadius: 6,
-                  fontSize: 11,
-                  fontWeight: 700,
-                  textDecoration: "none",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4,
-                }}
-              >
-                🔗 Pre-Filled Partner Direct Launcher ↗
-              </a>
-            </div>
-
-            {partnerAssignResult && (
-              <div style={{ marginTop: 10, background: "#fff", border: "1px solid #86efac", borderRadius: 6, padding: 10, fontSize: 11, color: "#14532d" }}>
-                <div><strong>✓ Status:</strong> {partnerAssignResult.message}</div>
-                {partnerAssignResult.directAddUrl && (
-                  <div style={{ marginTop: 6 }}>
-                    <a
-                      href={partnerAssignResult.directAddUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{ color: "#15803d", fontWeight: 700, textDecoration: "underline" }}
-                    >
-                      Click here to confirm partner permissions in Meta Business Suite ↗
-                    </a>
-                  </div>
-                )}
-              </div>
-            )}
+          <div style={{ fontSize: 11, color: "#475569" }}>
+            Permits ZKWAConnect to manage broadcasts, templates, and analytics under Portfolio {data?.businessPortfolio.id || "1707214344108990"}.
           </div>
         </div>
-      </div>
 
-      {/* ============================================================== */}
-      {/* SECTION 3: PRODUCTION UPGRADE ENGINE (METHOD A & B DUAL TABS)  */}
-      {/* ============================================================== */}
-      <ProductionUpgradeManager />
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            type="button"
+            onClick={handleAutoAssignAgencyPartner}
+            disabled={assigningPartner}
+            style={{
+              background: "#16a34a",
+              color: "#fff",
+              border: 0,
+              borderRadius: 6,
+              padding: "7px 14px",
+              fontSize: 11,
+              fontWeight: 800,
+              cursor: assigningPartner ? "not-allowed" : "pointer",
+            }}
+          >
+            {assigningPartner ? "Assigning…" : "⚡ 1-Click Assign Agency"}
+          </button>
+
+          <a
+            href={`https://business.facebook.com/settings/partners/client-partners/add?business_id=${data?.businessPortfolio.id || "1707214344108990"}&partner_id=246511357935583`}
+            target="_blank"
+            rel="noreferrer"
+            style={{
+              background: "#fff",
+              color: "#166534",
+              border: "1px solid #86efac",
+              borderRadius: 6,
+              padding: "7px 12px",
+              fontSize: 11,
+              fontWeight: 700,
+              textDecoration: "none",
+            }}
+          >
+            Pre-Filled Meta Suite Link ↗
+          </a>
+        </div>
+      </div>
     </div>
   )
 }
-
