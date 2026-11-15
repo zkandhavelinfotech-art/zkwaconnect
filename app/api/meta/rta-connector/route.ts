@@ -659,12 +659,17 @@ export async function POST(request: NextRequest) {
           message: `✓ Brand New WABA created on Meta (WABA ID: ${newWabaId}) under Business Portfolio ${targetBizId}! You can now add and verify phone numbers.`,
         })
       } catch (err: any) {
+        const isUnsupportedPost = err.message?.includes("Unsupported post request") || err.message?.includes("missing permissions")
         return NextResponse.json({
           ok: false,
-          error: `Meta rejected automated WABA creation: ${err.message}`,
+          needsMetaSuiteCreation: true,
+          error: isUnsupportedPost
+            ? `Meta Security Requirement: Direct programmatic creation of WABAs via Graph API requires a Meta Business Solution Provider (BSP) partner credit line. For Business Portfolio ${targetBizId}, Meta requires the initial WABA to be created via Meta Business Suite (takes 20 seconds).`
+            : `Meta rejected automated WABA creation: ${err.message}`,
           manualUrl: `https://business.facebook.com/latest/settings/whatsapp_accounts?business_id=${targetBizId}`,
-          hint: "If your user token lacks permission to create WABAs directly, you can create it via the manual option in Meta Business Suite in 1 click.",
-        }, { status: 400 })
+          businessId: targetBizId,
+          hint: "Click 'Open Meta Business Suite & Create WABA' below. Once created, click 'Sync WABA to Inbox' and ZKWAConnect will automatically link it.",
+        }, { status: 200 })
       }
     }
 

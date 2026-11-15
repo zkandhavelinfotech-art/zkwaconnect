@@ -130,6 +130,7 @@ export function RtaConnectorHub() {
   const [creatingWaba, setCreatingWaba] = useState(false)
   const [disconnectingWaba, setDisconnectingWaba] = useState(false)
   const [newWabaCreated, setNewWabaCreated] = useState<any>(null)
+  const [wabaCreationGuidance, setWabaCreationGuidance] = useState<any>(null)
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -445,6 +446,7 @@ export function RtaConnectorHub() {
     setCreatingWaba(true)
     setError("")
     setSuccessMsg("")
+    setWabaCreationGuidance(null)
     try {
       const res = await fetch("/api/meta/rta-connector", {
         method: "POST",
@@ -458,11 +460,16 @@ export function RtaConnectorHub() {
         }),
       })
       const json = await res.json()
-      if (!res.ok) throw new Error(json.error || "Failed to create WABA on Meta")
-      setNewWabaCreated(json)
-      setSuccessMsg(json.message)
-      setActiveStep(2)
-      await loadData()
+      if (json.needsMetaSuiteCreation) {
+        setWabaCreationGuidance(json)
+      } else if (!json.ok) {
+        throw new Error(json.error || "Failed to create WABA on Meta")
+      } else {
+        setNewWabaCreated(json)
+        setSuccessMsg(json.message)
+        setActiveStep(2)
+        await loadData()
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create new WABA")
     } finally {
@@ -991,6 +998,76 @@ export function RtaConnectorHub() {
             {newWabaCreated && (
               <div style={{ marginTop: 10, background: "#fff", border: "1px solid #86efac", borderRadius: 6, padding: "8px 12px", fontSize: 12, color: "#166534" }}>
                 ✓ Created New WABA: <strong>{newWabaCreated.name}</strong> (ID: <code>{newWabaCreated.wabaId}</code>)
+              </div>
+            )}
+
+            {wabaCreationGuidance && (
+              <div style={{ marginTop: 14, background: "#fffbeb", border: "1.5px solid #f59e0b", borderRadius: 10, padding: 16 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                  <span style={{ fontSize: 18 }}>💡</span>
+                  <strong style={{ fontSize: 13, color: "#92400e" }}>
+                    Meta Security Policy &bull; Direct 30-Second WABA Setup
+                  </strong>
+                </div>
+                <p style={{ margin: "0 0 10px", fontSize: 12, color: "#78350f", lineHeight: 1.5 }}>
+                  {wabaCreationGuidance.error}
+                </p>
+                <div style={{ background: "#fff", border: "1px solid #fde68a", borderRadius: 8, padding: 12, marginBottom: 12, fontSize: 12, color: "#475569" }}>
+                  <strong style={{ color: "#0f172a", display: "block", marginBottom: 6 }}>
+                    Follow these 3 quick steps in Meta Business Suite:
+                  </strong>
+                  <ol style={{ margin: 0, paddingLeft: 18, lineHeight: 1.6 }}>
+                    <li>Click the blue button below to open <strong>Meta Business Suite &rarr; WhatsApp Accounts</strong>.</li>
+                    <li>Click <strong>&ldquo;Add&rdquo; &rarr; &ldquo;Create a WhatsApp Business Account&rdquo;</strong>.</li>
+                    <li>Enter Name: <code>{newWabaName || "Recruitment Training Academy WABA"}</code>, Currency: <code>INR</code>, Timezone: <code>Asia/Kolkata</code>.</li>
+                    <li>Return here and click <strong>&ldquo;🔄 Sync WABA to Inbox&rdquo;</strong> to immediately bind it!</li>
+                  </ol>
+                </div>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  <a
+                    href={wabaCreationGuidance.manualUrl || `https://business.facebook.com/latest/settings/whatsapp_accounts?business_id=${data?.businessPortfolio.id || "1707214344108990"}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      background: "#1877F2",
+                      color: "#fff",
+                      border: 0,
+                      borderRadius: 6,
+                      padding: "9px 16px",
+                      fontSize: 12,
+                      fontWeight: 800,
+                      textDecoration: "none",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      boxShadow: "0 2px 6px rgba(24, 119, 242, 0.25)",
+                    }}
+                  >
+                    <span>➕ Open Meta Business Suite &amp; Create WABA</span>
+                    <span>↗</span>
+                  </a>
+                  <button
+                    type="button"
+                    onClick={handleSyncWaba}
+                    disabled={syncing}
+                    style={{
+                      background: "#059669",
+                      color: "#fff",
+                      border: 0,
+                      borderRadius: 6,
+                      padding: "9px 16px",
+                      fontSize: 12,
+                      fontWeight: 800,
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                    }}
+                  >
+                    <span>{syncing ? "⏳" : "🔄"}</span>
+                    {syncing ? "Syncing…" : "Sync WABA to Inbox"}
+                  </button>
+                </div>
               </div>
             )}
           </div>
