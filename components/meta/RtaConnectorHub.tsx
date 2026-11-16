@@ -33,6 +33,30 @@ type RtaData = {
     name: string
     verificationStatus: string
     url: string
+    appBusinessId?: string
+    appBusinessUrl?: string
+  }
+  permissionDiagnostic?: {
+    appId: string
+    appName: string
+    tokenType: string
+    userId: string
+    tokenValid: boolean
+    scopes: string[]
+    hasMessagingScope: boolean
+    hasManagementScope: boolean
+    wabaId: string
+    phoneId: string
+    displayPhone: string
+    verifiedName: string
+    wabaPortfolioId: string
+    appPortfolioId: string
+    isCrossPortfolio: boolean
+    isAppSubscribed: boolean
+    isAiSensySubscribed: boolean
+    subscribedApps: any[]
+    assignedUsers: { id: string; name: string; tasks: string[] }[]
+    approvedTemplates: { id: string; name: string; language: string; category: string }[]
   }
   waba: {
     hasWaba: boolean
@@ -95,11 +119,20 @@ export function RtaConnectorHub() {
   const [sendingTest, setSendingTest] = useState(false)
   const [testResult, setTestResult] = useState<any>(null)
 
+  // Permissions Repair & Diagnostics state
+  const [fixingPermissions, setFixingPermissions] = useState(false)
+  const [permissionFixReport, setPermissionFixReport] = useState<any>(null)
+  const [systemUserTokenInput, setSystemUserTokenInput] = useState("")
+  const [savingSystemToken, setSavingSystemToken] = useState(false)
+  const [testMessageType, setTestMessageType] = useState<"text" | "template">("text")
+  const [selectedTemplateName, setSelectedTemplateName] = useState("optout_confirmation")
+  const [activePermTab, setActivePermTab] = useState<"automated" | "manual">("automated")
+
   // Official Production WABA state (Manual Mode)
-  const [officialWabaId, setOfficialWabaId] = useState("1169391638991834")
+  const [officialWabaId, setOfficialWabaId] = useState("1290742346350527")
   const [officialPhoneId, setOfficialPhoneId] = useState("1065285676669805")
   const [officialPhoneNumber, setOfficialPhoneNumber] = useState("+91 77957 83535")
-  const [officialVerifiedName, setOfficialVerifiedName] = useState("Recruitment Training Academy")
+  const [officialVerifiedName, setOfficialVerifiedName] = useState("recruitmenttrainingacademy")
   const [connectingOfficial, setConnectingOfficial] = useState(false)
 
   // Page claim / link state
@@ -198,6 +231,58 @@ export function RtaConnectorHub() {
     }
   }
 
+  async function handleFixPermissions() {
+    setFixingPermissions(true)
+    setError("")
+    setSuccessMsg("")
+    try {
+      const res = await fetch("/api/meta/rta-connector", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "fix_meta_permissions" }),
+      })
+      const json = await res.json()
+      setPermissionFixReport(json.results)
+      if (json.ok) {
+        setSuccessMsg(json.message)
+      } else {
+        setError(json.error || "Permission fix incomplete")
+      }
+      await loadData()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error executing automated permission fix")
+    } finally {
+      setFixingPermissions(false)
+    }
+  }
+
+  async function handleSaveSystemToken(e: React.FormEvent) {
+    e.preventDefault()
+    if (!systemUserTokenInput.trim()) return
+    setSavingSystemToken(true)
+    setError("")
+    setSuccessMsg("")
+    try {
+      const res = await fetch("/api/meta/rta-connector", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "save_system_user_token",
+          systemUserToken: systemUserTokenInput.trim(),
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || "Failed to save token")
+      setSuccessMsg(json.message)
+      setSystemUserTokenInput("")
+      await loadData()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error saving System User token")
+    } finally {
+      setSavingSystemToken(false)
+    }
+  }
+
   async function handleSendTestMessage(e: React.FormEvent) {
     e.preventDefault()
     if (!testRecipient.trim()) return
@@ -206,7 +291,7 @@ export function RtaConnectorHub() {
     setSuccessMsg("")
     setTestResult(null)
     try {
-      const primaryPhone = data?.waba.livePhones[0]
+      const primaryPhone = data?.waba.livePhones.find(p => p.id === "1065285676669805") || data?.waba.livePhones[0]
       const res = await fetch("/api/meta/rta-connector", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -214,8 +299,10 @@ export function RtaConnectorHub() {
           action: "send_test_message",
           recipientPhone: testRecipient.trim(),
           recipientLabel,
-          phoneNumberId: primaryPhone?.id || "1408496172352210",
+          phoneNumberId: primaryPhone?.id || "1065285676669805",
           messageText: testText.trim(),
+          useTemplate: testMessageType === "template",
+          templateName: selectedTemplateName,
         }),
       })
       const json = await res.json()
@@ -544,7 +631,7 @@ export function RtaConnectorHub() {
       code_verification_status: "VERIFIED",
       quality_rating: "GREEN",
       status: "CONNECTED",
-      wabaId: "1169391638991834",
+      wabaId: "1290742346350527",
     }
 
   return (
@@ -570,7 +657,7 @@ export function RtaConnectorHub() {
             </div>
             <p style={{ margin: "2px 0 0", fontSize: 12, color: "#475569" }}>
               {data.activeWorkspace.isRta
-                ? "Operating inside Recruitment Training Academy workspace (WABA ID: 1169391638991834)."
+                ? "Operating inside Recruitment Training Academy workspace (WABA ID: 1290742346350527)."
                 : `Currently in "${data.activeWorkspace.name}". Switch to Recruitment Training Academy to isolate its WABA.`}
             </p>
           </div>
@@ -738,9 +825,9 @@ export function RtaConnectorHub() {
           <div>
             <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>WABA Account ID</div>
             <div style={{ fontSize: 14, fontWeight: 800, color: "#0f172a", marginTop: 2, fontFamily: "monospace" }}>
-              {data?.waba.primaryWaba?.id || "1169391638991834"}
+              {data?.permissionDiagnostic?.wabaId || data?.waba.primaryWaba?.id || "1290742346350527"}
             </div>
-            <div style={{ fontSize: 11, color: "#64748b" }}>Portfolio: {data?.businessPortfolio.id || "1707214344108990"}</div>
+            <div style={{ fontSize: 11, color: "#64748b" }}>Portfolio: {data?.permissionDiagnostic?.wabaPortfolioId || data?.businessPortfolio.id || "1185206983626614"}</div>
           </div>
 
           <div>
@@ -758,6 +845,375 @@ export function RtaConnectorHub() {
             </div>
             <div style={{ fontSize: 11, color: "#64748b" }}>Live Chat Inbox Sync Active</div>
           </div>
+        </div>
+
+        {/* ============================================================== */}
+        {/* PERMISSIONS & OUTBOUND RESOLUTION (AUTOMATED UI + MANUAL SETUP) */}
+        {/* ============================================================== */}
+        <div
+          style={{
+            marginTop: 18,
+            background: "#f8fafc",
+            border: "1.5px solid #cbd5e1",
+            borderRadius: 12,
+            padding: "18px 20px",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12, marginBottom: 14 }}>
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 20 }}>🔐</span>
+                <h3 style={{ fontSize: 16, fontWeight: 800, color: "#0f172a", margin: 0, fontFamily: "Sora, sans-serif" }}>
+                  Permission Access &amp; Outbound Messaging Setup
+                </h3>
+                <span
+                  style={{
+                    background: "#ecfdf5",
+                    color: "#065f46",
+                    fontSize: 11,
+                    fontWeight: 800,
+                    padding: "2px 8px",
+                    borderRadius: 10,
+                    border: "1px solid #a7f3d0",
+                  }}
+                >
+                  ERROR #10 RESOLUTION
+                </span>
+              </div>
+              <p style={{ fontSize: 12, color: "#64748b", margin: "4px 0 0" }}>
+                Fixes: <em>&ldquo;You do not have the necessary permissions to send messages on behalf of this WhatsApp Business account&rdquo;</em> (Code 10 / Subcode 2593181).
+              </p>
+            </div>
+
+            {/* View Switcher: Automated vs Manual */}
+            <div style={{ display: "inline-flex", background: "#e2e8f0", padding: 3, borderRadius: 8, gap: 4 }}>
+              <button
+                type="button"
+                onClick={() => setActivePermTab("automated")}
+                style={{
+                  padding: "6px 12px",
+                  border: 0,
+                  borderRadius: 6,
+                  fontSize: 12,
+                  fontWeight: 800,
+                  cursor: "pointer",
+                  background: activePermTab === "automated" ? "#047857" : "transparent",
+                  color: activePermTab === "automated" ? "#fff" : "#475569",
+                  boxShadow: activePermTab === "automated" ? "0 2px 4px rgba(4, 120, 87, 0.2)" : "none",
+                }}
+              >
+                ⚡ 1-Click Automated Fix
+              </button>
+              <button
+                type="button"
+                onClick={() => setActivePermTab("manual")}
+                style={{
+                  padding: "6px 12px",
+                  border: 0,
+                  borderRadius: 6,
+                  fontSize: 12,
+                  fontWeight: 800,
+                  cursor: "pointer",
+                  background: activePermTab === "manual" ? "#1e293b" : "transparent",
+                  color: activePermTab === "manual" ? "#fff" : "#475569",
+                  boxShadow: activePermTab === "manual" ? "0 2px 4px rgba(30, 41, 59, 0.2)" : "none",
+                }}
+              >
+                📋 Manual Meta Setup Workflow
+              </button>
+            </div>
+          </div>
+
+          {/* Diagnostic Info Pills */}
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14, fontSize: 11 }}>
+            <span style={{ background: "#fff", border: "1px solid #e2e8f0", padding: "3px 8px", borderRadius: 6, color: "#334155" }}>
+              📱 WABA: <strong>{data?.permissionDiagnostic?.wabaId || "1290742346350527"}</strong> (Portfolio {data?.permissionDiagnostic?.wabaPortfolioId || "1185206983626614"})
+            </span>
+            <span style={{ background: "#fff", border: "1px solid #e2e8f0", padding: "3px 8px", borderRadius: 6, color: "#334155" }}>
+              🛠️ Meta App: <strong>{data?.permissionDiagnostic?.appId || "1710743377107186"}</strong> (Portfolio {data?.permissionDiagnostic?.appPortfolioId || "1707214344108990"})
+            </span>
+            <span style={{ background: data?.permissionDiagnostic?.isAppSubscribed ? "#dcfce7" : "#fee2e2", border: `1px solid ${data?.permissionDiagnostic?.isAppSubscribed ? "#86efac" : "#fca5a5"}`, padding: "3px 8px", borderRadius: 6, color: data?.permissionDiagnostic?.isAppSubscribed ? "#166534" : "#991b1b", fontWeight: 700 }}>
+              {data?.permissionDiagnostic?.isAppSubscribed ? "✓ App Subscribed to WABA" : "⚠️ App Not Subscribed"}
+            </span>
+            <span style={{ background: data?.permissionDiagnostic?.isAiSensySubscribed ? "#fef3c7" : "#dcfce7", border: `1px solid ${data?.permissionDiagnostic?.isAiSensySubscribed ? "#fde68a" : "#86efac"}`, padding: "3px 8px", borderRadius: 6, color: data?.permissionDiagnostic?.isAiSensySubscribed ? "#92400e" : "#166534", fontWeight: 700 }}>
+              {data?.permissionDiagnostic?.isAiSensySubscribed ? "⚠️ AiSensy Attached (Coexistence Lock)" : "✓ Direct Cloud API (No BSP Lock)"}
+            </span>
+          </div>
+
+          {/* TAB 1: 1-CLICK AUTOMATED FIX */}
+          {activePermTab === "automated" && (
+            <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, padding: 16 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+                <div>
+                  <h4 style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 800, color: "#0f172a" }}>
+                    Automated Backend Permission Authorization
+                  </h4>
+                  <p style={{ margin: 0, fontSize: 12, color: "#64748b" }}>
+                    Executes 4 Graph API calls to subscribe our App, grant user messaging tasks, detach AiSensy lock, and link WABA &amp; Phone to your workspace.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleFixPermissions}
+                  disabled={fixingPermissions}
+                  style={{
+                    background: "#047857",
+                    color: "#fff",
+                    border: 0,
+                    borderRadius: 8,
+                    padding: "10px 18px",
+                    fontSize: 13,
+                    fontWeight: 800,
+                    cursor: fixingPermissions ? "not-allowed" : "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                    boxShadow: "0 2px 8px rgba(4, 120, 87, 0.3)",
+                  }}
+                >
+                  <span>{fixingPermissions ? "⏳" : "⚡"}</span>
+                  {fixingPermissions ? "Authorizing Permissions on Meta…" : "Run 1-Click Automated Permissions Fix"}
+                </button>
+              </div>
+
+              {/* Live Fix Checklist Results */}
+              {permissionFixReport && (
+                <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid #f1f5f9", display: "grid", gap: 8 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#0f172a" }}>Automated Execution Results:</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 8 }}>
+                    <div style={{ background: permissionFixReport.appSubscription ? "#f0fdf4" : "#fef2f2", padding: "8px 12px", borderRadius: 6, border: `1px solid ${permissionFixReport.appSubscription ? "#bbf7d0" : "#fecaca"}`, fontSize: 12 }}>
+                      <strong>1. App Subscription:</strong> {permissionFixReport.appSubscription ? "✅ Connected" : `⚠️ ${permissionFixReport.appSubscriptionError || "Pending"}`}
+                    </div>
+                    <div style={{ background: permissionFixReport.userPermissions ? "#f0fdf4" : "#fef2f2", padding: "8px 12px", borderRadius: 6, border: `1px solid ${permissionFixReport.userPermissions ? "#bbf7d0" : "#fecaca"}`, fontSize: 12 }}>
+                      <strong>2. User Tasks:</strong> {permissionFixReport.userPermissions ? "✅ MANAGE + MESSAGING" : `⚠️ ${permissionFixReport.userPermissionsError || "Pending"}`}
+                    </div>
+                    <div style={{ background: permissionFixReport.aiSensyUnsubscribe ? "#f0fdf4" : "#fffbeb", padding: "8px 12px", borderRadius: 6, border: `1px solid ${permissionFixReport.aiSensyUnsubscribe ? "#bbf7d0" : "#fde68a"}`, fontSize: 12 }}>
+                      <strong>3. AiSensy Lock:</strong> {permissionFixReport.aiSensyUnsubscribe ? "✅ Released" : "ℹ️ Follow Manual Step 4"}
+                    </div>
+                    <div style={{ background: permissionFixReport.dbSync ? "#f0fdf4" : "#fef2f2", padding: "8px 12px", borderRadius: 6, border: `1px solid ${permissionFixReport.dbSync ? "#bbf7d0" : "#fecaca"}`, fontSize: 12 }}>
+                      <strong>4. DB Asset Sync:</strong> {permissionFixReport.dbSync ? "✅ Synced" : `⚠️ ${permissionFixReport.dbSyncError || "Error"}`}
+                    </div>
+                  </div>
+
+                  {permissionFixReport.testSend && (
+                    <div style={{ marginTop: 6, background: permissionFixReport.testSend.ok ? "#f0fdf4" : "#fffbeb", border: `1px solid ${permissionFixReport.testSend.ok ? "#86efac" : "#fde68a"}`, borderRadius: 6, padding: "8px 12px", fontSize: 12 }}>
+                      <strong>Outbound Probe Test:</strong>{" "}
+                      {permissionFixReport.testSend.ok
+                        ? "🎉 Outbound messaging succeeded! Message dispatched to Meta."
+                        : `Notice: Meta returned (${permissionFixReport.testSend.code || 10}): ${permissionFixReport.testSend.message}. Follow Manual Steps 1 & 3 to complete Meta App Mode or Cross-Portfolio sharing.`}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 2: STEP-BY-STEP MANUAL META SETUP WORKFLOW */}
+          {activePermTab === "manual" && (
+            <div style={{ display: "grid", gap: 12 }}>
+              {/* Step 1: Switch Meta App to Live Mode */}
+              <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: 14, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+                <div style={{ flex: 1, minWidth: 260 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ background: "#0f172a", color: "#fff", width: 22, height: 22, borderRadius: 11, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800 }}>1</span>
+                    <strong style={{ fontSize: 13, color: "#0f172a" }}>Switch Meta App (1710743377107186) to Live Mode</strong>
+                  </div>
+                  <p style={{ margin: "4px 0 0 28px", fontSize: 12, color: "#64748b" }}>
+                    In Development Mode, Meta blocks messages to all recipient numbers except registered test numbers with <em>Code 10 (Permissions Denied)</em>. Switch the toggle at top of Meta App Settings from <strong>In development</strong> to <strong>Live</strong>.
+                  </p>
+                </div>
+                <a
+                  href="https://developers.facebook.com/apps/1710743377107186/settings/basic/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    background: "#1877F2",
+                    color: "#fff",
+                    textDecoration: "none",
+                    padding: "8px 14px",
+                    borderRadius: 6,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  <span>↗</span> Open App Settings &amp; Go Live
+                </a>
+              </div>
+
+              {/* Step 2: Add Test Recipient Phone Number */}
+              <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: 14, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+                <div style={{ flex: 1, minWidth: 260 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ background: "#0f172a", color: "#fff", width: 22, height: 22, borderRadius: 11, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800 }}>2</span>
+                    <strong style={{ fontSize: 13, color: "#0f172a" }}>Add Test Recipient (+91 96321 08103) in WhatsApp Console</strong>
+                  </div>
+                  <p style={{ margin: "4px 0 0 28px", fontSize: 12, color: "#64748b" }}>
+                    If keeping the app in Development mode during testing, add <code>+91 96321 08103</code> under <strong>To: Manage phone number list</strong> to allow sending without going Live.
+                  </p>
+                </div>
+                <a
+                  href="https://developers.facebook.com/apps/1710743377107186/whatsapp-business/wa-dev-console/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    background: "#0284c7",
+                    color: "#fff",
+                    textDecoration: "none",
+                    padding: "8px 14px",
+                    borderRadius: 6,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  <span>↗</span> Open WhatsApp Dev Console
+                </a>
+              </div>
+
+              {/* Step 3: Cross-Portfolio Asset Sharing */}
+              <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: 14, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+                <div style={{ flex: 1, minWidth: 260 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ background: "#0f172a", color: "#fff", width: 22, height: 22, borderRadius: 11, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800 }}>3</span>
+                    <strong style={{ fontSize: 13, color: "#0f172a" }}>Share WABA 1290742346350527 with App Portfolio 1707214344108990</strong>
+                  </div>
+                  <p style={{ margin: "4px 0 0 28px", fontSize: 12, color: "#64748b" }}>
+                    Since WABA is in Portfolio <strong>1185206983626614</strong> while App is in Portfolio <strong>1707214344108990</strong>: In Portfolio 1185206983626614 &gt; WhatsApp Accounts &gt; select <code>recruitmenttrainingacademy</code> &gt; click <strong>Assign Partner</strong> &gt; enter Partner Portfolio ID <code>1707214344108990</code> &gt; check <strong>Full Control (Manage WhatsApp Account)</strong>.
+                  </p>
+                </div>
+                <a
+                  href={`https://business.facebook.com/latest/settings/whatsapp_accounts?business_id=1185206983626614`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    background: "#4f46e5",
+                    color: "#fff",
+                    textDecoration: "none",
+                    padding: "8px 14px",
+                    borderRadius: 6,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  <span>↗</span> Open WABA 1290742346350527 in Meta
+                </a>
+              </div>
+
+              {/* Step 4: Add Direct Payment Method */}
+              <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: 14, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+                <div style={{ flex: 1, minWidth: 260 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ background: "#0f172a", color: "#fff", width: 22, height: 22, borderRadius: 11, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800 }}>4</span>
+                    <strong style={{ fontSize: 13, color: "#0f172a" }}>Attach Payment Method / Remove AiSensy Provider</strong>
+                  </div>
+                  <p style={{ margin: "4px 0 0 28px", fontSize: 12, color: "#64748b" }}>
+                    If WABA was previously billed through AiSensy, Meta requires adding an active payment method (Credit card / Business line of credit) directly to WABA <strong>1290742346350527</strong> to activate Cloud API messages.
+                  </p>
+                </div>
+                <a
+                  href={`https://business.facebook.com/latest/whatsapp_manager/payment_settings?business_id=1185206983626614`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    background: "#059669",
+                    color: "#fff",
+                    textDecoration: "none",
+                    padding: "8px 14px",
+                    borderRadius: 6,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  <span>↗</span> Open Payment Settings
+                </a>
+              </div>
+
+              {/* Step 5: Optional Permanent System User Token */}
+              <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: 14 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, marginBottom: 10 }}>
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ background: "#0f172a", color: "#fff", width: 22, height: 22, borderRadius: 11, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800 }}>5</span>
+                      <strong style={{ fontSize: 13, color: "#0f172a" }}>Generate &amp; Save Permanent System User Token (Optional)</strong>
+                    </div>
+                    <p style={{ margin: "4px 0 0 28px", fontSize: 12, color: "#64748b" }}>
+                      Create a System User with Admin role in Portfolio 1185206983626614, assign WABA 1290742346350527, and generate a non-expiring token.
+                    </p>
+                  </div>
+                  <a
+                    href="https://business.facebook.com/latest/settings/system_users?business_id=1185206983626614"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      background: "#334155",
+                      color: "#fff",
+                      textDecoration: "none",
+                      padding: "8px 14px",
+                      borderRadius: 6,
+                      fontSize: 12,
+                      fontWeight: 700,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    <span>↗</span> Open System Users
+                  </a>
+                </div>
+
+                <form onSubmit={handleSaveSystemToken} style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                  <input
+                    type="password"
+                    value={systemUserTokenInput}
+                    onChange={e => setSystemUserTokenInput(e.target.value)}
+                    placeholder="Paste permanent Meta System User Access Token (EAA...)"
+                    style={{
+                      flex: 1,
+                      padding: "8px 12px",
+                      border: "1px solid #cbd5e1",
+                      borderRadius: 6,
+                      fontSize: 12,
+                      fontFamily: "monospace",
+                    }}
+                  />
+                  <button
+                    type="submit"
+                    disabled={savingSystemToken || !systemUserTokenInput.trim()}
+                    style={{
+                      background: "#0f172a",
+                      color: "#fff",
+                      border: 0,
+                      borderRadius: 6,
+                      padding: "8px 16px",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: savingSystemToken || !systemUserTokenInput.trim() ? "not-allowed" : "pointer",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {savingSystemToken ? "Saving…" : "💾 Save Permanent Token"}
+                  </button>
+                </form>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Action Required Banner when Verification is Pending */}
@@ -1032,7 +1488,7 @@ export function RtaConnectorHub() {
           </div>
 
           <p style={{ fontSize: 13, color: "#64748b", lineHeight: 1.5, margin: "0 0 16px" }}>
-            Every WhatsApp business requires a verified WABA ID directly under your Meta Business Portfolio. You can use your existing WABA (<code>1169391638991834</code>), or create a brand new one automatically with 1 click.
+            Every WhatsApp business requires a verified WABA ID directly under your Meta Business Portfolio. Your official production WABA is <code>1290742346350527</code> (recruitmenttrainingacademy), or you can create a brand new one automatically with 1 click.
           </p>
 
           {/* Current WABA details card */}
@@ -1040,15 +1496,15 @@ export function RtaConnectorHub() {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, fontSize: 12 }}>
               <div>
                 <span style={{ color: "#64748b", display: "block" }}>Meta Business Portfolio:</span>
-                <strong style={{ color: "#0f172a", fontFamily: "monospace", fontSize: 13 }}>{data?.businessPortfolio.id || "1707214344108990"}</strong>
+                <strong style={{ color: "#0f172a", fontFamily: "monospace", fontSize: 13 }}>{data?.permissionDiagnostic?.wabaPortfolioId || data?.businessPortfolio.id || "1185206983626614"}</strong>
               </div>
               <div>
                 <span style={{ color: "#64748b", display: "block" }}>Current Connected WABA:</span>
-                <strong style={{ color: "#0f172a", fontFamily: "monospace", fontSize: 13 }}>{data?.waba.primaryWaba?.id || "1169391638991834"}</strong>
+                <strong style={{ color: "#0f172a", fontFamily: "monospace", fontSize: 13 }}>{data?.permissionDiagnostic?.wabaId || data?.waba.primaryWaba?.id || "1290742346350527"}</strong>
               </div>
               <div>
                 <span style={{ color: "#64748b", display: "block" }}>WABA Name:</span>
-                <strong style={{ color: "#0f172a" }}>{data?.waba.primaryWaba?.name || "Recruitment Training Academy WABA"}</strong>
+                <strong style={{ color: "#0f172a" }}>{data?.permissionDiagnostic?.verifiedName || data?.waba.primaryWaba?.name || "recruitmenttrainingacademy"}</strong>
               </div>
             </div>
           </div>
@@ -1977,24 +2433,64 @@ export function RtaConnectorHub() {
                 </div>
               </div>
 
-              <div>
-                <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#334155", marginBottom: 4 }}>
-                  Message Text:
+              <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 6 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "#334155" }}>Message Mode:</label>
+                <label style={{ fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
+                  <input
+                    type="radio"
+                    name="msgMode"
+                    checked={testMessageType === "text"}
+                    onChange={() => setTestMessageType("text")}
+                  />
+                  <span>💬 Free-Form Text</span>
                 </label>
-                <textarea
-                  value={testText}
-                  onChange={e => setTestText(e.target.value)}
-                  rows={2}
-                  style={{
-                    width: "100%",
-                    boxSizing: "border-box",
-                    border: "1px solid #cbd5e1",
-                    borderRadius: 6,
-                    padding: "6px 10px",
-                    fontSize: 12,
-                  }}
-                />
+                <label style={{ fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
+                  <input
+                    type="radio"
+                    name="msgMode"
+                    checked={testMessageType === "template"}
+                    onChange={() => setTestMessageType("template")}
+                  />
+                  <span>📋 Approved Template (utility/marketing)</span>
+                </label>
               </div>
+
+              {testMessageType === "template" ? (
+                <div>
+                  <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#334155", marginBottom: 4 }}>
+                    Choose Approved Template on WABA 1290742346350527:
+                  </label>
+                  <select
+                    value={selectedTemplateName}
+                    onChange={e => setSelectedTemplateName(e.target.value)}
+                    style={{ width: "100%", padding: "6px 10px", border: "1px solid #cbd5e1", borderRadius: 6, fontSize: 12 }}
+                  >
+                    <option value="optout_confirmation">optout_confirmation (UTILITY - Approved)</option>
+                    <option value="t04_rta_first_job_entry">t04_rta_first_job_entry (MARKETING - Approved)</option>
+                    <option value="t03_rta_fresher_details">t03_rta_fresher_details (MARKETING - Approved)</option>
+                    <option value="t02_rta_student_details">t02_rta_student_details (MARKETING - Approved)</option>
+                  </select>
+                </div>
+              ) : (
+                <div>
+                  <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#334155", marginBottom: 4 }}>
+                    Message Text:
+                  </label>
+                  <textarea
+                    value={testText}
+                    onChange={e => setTestText(e.target.value)}
+                    rows={2}
+                    style={{
+                      width: "100%",
+                      boxSizing: "border-box",
+                      border: "1px solid #cbd5e1",
+                      borderRadius: 6,
+                      padding: "6px 10px",
+                      fontSize: 12,
+                    }}
+                  />
+                </div>
+              )}
 
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
                 <span style={{ fontSize: 11, color: "#065f46" }}>
@@ -2143,7 +2639,7 @@ export function RtaConnectorHub() {
                   type="text"
                   value={officialWabaId}
                   onChange={e => setOfficialWabaId(e.target.value)}
-                  placeholder="1169391638991834"
+                  placeholder="1290742346350527"
                   style={{ width: "100%", boxSizing: "border-box", border: "1px solid #cbd5e1", borderRadius: 6, padding: "6px 8px", fontSize: 12, fontFamily: "monospace" }}
                 />
               </div>
