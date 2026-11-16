@@ -12,7 +12,7 @@ type ListItem = {
 }
 type Message = {
   id:string; direction:"INBOUND"|"OUTBOUND"|"NOTE"; type:string; content:string|null; status:string|null; createdAt:string; sentAt:string|null
-  senderUser:{name:string}|null; media:{filename:string|null;mime:string|null}|null
+  senderUser:{name:string}|null; media:{filename:string|null;mime:string|null}|null; error?:string|null
 }
 type QuickReply = {id:string;shortcut:string;content:string}
 type AdReferral = {sourceType:string;sourceId:string|null;sourceUrl:string|null;headline:string|null;body:string|null;createdAt:string}
@@ -83,6 +83,8 @@ export default function InboxPage() {
   const [showTemplates,setShowTemplates] = useState(false)
   const [loadingList,setLoadingList] = useState(true)
   const [sending,setSending] = useState(false)
+  const [retryingId,setRetryingId] = useState<string|null>(null)
+  const [forceDirectOutbound,setForceDirectOutbound] = useState(false)
   const [error,setError] = useState("")
   const [mode,setMode] = useState<"reply"|"note">("reply")
   const [file,setFile] = useState<File|null>(null)
@@ -167,7 +169,32 @@ export default function InboxPage() {
     const value = text.trim()
     if(file)return sendFile()
     if(!value)return
-    if(await send(mode==="note"?{note:value}:{text:value}))setText("")
+    const isClosed = detail && !detail.windowOpen
+    const payload = mode==="note"
+      ? { note:value }
+      : { text:value, ...(isClosed || forceDirectOutbound ? { forceSend:true } : {}) }
+    if(await send(payload)) setText("")
+  }
+
+  async function handleRetryMessage(messageId: string) {
+    if (!selectedId) return
+    setRetryingId(messageId)
+    setError("")
+    try {
+      const response = await fetch("/api/inbox", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversationId: selectedId, retryMessageId: messageId }),
+      })
+      const body = await response.json()
+      if (!response.ok) throw new Error(body.error || "Retry failed.")
+      await loadDetail(selectedId)
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Retry failed.")
+      await loadDetail(selectedId)
+    } finally {
+      setRetryingId(null)
+    }
   }
 
   async function sendFile(){
@@ -400,9 +427,47 @@ export default function InboxPage() {
                       {message.type==="TEMPLATE"?"📋 Template":""}{message.senderUser?`${message.type==="TEMPLATE"?" · ":""}${message.senderUser.name}`:""}</div>}
                     {media}
                     {message.content||(!media&&<em style={{color:"#54656f"}}>{TYPE_LABEL[message.type]||message.type.toLowerCase()}</em>)}
-                    <div style={{fontSize:10,color:"#667781",textAlign:"right",marginTop:2}}>
-                      {new Date(at).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"})}{outbound&&<> · {ticks(message.status)}</>}
+                    <div style={{fontSize:10,color:"#667781",textAlign:"right",marginTop:2,display:"flex",alignItems:"center",justifyContent:"flex-end",gap:6,flexWrap:"wrap"}}>
+                      <span>{new Date(at).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"})}</span>
+                      {outbound&&(
+                        <span>
+                          {message.status==="FAILED"?(
+                            <span style={{display:"inline-flex",alignItems:"center",gap:4}}>
+                              <span style={{color:"#dc2626",fontWeight:700}} title={message.error||"Message delivery failed"}>
+                                ⚠ Failed
+                              </span>
+                              <button
+                                type="button"
+                                onClick={()=>handleRetryMessage(message.id)}
+                                disabled={retryingId===message.id}
+                                title={message.error?`Error: ${message.error}. Click to retry.`:"Click to retry sending this message"}
+                                style={{
+                                  background:"#fee2e2",
+                                  color:"#b91c1c",
+                                  border:"1px solid #fecaca",
+                                  borderRadius:4,
+                                  padding:"1px 6px",
+                                  fontSize:10,
+                                  fontWeight:800,
+                                  cursor:retryingId===message.id?"not-allowed":"pointer",
+                                  display:"inline-flex",
+                                  alignItems:"center",
+                                  gap:2,
+                                }}
+                              >
+                                <span>{retryingId===message.id?"⏳":"🔄"}</span>
+                                {retryingId===message.id?"Retrying…":"Retry"}
+                              </button>
+                            </span>
+                          ):ticks(message.status)}
+                        </span>
+                      )}
                     </div>
+                    {outbound&&message.status==="FAILED"&&message.error&&(
+                      <div style={{marginTop:4,fontSize:10,color:"#991b1b",background:"#fef2f2",border:"1px solid #fecaca",borderRadius:4,padding:"3px 6px",lineHeight:1.3,textAlign:"left"}}>
+                        🚨 {message.error}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -419,10 +484,18 @@ export default function InboxPage() {
                 style={{border:0,borderRadius:6,padding:"4px 10px",fontSize:11,fontWeight:700,cursor:"pointer",
                   background:mode===value?(value==="note"?"#fef9c3":"#dcfce7"):"#f1f5f9",color:mode===value?(value==="note"?"#854d0e":"#166534"):"#64748b"}}>{label}</button>)}
             </div>
-            {mode==="reply"&&!detail.windowOpen&&!showTemplates&&<div style={{fontSize:12,color:"#92400e",background:"#fffbeb",border:"1px solid #fde68a",borderRadius:8,padding:"8px 10px",marginBottom:8}}>
-              {conversation.channel==="INSTAGRAM"?"The 24-hour reply window is closed. Instagram only allows replies within 24 hours of the customer's last message.":
-                "The 24-hour reply window is closed. WhatsApp only allows an approved template until the customer replies."}
-              {conversation.channel!=="INSTAGRAM"&&<button onClick={()=>setShowTemplates(true)} style={{marginLeft:8,border:0,background:"none",color:"#075e54",fontWeight:700,cursor:"pointer",fontSize:12}}>Send a template →</button>}
+            {mode==="reply"&&!detail.windowOpen&&!showTemplates&&<div style={{fontSize:12,color:"#92400e",background:"#fffbeb",border:"1px solid #fde68a",borderRadius:8,padding:"8px 10px",marginBottom:8,display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}>
+              <div>
+                <strong>⚠️ 24-Hour Reply Window Closed:</strong> {conversation.channel==="INSTAGRAM"
+                  ?"Instagram only allows replies within 24 hours of customer's message."
+                  :"Customer hasn't messaged yet. WhatsApp recommends sending an approved template, or you can send directly."}
+              </div>
+              <div style={{display:"flex",gap:6}}>
+                {conversation.channel!=="INSTAGRAM"&&<button onClick={()=>setShowTemplates(true)} style={{background:"#075e54",color:"#fff",border:0,borderRadius:6,padding:"4px 10px",fontWeight:700,cursor:"pointer",fontSize:11}}>📋 Send a template →</button>}
+                <button type="button" onClick={()=>setForceDirectOutbound(!forceDirectOutbound)} style={{background:forceDirectOutbound?"#16a34a":"#fff",color:forceDirectOutbound?"#fff":"#334155",border:forceDirectOutbound?"0":"1px solid #cbd5e1",borderRadius:6,padding:"4px 10px",fontWeight:700,cursor:"pointer",fontSize:11}}>
+                  {forceDirectOutbound?"✓ Direct Outbound Active":"⚡ Direct Outbound Send"}
+                </button>
+              </div>
             </div>}
             {mode==="reply"&&showTemplates?<div>
               <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:8}}>
@@ -445,7 +518,7 @@ export default function InboxPage() {
                   style={{border:0,borderRadius:8,padding:"9px 16px",background:"#075e54",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>
                   {sending?"Sending…":"Send template"}</button>
               </>}
-            </div>:(mode==="note"||detail.windowOpen)&&<div style={{position:"relative"}}>
+            </div>:<div style={{position:"relative"}}>
               {mode==="reply"&&quickMatches.length>0&&(slash!==null||quickOpen)&&<div role="listbox" aria-label="Quick replies" style={{position:"absolute",bottom:"100%",left:0,right:0,marginBottom:6,
                 background:"#fff",border:"1px solid #e2e8f0",borderRadius:10,boxShadow:"0 8px 24px rgba(15,23,42,.12)",maxHeight:240,overflowY:"auto",zIndex:5}}>
                 {quickMatches.map(item=><button key={item.id} role="option" aria-selected={false} onClick={()=>useQuickReply(item)} style={{display:"block",width:"100%",textAlign:"left",border:0,

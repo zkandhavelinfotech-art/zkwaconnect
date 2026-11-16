@@ -9,6 +9,7 @@ import { getMetaAccessToken } from "@/lib/onboarding/context"
 import { sendAndRecord } from "@/lib/whatsapp/send"
 import { buildTemplateMessage } from "@/lib/whatsapp/template-media"
 import { attachmentRule, storeMedia, uploadToWhatsApp } from "@/lib/whatsapp/media"
+import { metaGraph } from "@/lib/meta/graph"
 
 export const runtime = "nodejs"
 
@@ -71,7 +72,13 @@ export async function GET(request: Request) {
       ])
       const windowEndsAt = inboundAt ? new Date(inboundAt.getTime() + WINDOW_MS) : null
       // Media details only (the raw WhatsApp payload stays on the server).
-      const messages = [...conversation.messages].reverse().map(({ metadata, ...message }) => ({ ...message, media:mediaInfo(message.type, message.mediaUrl, metadata) }))
+      const messages = [...conversation.messages].reverse().map(message => ({
+        ...message,
+        media: mediaInfo(message.type, message.mediaUrl, message.metadata),
+        error: (message.metadata && typeof message.metadata === "object" && "metaError" in message.metadata)
+          ? String((message.metadata as any).metaError)
+          : null,
+      }))
       return NextResponse.json({
         conversation:{ ...conversation, messages },
         windowOpen: Boolean(windowEndsAt && windowEndsAt > new Date()),
@@ -123,8 +130,9 @@ export async function GET(request: Request) {
 
 const sendSchema = z.union([
   z.object({ conversationId:z.string().min(1), note:z.string().trim().min(1, "Write the note.").max(4096) }),
-  z.object({ conversationId:z.string().min(1), text:z.string().trim().min(1).max(4096) }),
+  z.object({ conversationId:z.string().min(1), text:z.string().trim().min(1).max(4096), forceSend:z.boolean().optional() }),
   z.object({ conversationId:z.string().min(1), templateId:z.string().min(1), parameters:z.array(z.string().trim().min(1).max(1024)).max(20).default([]) }),
+  z.object({ conversationId:z.string().min(1), retryMessageId:z.string().min(1) }),
   z.object({ newChat:z.literal(true), phone:z.string().min(8), name:z.string().optional(), phoneNumberId:z.string().optional() }),
 ])
 
@@ -183,11 +191,98 @@ export async function POST(request: Request) {
     const target = { accessToken, metaPhoneNumberId:phone.phoneNumberId, to:conversation.contact.phone,
       conversationId:conversation.id, senderUserId:member.userId }
 
+    // 1. Retry failed outbound message
+    if ("retryMessageId" in input) {
+      const msg = await prisma.message.findFirst({
+        where: { id: input.retryMessageId, conversationId: conversation.id },
+      })
+      if (!msg) return NextResponse.json({ error: "Message not found." }, { status: 404 })
+
+      const textToSend = msg.content || ""
+      if (!textToSend) return NextResponse.json({ error: "Message has no text content to retry." }, { status: 400 })
+
+      try {
+        const metaRes = await metaGraph<{ messages?: { id: string }[] }>(
+          `${phone.phoneNumberId}/messages`,
+          accessToken,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              messaging_product: "whatsapp",
+              recipient_type: "individual",
+              to: conversation.contact.phone,
+              type: "text",
+              text: { preview_url: true, body: textToSend },
+            }),
+          }
+        )
+
+        const extId = metaRes.messages?.[0]?.id || `wamid.retry_${Date.now()}`
+        await prisma.message.update({
+          where: { id: msg.id },
+          data: {
+            status: "SENT",
+            sentAt: new Date(),
+            externalMessageId: extId,
+            metadata: {
+              ...(typeof msg.metadata === "object" && msg.metadata ? (msg.metadata as any) : {}),
+              retriedAt: new Date().toISOString(),
+              retriedBy: member.userId,
+              metaError: null,
+            },
+          },
+        })
+
+        return NextResponse.json({ ok: true, messageId: msg.id, status: "SENT" })
+      } catch (err: any) {
+        const errMsg = err.message || "Meta API retry failed."
+        await prisma.message.update({
+          where: { id: msg.id },
+          data: {
+            status: "FAILED",
+            metadata: {
+              ...(typeof msg.metadata === "object" && msg.metadata ? (msg.metadata as any) : {}),
+              retriedAt: new Date().toISOString(),
+              retriedBy: member.userId,
+              metaError: errMsg,
+            },
+          },
+        })
+        return NextResponse.json({ error: `Retry failed: ${errMsg}` }, { status: 400 })
+      }
+    }
+
     if ("text" in input) {
       const inboundAt = await lastInboundAt(conversation.id)
-      if (!inboundAt || Date.now() - inboundAt.getTime() > WINDOW_MS)
-        return NextResponse.json({ error:"The 24-hour reply window has closed. Send an approved template to restart the conversation." }, { status:409 })
-      await sendAndRecord(target, { type:"text", text:{ preview_url:true, body:input.text } }, input.text, { source:"INBOX" })
+      const windowExpired = !inboundAt || Date.now() - inboundAt.getTime() > WINDOW_MS
+      if (windowExpired && !input.forceSend)
+        return NextResponse.json({
+          error: "The 24-hour reply window has closed. Send an approved template, or click 'Send Direct' to attempt delivery.",
+          windowClosed: true,
+        }, { status: 409 })
+
+      try {
+        await sendAndRecord(target, { type:"text", text:{ preview_url:true, body:input.text } }, input.text, { source:"INBOX" })
+      } catch (sendErr: any) {
+        // Record the failed message in the thread so the user sees it and can retry
+        await prisma.message.create({
+          data: {
+            conversationId: conversation.id,
+            direction: "OUTBOUND",
+            senderUserId: member.userId,
+            type: "TEXT",
+            content: input.text,
+            status: "FAILED",
+            sentAt: new Date(),
+            metadata: {
+              source: "INBOX",
+              metaError: sendErr.message || "Meta delivery failed",
+            },
+          },
+        })
+        throw sendErr
+      }
     } else {
       const template = await prisma.template.findFirst({ where:{ id:input.templateId, organizationId, status:"APPROVED",
         wabaId:phone.wabaId } })
