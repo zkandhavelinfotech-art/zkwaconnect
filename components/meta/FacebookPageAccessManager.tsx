@@ -58,6 +58,7 @@ export function FacebookPageAccessManager() {
   const [selectedBusinessId, setSelectedBusinessId] = useState("")
   const [requesting, setRequesting] = useState(false)
   const [copiedId, setCopiedId] = useState(false)
+  const [agencyAccessLevel, setAgencyAccessLevel] = useState<"full" | "partial">("full")
   const [requestResult, setRequestResult] = useState<{
     ok: boolean
     message: string
@@ -209,6 +210,7 @@ export function FacebookPageAccessManager() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "auto_assign_agency_partner",
+          accessLevel: agencyAccessLevel,
           businessId: data?.businessId || "1707214344108990",
           partnerBusinessId: "246511357935583",
         }),
@@ -663,8 +665,58 @@ export function FacebookPageAccessManager() {
                 </span>
               </div>
               <p style={{ fontSize: 11, color: "#475569", lineHeight: 1.5, margin: "0 0 10px" }}>
-                To give ZKWAConnect Agency (<strong>Zkandhavel Infotech Private Limited</strong>) partner access, click the 1-click automated assign button below. Meta's direct partner launcher will open with partner ID <code>246511357935583</code> pre-filled so you don't have to copy and paste:
+                To give ZKWAConnect Agency (<strong>Zkandhavel Infotech Private Limited</strong>) partner access, select the permission tier below and click assign:
               </p>
+
+              <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
+                <label
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    background: agencyAccessLevel === "full" ? "#dcfce7" : "#fff",
+                    color: agencyAccessLevel === "full" ? "#166534" : "#475569",
+                    padding: "4px 10px",
+                    borderRadius: 6,
+                    border: `1px solid ${agencyAccessLevel === "full" ? "#86efac" : "#cbd5e1"}`,
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="fbAgencyAccessLevel"
+                    checked={agencyAccessLevel === "full"}
+                    onChange={() => setAgencyAccessLevel("full")}
+                  />
+                  <span>🌟 Full Access (Full Control)</span>
+                </label>
+
+                <label
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    background: agencyAccessLevel === "partial" ? "#fef3c7" : "#fff",
+                    color: agencyAccessLevel === "partial" ? "#92400e" : "#475569",
+                    padding: "4px 10px",
+                    borderRadius: 6,
+                    border: `1px solid ${agencyAccessLevel === "partial" ? "#fde68a" : "#cbd5e1"}`,
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="fbAgencyAccessLevel"
+                    checked={agencyAccessLevel === "partial"}
+                    onChange={() => setAgencyAccessLevel("partial")}
+                  />
+                  <span>🔹 Partial Access</span>
+                </label>
+              </div>
 
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
                 <button

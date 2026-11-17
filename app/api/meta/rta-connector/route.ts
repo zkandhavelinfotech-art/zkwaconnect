@@ -959,51 +959,68 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // ACTION: AUTOMATICALLY ASSIGN AGENCY PARTNER (ZERO-COPY)
+    // ACTION: AUTOMATICALLY ASSIGN AGENCY PARTNER (PARTIAL ACCESS TO FULL ACCESS)
     if (action === "auto_assign_agency_partner") {
-      const { businessId, partnerBusinessId, tasks } = body
-      const clientBizId = businessId || RTA_BUSINESS_ID
+      const { businessId, partnerBusinessId, tasks, accessLevel, targetPortfolio } = body
       const agencyPartnerId = partnerBusinessId || "246511357935583" // Zkandhavel Infotech Private Limited
-      const permittedTasks = tasks || ["MANAGE", "ADVERTISE", "ANALYZE", "MESSAGING"]
+      const isFullAccess = accessLevel !== "partial"
+
+      const permittedTasks = tasks || (isFullAccess
+        ? ["MANAGE", "CREATE_CONTENT", "MESSAGING", "MODERATE", "ADVERTISE", "ANALYZE"]
+        : ["CREATE_CONTENT", "MESSAGING", "ANALYZE"])
+
+      const portfoliosToAssign = targetPortfolio === "all"
+        ? [RTA_WABA_PORTFOLIO_ID, RTA_APP_PORTFOLIO_ID]
+        : [businessId || RTA_WABA_PORTFOLIO_ID]
 
       let apiSuccess = false
       let apiMessage = ""
       let apiError: string | null = null
 
-      // Attempt 1: Call Meta Graph API to add agency partner
-      try {
-        const res = await metaGraph<any>(
-          `${clientBizId}/agencies`,
-          token,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              business: agencyPartnerId,
-              permitted_tasks: permittedTasks,
-            }),
+      for (const bizId of portfoliosToAssign) {
+        try {
+          const res = await metaGraph<any>(
+            `${bizId}/agencies`,
+            token,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                business: agencyPartnerId,
+                permitted_tasks: permittedTasks,
+              }),
+            }
+          )
+          if (res?.success || res?.id) {
+            apiSuccess = true
+            apiMessage = `✓ Agency Partner (${agencyPartnerId}) successfully updated with ${isFullAccess ? "FULL ACCESS (Full Control)" : "PARTIAL ACCESS"} under Business Portfolio ${bizId}!`
           }
-        )
-        apiSuccess = Boolean(res?.success || res?.id)
-        apiMessage = `✓ Agency Partner (${agencyPartnerId}) successfully linked to Business Portfolio ${clientBizId} via Meta Graph API!`
-      } catch (err: any) {
-        apiError = err.message || "Meta Partner API Error"
+        } catch (err: any) {
+          apiError = err.message || "Meta Partner API Error"
+        }
       }
 
+      const clientBizId = businessId || RTA_WABA_PORTFOLIO_ID
       const directAddUrl = `https://business.facebook.com/settings/partners/client-partners/add?business_id=${clientBizId}&partner_id=${agencyPartnerId}`
-      const directPartnerUrl = `https://business.facebook.com/settings/partners?business_id=${clientBizId}`
+      const directPartnerUrl = `https://business.facebook.com/latest/settings/partners?business_id=${clientBizId}&selected_partner_id=${agencyPartnerId}`
+      const wabaPartnerUrl = `https://business.facebook.com/latest/settings/partners?business_id=${RTA_WABA_PORTFOLIO_ID}&selected_partner_id=${agencyPartnerId}`
+      const appPortfolioPartnerUrl = `https://business.facebook.com/latest/settings/partners?business_id=${RTA_APP_PORTFOLIO_ID}&selected_partner_id=${agencyPartnerId}`
 
       return NextResponse.json({
         ok: true,
         apiSuccess,
+        accessLevel: isFullAccess ? "FULL_ACCESS" : "PARTIAL_ACCESS",
+        permittedTasks,
         agencyPartnerId,
         agencyPartnerName: "Zkandhavel Infotech Private Limited",
         clientBusinessId: clientBizId,
         directAddUrl,
         directPartnerUrl,
+        wabaPartnerUrl,
+        appPortfolioPartnerUrl,
         message: apiSuccess
           ? apiMessage
-          : `✓ Partner assignment prepared for Zkandhavel Infotech (${agencyPartnerId})! Click 'Open Pre-filled Partner Settings' to confirm in Meta Business Suite in 1 click (no copying required).`,
+          : `✓ Partner setup prepared with ${isFullAccess ? "FULL ACCESS (Full Control)" : "PARTIAL ACCESS"} for Zkandhavel Infotech (${agencyPartnerId})! Open the direct link below to confirm in Meta Business Suite.`,
         apiError,
       })
     }

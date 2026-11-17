@@ -157,6 +157,8 @@ export function RtaConnectorHub() {
   const [assigningPartner, setAssigningPartner] = useState(false)
   const [partnerAssigned, setPartnerAssigned] = useState(false)
   const [partnerAssignResult, setPartnerAssignResult] = useState<any>(null)
+  const [partnerAccessLevel, setPartnerAccessLevel] = useState<"full" | "partial">("full")
+  const [partnerTargetPortfolio, setPartnerTargetPortfolio] = useState<"all" | "1185206983626614" | "1707214344108990">("all")
 
   // Service Partner Migration state
   const [copiedAiSensyEmail, setCopiedAiSensyEmail] = useState(false)
@@ -509,16 +511,18 @@ export function RtaConnectorHub() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "auto_assign_agency_partner",
-          businessId: data?.businessPortfolio.id || "1707214344108990",
+          accessLevel: partnerAccessLevel,
+          targetPortfolio: partnerTargetPortfolio,
+          businessId: partnerTargetPortfolio === "all" ? "1185206983626614" : partnerTargetPortfolio,
           partnerBusinessId: "246511357935583",
         }),
       })
       const json = await res.json()
       setPartnerAssignResult(json)
       setPartnerAssigned(true)
-      setSuccessMsg(json.message || "Agency Partner (246511357935583) assignment initiated!")
-      if (json.directAddUrl) {
-        window.open(json.directAddUrl, "_blank", "noopener,noreferrer")
+      setSuccessMsg(json.message || "Agency Partner (246511357935583) permissions updated!")
+      if (json.directPartnerUrl) {
+        window.open(json.directPartnerUrl, "_blank", "noopener,noreferrer")
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to auto-assign agency partner")
@@ -2681,63 +2685,298 @@ export function RtaConnectorHub() {
       {/* ============================================================== */}
       <div
         style={{
-          background: "#f0fdf4",
-          border: "1px solid #bbf7d0",
-          borderRadius: 12,
-          padding: "14px 18px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: 12,
+          background: "#fff",
+          border: "1.5px solid #10b981",
+          borderRadius: 14,
+          padding: "18px 22px",
+          boxShadow: "0 2px 8px rgba(16, 185, 129, 0.08)",
         }}
       >
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 800, color: "#166534" }}>
-            🤝 Assign Agency Partner: Zkandhavel Infotech (246511357935583)
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 14, marginBottom: 14 }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 20 }}>🤝</span>
+              <h3 style={{ fontSize: 16, fontWeight: 800, color: "#0f172a", margin: 0, fontFamily: "Sora, sans-serif" }}>
+                Assign Agency Partner: Zkandhavel Infotech Private Limited (246511357935583)
+              </h3>
+              <span
+                style={{
+                  background: partnerAccessLevel === "full" ? "#dcfce7" : "#fef3c7",
+                  color: partnerAccessLevel === "full" ? "#15803d" : "#b45309",
+                  fontSize: 11,
+                  fontWeight: 800,
+                  padding: "2px 8px",
+                  borderRadius: 10,
+                  border: `1px solid ${partnerAccessLevel === "full" ? "#86efac" : "#fde68a"}`,
+                }}
+              >
+                {partnerAccessLevel === "full" ? "FULL ACCESS (FULL CONTROL)" : "PARTIAL ACCESS"}
+              </span>
+            </div>
+            <p style={{ fontSize: 12, color: "#64748b", margin: "4px 0 0" }}>
+              Switch or upgrade agency partner permissions between Partial Access and Full Access across both business portfolios.
+            </p>
           </div>
-          <div style={{ fontSize: 11, color: "#475569" }}>
-            Permits ZKWAConnect to manage broadcasts, templates, and analytics under Portfolio {data?.businessPortfolio.id || "1707214344108990"}.
+
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <button
+              type="button"
+              onClick={handleAutoAssignAgencyPartner}
+              disabled={assigningPartner}
+              style={{
+                background: "#047857",
+                color: "#fff",
+                border: 0,
+                borderRadius: 8,
+                padding: "8px 16px",
+                fontSize: 12,
+                fontWeight: 800,
+                cursor: assigningPartner ? "not-allowed" : "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                boxShadow: "0 2px 6px rgba(4, 120, 87, 0.25)",
+              }}
+            >
+              <span>{assigningPartner ? "⏳" : "⚡"}</span>
+              {assigningPartner ? "Updating Partner…" : partnerAccessLevel === "full" ? "Set Full Access (1-Click)" : "Set Partial Access (1-Click)"}
+            </button>
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: 8 }}>
-          <button
-            type="button"
-            onClick={handleAutoAssignAgencyPartner}
-            disabled={assigningPartner}
+        {/* Toggles: Access Level & Target Portfolio */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+            gap: 12,
+            background: "#f8fafc",
+            border: "1px solid #e2e8f0",
+            borderRadius: 10,
+            padding: "12px 16px",
+            marginBottom: 14,
+          }}
+        >
+          {/* Access Level Selector */}
+          <div>
+            <label style={{ display: "block", fontSize: 11, fontWeight: 800, color: "#334155", textTransform: "uppercase", marginBottom: 6 }}>
+              Permission Tier:
+            </label>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <label
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  background: partnerAccessLevel === "full" ? "#dcfce7" : "#fff",
+                  color: partnerAccessLevel === "full" ? "#166534" : "#475569",
+                  padding: "5px 10px",
+                  borderRadius: 6,
+                  border: `1px solid ${partnerAccessLevel === "full" ? "#86efac" : "#cbd5e1"}`,
+                }}
+              >
+                <input
+                  type="radio"
+                  name="partnerAccessLevel"
+                  checked={partnerAccessLevel === "full"}
+                  onChange={() => setPartnerAccessLevel("full")}
+                />
+                <span>🌟 Full Access (Full Control)</span>
+              </label>
+
+              <label
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  background: partnerAccessLevel === "partial" ? "#fef3c7" : "#fff",
+                  color: partnerAccessLevel === "partial" ? "#92400e" : "#475569",
+                  padding: "5px 10px",
+                  borderRadius: 6,
+                  border: `1px solid ${partnerAccessLevel === "partial" ? "#fde68a" : "#cbd5e1"}`,
+                }}
+              >
+                <input
+                  type="radio"
+                  name="partnerAccessLevel"
+                  checked={partnerAccessLevel === "partial"}
+                  onChange={() => setPartnerAccessLevel("partial")}
+                />
+                <span>🔹 Partial Access</span>
+              </label>
+            </div>
+            <p style={{ margin: "4px 0 0", fontSize: 11, color: "#64748b" }}>
+              {partnerAccessLevel === "full"
+                ? "Full Control: Manage WhatsApp account, phone numbers, templates, ads, messages, and insights."
+                : "Partial Access: Limited to message replies, content publishing, and analytics."}
+            </p>
+          </div>
+
+          {/* Portfolio Target Selector */}
+          <div>
+            <label style={{ display: "block", fontSize: 11, fontWeight: 800, color: "#334155", textTransform: "uppercase", marginBottom: 6 }}>
+              Target Business Portfolio:
+            </label>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <label
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  background: partnerTargetPortfolio === "all" ? "#f0fdf4" : "#fff",
+                  color: partnerTargetPortfolio === "all" ? "#166534" : "#475569",
+                  padding: "5px 10px",
+                  borderRadius: 6,
+                  border: `1px solid ${partnerTargetPortfolio === "all" ? "#86efac" : "#cbd5e1"}`,
+                }}
+              >
+                <input
+                  type="radio"
+                  name="partnerTargetPortfolio"
+                  checked={partnerTargetPortfolio === "all"}
+                  onChange={() => setPartnerTargetPortfolio("all")}
+                />
+                <span>Both Portfolios (Recommended)</span>
+              </label>
+
+              <label
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  background: partnerTargetPortfolio === "1185206983626614" ? "#f0fdf4" : "#fff",
+                  color: partnerTargetPortfolio === "1185206983626614" ? "#166534" : "#475569",
+                  padding: "5px 10px",
+                  borderRadius: 6,
+                  border: `1px solid ${partnerTargetPortfolio === "1185206983626614" ? "#86efac" : "#cbd5e1"}`,
+                }}
+              >
+                <input
+                  type="radio"
+                  name="partnerTargetPortfolio"
+                  checked={partnerTargetPortfolio === "1185206983626614"}
+                  onChange={() => setPartnerTargetPortfolio("1185206983626614")}
+                />
+                <span>WABA (1185206983626614)</span>
+              </label>
+
+              <label
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  background: partnerTargetPortfolio === "1707214344108990" ? "#f0fdf4" : "#fff",
+                  color: partnerTargetPortfolio === "1707214344108990" ? "#166534" : "#475569",
+                  padding: "5px 10px",
+                  borderRadius: 6,
+                  border: `1px solid ${partnerTargetPortfolio === "1707214344108990" ? "#86efac" : "#cbd5e1"}`,
+                }}
+              >
+                <input
+                  type="radio"
+                  name="partnerTargetPortfolio"
+                  checked={partnerTargetPortfolio === "1707214344108990"}
+                  onChange={() => setPartnerTargetPortfolio("1707214344108990")}
+                />
+                <span>App / Page (1707214344108990)</span>
+              </label>
+            </div>
+            <p style={{ margin: "4px 0 0", fontSize: 11, color: "#64748b" }}>
+              Portfolio 1185206983626614 holds WABA 1290742346350527. Portfolio 1707214344108990 holds Facebook Page &amp; Meta App.
+            </p>
+          </div>
+        </div>
+
+        {/* Step-by-Step Meta Business Suite Upgrade Instructions */}
+        <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "12px 16px", marginBottom: 12 }}>
+          <div style={{ fontSize: 12, fontWeight: 800, color: "#0f172a", marginBottom: 6 }}>
+            📋 How to Switch from Partial Access to Full Access in Meta Business Suite:
+          </div>
+          <ol style={{ margin: 0, paddingLeft: 20, fontSize: 12, color: "#475569", lineHeight: 1.6 }}>
+            <li>
+              Open Meta Business Suite for Portfolio <strong>1185206983626614</strong> (WhatsApp Accounts) or <strong>1707214344108990</strong> (Pages).
+            </li>
+            <li>
+              In the left sidebar under <strong>Users</strong>, click <strong>Partners</strong> &gt; Select <strong>Zkandhavel Infotech Private Limited</strong> (<code>246511357935583</code>).
+            </li>
+            <li>
+              Click the blue <strong>Assign assets</strong> button (or click on an existing assigned asset in the list).
+            </li>
+            <li>
+              Select <strong>WhatsApp accounts</strong> &gt; Check <code>recruitmenttrainingacademy</code> (WABA: 1290742346350527).
+            </li>
+            <li>
+              Under Permissions on the right column: toggle <strong>Full control (Manage WhatsApp account)</strong> from OFF to <strong>ON</strong>.
+            </li>
+            <li>
+              Click <strong>Save changes</strong>.
+            </li>
+          </ol>
+        </div>
+
+        {/* Direct Action Links */}
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+          <a
+            href="https://business.facebook.com/latest/settings/partners?business_id=1185206983626614&selected_partner_id=246511357935583"
+            target="_blank"
+            rel="noopener noreferrer"
             style={{
-              background: "#16a34a",
+              background: "#047857",
               color: "#fff",
-              border: 0,
+              textDecoration: "none",
+              padding: "8px 14px",
               borderRadius: 6,
-              padding: "7px 14px",
-              fontSize: 11,
-              fontWeight: 800,
-              cursor: assigningPartner ? "not-allowed" : "pointer",
+              fontSize: 12,
+              fontWeight: 700,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
             }}
           >
-            {assigningPartner ? "Assigning…" : "⚡ 1-Click Assign Agency"}
-          </button>
+            <span>↗</span> Open Partner in Portfolio 1185206983626614 (WABA Assets)
+          </a>
 
           <a
-            href={`https://business.facebook.com/settings/partners/client-partners/add?business_id=${data?.businessPortfolio.id || "1707214344108990"}&partner_id=246511357935583`}
+            href="https://business.facebook.com/latest/settings/partners?business_id=1707214344108990&selected_partner_id=246511357935583"
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
             style={{
-              background: "#fff",
-              color: "#166534",
-              border: "1px solid #86efac",
-              borderRadius: 6,
-              padding: "7px 12px",
-              fontSize: 11,
-              fontWeight: 700,
+              background: "#1877F2",
+              color: "#fff",
               textDecoration: "none",
+              padding: "8px 14px",
+              borderRadius: 6,
+              fontSize: 12,
+              fontWeight: 700,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
             }}
           >
-            Pre-Filled Meta Suite Link ↗
+            <span>↗</span> Open Partner in Portfolio 1707214344108990 (Page Assets)
           </a>
         </div>
+
+        {partnerAssignResult && (
+          <div style={{ marginTop: 12, background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#166534" }}>
+            <strong>✓ Result:</strong> {partnerAssignResult.message}
+          </div>
+        )}
       </div>
     </div>
   )
