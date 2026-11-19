@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ZKWAConnect — WhatsApp Business API Onboarding & Management Gap Analysis Report</title>
+  <style>
+    :root {
+      --bg: #090d16;
+      --card-bg: #111827;
+      --card-border: #1f293d;
+      --emerald: #10b981;
+      --emerald-glow: rgba(16, 185, 129, 0.15);
+      --emerald-dim: #064e3b;
+      --blue: #3b82f6;
+      --blue-glow: rgba(59, 130, 246, 0.15);
+      --amber: #f59e0b;
+      --rose: #f43f5e;
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --text-dim: #6b7280;
+      --code-bg: #030712;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      line-height: 1.6;
+      padding: 0;
+      margin: 0;
+    }
+    header {
+      background: linear-gradient(180deg, rgba(16, 185, 129, 0.08) 0%, rgba(9, 13, 22, 0) 100%), #0d131f;
+      border-bottom: 1px solid var(--card-border);
+      padding: 40px 24px;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      backdrop-filter: blur(12px);
+    }
+    .header-container {
+      max-width: 1280px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+    .badge-bar {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      background: var(--card-border);
+      color: var(--text-muted);
+    }
+    .badge.emerald {
+      background: var(--emerald-glow);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .badge.blue {
+      background: var(--blue-glow);
+      color: #60a5fa;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+    .badge.amber {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+    h1 {
+      font-size: 28px;
+      font-weight: 800;
+      color: #fff;
+      letter-spacing: -0.02em;
+    }
+    .subtitle {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+    .nav-actions {
+      display: flex;
+      gap: 12px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+    .btn-primary {
+      background: var(--emerald);
+      color: #022c22;
+      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
+    }
+    .btn-primary:hover {
+      background: #059669;
+      transform: translateY(-1px);
+    }
+    .btn-secondary {
+      background: #1f2937;
+      color: #e5e7eb;
+      border: 1px solid var(--card-border);
+    }
+    .btn-secondary:hover {
+      background: #374151;
+      border-color: #4b5563;
+    }
+    .main-container {
+      max-width: 1280px;
+      margin: 40px auto;
+      padding: 0 24px;
+      display: grid;
+      gap: 36px;
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 28px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+    }
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 16px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .card-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .card-title .icon {
+      font-size: 20px;
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+      gap: 24px;
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+    }
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+    }
+    /* Comparison Matrix */
+    table.matrix {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 13px;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--card-border);
+    }
+    table.matrix th {
+      background: #0d1527;
+      padding: 14px 16px;
+      text-align: left;
+      font-weight: 700;
+      color: #94a3b8;
+      border-bottom: 1px solid var(--card-border);
+    }
+    table.matrix td {
+      padding: 14px 16px;
+      border-bottom: 1px solid #1a2234;
+      color: var(--text-main);
+      vertical-align: top;
+    }
+    table.matrix tr:last-child td {
+      border-bottom: none;
+    }
+    table.matrix tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+    .tag-req {
+      background: rgba(239, 68, 68, 0.15);
+      color: #fca5a5;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      display: inline-block;
+    }
+    .tag-opt {
+      background: rgba(148, 163, 184, 0.15);
+      color: #cbd5e1;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      display: inline-block;
+    }
+    .tag-cond {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fcd34d;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      display: inline-block;
+    }
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .status-crit {
+      background: rgba(244, 63, 94, 0.15);
+      color: #fda4af;
+      border: 1px solid rgba(244, 63, 94, 0.3);
+    }
+    .status-high {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fde68a;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+    .status-med {
+      background: rgba(59, 130, 246, 0.15);
+      color: #bfdbfe;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+    /* Flow Diagrams */
+    .flow-step-box {
+      background: #0d1527;
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 16px;
+      position: relative;
+    }
+    .flow-step-num {
+      position: absolute;
+      top: -10px;
+      left: 16px;
+      background: var(--emerald);
+      color: #022c22;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 2px 8px;
+      border-radius: 9999px;
+    }
+    .flow-step-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      margin-top: 6px;
+      margin-bottom: 6px;
+    }
+    .flow-step-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+    /* Architecture Diagram */
+    .arch-diagram {
+      background: #030712;
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 24px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: #a5f3fc;
+      overflow-x: auto;
+      line-height: 1.7;
+    }
+    /* Checklist */
+    .check-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px 14px;
+      background: #0d1527;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      font-size: 13px;
+    }
+    .check-icon {
+      color: var(--emerald);
+      font-weight: 900;
+      font-size: 15px;
+      margin-top: 1px;
+    }
+    .check-body strong {
+      color: #fff;
+      display: block;
+      margin-bottom: 2px;
+    }
+    .check-body span {
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+    /* State Diagram Box */
+    .state-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .st-init { background: #1e293b; color: #cbd5e1; }
+    .st-prog { background: rgba(59, 130, 246, 0.2); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.4); }
+    .st-ok { background: rgba(16, 185, 129, 0.2); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.4); }
+    .st-act { background: rgba(245, 158, 11, 0.2); color: #fde68a; border: 1px solid rgba(245, 158, 11, 0.4); }
+    .st-err { background: rgba(244, 63, 94, 0.2); color: #fca5a5; border: 1px solid rgba(244, 63, 94, 0.4); }
+    /* Tabs & Callouts */
+    .alert-box {
+      background: rgba(16, 185, 129, 0.08);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      border-radius: 8px;
+      padding: 16px 20px;
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      margin: 16px 0;
+    }
+    .alert-box.warning {
+      background: rgba(245, 158, 11, 0.08);
+      border-color: rgba(245, 158, 11, 0.3);
+    }
+    .alert-box.info {
+      background: rgba(59, 130, 246, 0.08);
+      border-color: rgba(59, 130, 246, 0.3);
+    }
+    .alert-icon { font-size: 20px; }
+    .alert-text { font-size: 13px; color: #e2e8f0; line-height: 1.5; }
+    .alert-text strong { color: #fff; }
+    footer {
+      border-top: 1px solid var(--card-border);
+      padding: 30px 24px;
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 12px;
+      margin-top: 60px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header>
+    <div class="header-container">
+      <div>
+        <div class="badge-bar">
+          <span class="badge emerald">Official Implementation Baseline</span>
+          <span class="badge blue">Embedded Signup v4 Ready</span>
+          <span class="badge amber">Target: November 2026</span>
+        </div>
+        <h1>ZKWAConnect — WhatsApp Business API Onboarding Gap Analysis</h1>
+        <div class="subtitle">Architectural Gap Assessment, State Lifecycle Engine, Database Architecture & Technical Specification</div>
+      </div>
+      <div class="nav-actions">
+        <a href="/release-roadmap-plan.html" class="btn btn-primary">View Release Roadmap Plan →</a>
+        <a href="/admin/dashboard" class="btn btn-secondary">Open SaaS Console</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT -->
+  <div class="main-container">
+
+    <!-- EXECUTIVE SUMMARY -->
+    <section class="card">
+      <div class="card-header">
+        <div class="card-title"><span class="icon">🎯</span> Strategic Executive Objective</div>
+        <span class="badge emerald">Self-Service Onboarding Standard</span>
+      </div>
+      <p style="font-size: 14px; color: #cbd5e1; margin-bottom: 16px;">
+        The strategic imperative is to upgrade ZKWAConnect from a conventional settings page into a full-fledged 
+        <strong>Native WhatsApp Business Account (WABA) Onboarding & Management Module</strong> matching the enterprise customer experience of AiSensy and Interakt.
+      </p>
+
+      <div class="grid-2">
+        <div class="alert-box info">
+          <div class="alert-icon">💡</div>
+          <div class="alert-text">
+            <strong>Core Differentiator:</strong> A customer signs up, navigates to <em>Settings → WhatsApp Business API</em>, clicks <strong>Connect with Meta</strong>, completes Meta-hosted Embedded Signup v4, and returns to ZKWAConnect with their active WhatsApp number immediately connected without manual configuration or token handling.
+          </div>
+        </div>
+
+        <div class="alert-box warning">
+          <div class="alert-icon">⚠️</div>
+          <div class="alert-text">
+            <strong>Critical November 2026 Mandate:</strong> Architecture must strictly conform to <strong>Embedded Signup v4</strong> (taking mandatory effect October 15, 2026), replacing legacy v2/v3 token exchange patterns with the Tech Provider authorization model.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ARCHITECTURAL DISTINCTION: PLATFORM VS CUSTOMER -->
+    <section class="card">
+      <div class="card-header">
+        <div class="card-title"><span class="icon">⚖️</span> Architectural Boundary: Platform vs Customer Setup</div>
+        <span class="badge blue">Two-Tier Responsibility</span>
+      </div>
+
+      <div class="grid-2">
+        <div style="background: #0d1527; border: 1px solid var(--card-border); border-radius: 10px; padding: 20px;">
+          <h3 style="font-size: 15px; color: #60a5fa; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+            <span>🏢</span> ZKWAConnect Platform Setup (One-Time)
+          </h3>
+          <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 14px;">
+            Configured once by ZKWAConnect SaaS engineering. Customers never see or manage these assets.
+          </p>
+          <ul style="padding-left: 18px; font-size: 12px; color: #cbd5e1; line-height: 1.8;">
+            <li><strong>Meta Developer Account:</strong> Verified ZK Company Developer profile.</li>
+            <li><strong>Meta Business App:</strong> Business-type app (ID: <code>NEXT_PUBLIC_META_APP_ID</code>).</li>
+            <li><strong>Tech Provider Verification:</strong> Completed Meta Tech Provider review.</li>
+            <li><strong>Login for Business & Embedded Signup v4:</strong> Configured OAuth callback URLs & configuration ID.</li>
+            <li><strong>Advanced Access Permissions:</strong> <code>whatsapp_business_management</code>, <code>whatsapp_business_messaging</code>.</li>
+            <li><strong>Webhook Endpoint:</strong> Webhook listener subscribed to <code>messages</code>, <code>message_template_status_update</code>, <code>account_update</code>.</li>
+          </ul>
+        </div>
+
+        <div style="background: #0d1527; border: 1px solid var(--card-border); border-radius: 10px; padding: 20px;">
+          <h3 style="font-size: 15px; color: #34d399; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+            <span>👤</span> Customer Onboarding (Per Tenant / Self-Service)
+          </h3>
+          <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 14px;">
+            Executed by customer admins through the guided Meta modal directly inside ZKWAConnect.
+          </p>
+          <ul style="padding-left: 18px; font-size: 12px; color: #cbd5e1; line-height: 1.8;">
+            <li><strong>Business Portfolio:</strong> Customer selects an existing Portfolio or creates a new one.</li>
+            <li><strong>WABA Account:</strong> Creates new WABA or links existing corporate WABA.</li>
+            <li><strong>WhatsApp Business Profile:</strong> Display name, category, website, business description.</li>
+            <li><strong>Phone Number & OTP:</strong> Enters eligible phone number and completes SMS/Voice OTP.</li>
+            <li><strong>Asset Delegation:</strong> Authorizes ZKWAConnect to send/receive messages on their behalf.</li>
+            <li><strong>Automated Registration:</strong> System registers phone number with 6-digit pin via Cloud API.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP-BY-STEP GAP ANALYSIS MATRIX -->
+    <section class="card">
+      <div class="card-header">
+        <div class="card-title"><span class="icon">🔍</span> Detailed Step-by-Step Gap Analysis</div>
+        <span class="badge amber">Current vs Proposed</span>
+      </div>
+
+      <table class="matrix">
+        <thead>
+          <tr>
+            <th style="width: 20%;">Onboarding Step</th>
+            <th style="width: 12%;">Requirement</th>
+            <th style="width: 28%;">Current Legacy Approach</th>
+            <th style="width: 40%;">Proposed Native Architecture</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>1. Meta Developer App</strong></td>
+            <td><span class="tag-req">Yes (Once)</span></td>
+            <td>Risk of expecting customer or client admin to create individual Meta developer apps.</td>
+            <td><strong>ZKWAConnect Platform Level App:</strong> Zero client app creation. Clients authenticate via ZKWAConnect's verified Tech Provider App.</td>
+          </tr>
+          <tr>
+            <td><strong>2. Business Portfolio</strong></td>
+            <td><span class="tag-req">Yes</span></td>
+            <td>Manual portfolio ID entry in settings with high drop-off and copy-paste errors.</td>
+            <td><strong>Meta Embedded Modal:</strong> Customer selects existing portfolio or creates brand new one directly inside Meta's official popup dialog.</td>
+          </tr>
+          <tr>
+            <td><strong>3. Roles & Permissions</strong></td>
+            <td><span class="tag-req">Yes</span></td>
+            <td>Instruction manual asking clients to invite agency emails as Business Managers.</td>
+            <td><strong>Automated OAuth Consent:</strong> Customer grants asset permissions with 1 click. Zero manual invite or user credential sharing required.</td>
+          </tr>
+          <tr>
+            <td><strong>4. Partner Assignment</strong></td>
+            <td><span class="tag-cond">Conditional</span></td>
+            <td>Manual agency partner linking under Meta Business Manager settings.</td>
+            <td><strong>Automated Zero-Copy Partner API:</strong> Programmatic asset assignment via Graph API (<code>/{business_id}/agencies</code>) with pre-filled 1-click fallback.</td>
+          </tr>
+          <tr>
+            <td><strong>5. Facebook & Instagram</strong></td>
+            <td><span class="tag-opt">Optional</span></td>
+            <td>Coupled together; social account failures frequently blocked WhatsApp setup.</td>
+            <td><strong>Decoupled Modules:</strong> WhatsApp onboarding operates independently. Facebook Pages and Instagram are dedicated separate optional hubs.</td>
+          </tr>
+          <tr>
+            <td><strong>6. WABA Creation</strong></td>
+            <td><span class="tag-req">Yes</span></td>
+            <td>Client had to create WABA in external Meta Business Suite then paste WABA ID.</td>
+            <td><strong>Embedded Signup v4:</strong> Native creation of WABA or selection of existing WABA with immediate return of <code>waba_id</code>.</td>
+          </tr>
+          <tr>
+            <td><strong>7. Phone Number & OTP</strong></td>
+            <td><span class="tag-req">Yes</span></td>
+            <td>Phone number manual entry; OTP verification required out-of-band coordination.</td>
+            <td><strong>In-Modal Phone Registration:</strong> Real-time SMS/Voice OTP verification within Meta Embedded Signup, followed by Cloud API 2-step registration.</td>
+          </tr>
+          <tr>
+            <td><strong>8. Status & Recovery</strong></td>
+            <td><span class="tag-req">Yes</span></td>
+            <td>Static "Disconnected" label with no recovery guidance or retry mechanism.</td>
+            <td><strong>Automated 14-State Engine:</strong> Auto-diagnosis, 1-click retries, error sanitization, and Super Admin manual intervention tickets.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ARCHITECTURE FLOW DIAGRAM -->
+    <section class="card">
+      <div class="card-header">
+        <div class="card-title"><span class="icon">⚡</span> Recommended System Sequence Architecture</div>
+        <span class="badge emerald">Embedded Signup v4 Pipeline</span>
+      </div>
+
+      <div class="arch-diagram">
+[ZKWAConnect Client Portal]
+    │
+    ▼ (1) Click "Connect WhatsApp"
+[Pre-Onboarding Readiness Modal] ──── (Fails Validation) ───► [Show Actionable Fix Checklist]
+    │
+    ▼ (2) Passed: Launch FB Login SDK
+[Meta Embedded Signup v4 Modal]
+    │   • Login with Facebook for Business
+    │   • Select / Create Business Portfolio
+    │   • Create / Select WABA (Business Display Name & Category)
+    │   • Provide Phone Number (SMS / Voice OTP Verified)
+    │   • Grant WhatsApp Permissions to ZKWAConnect
+    │
+    ▼ (3) Meta Returns: { code, waba_id, phone_number_id }
+[POST /api/whatsapp/onboarding/callback]
+    │
+    ▼ (4) Backend Token Exchange (OAuth Code -> System User / Access Token)
+[Validate Token & Scopes] ────► [Encrypt & Store in WhatsAppCredentials]
+    │
+    ▼ (5) Register Number via Graph API
+[POST /{phone_number_id}/register] (Set 6-digit PIN & Messaging Tier)
+    │
+    ▼ (6) Webhook Subscriptions
+[POST /{waba_id}/subscribed_apps] (Subscribe to Webhook Events)
+    │
+    ▼ (7) Persist Tenant Relationship
+[Save to Waba, PhoneNumber, WhatsAppOnboardingLogs]
+    │
+    ▼ (8) Final Transition
+[Status: CONNECTED] ───► [Client Dashboard: Show Live Number, Health & Tier]
+      </div>
+    </section>
+
+    <!-- DATABASE SCHEMA COMPARISON -->
+    <section class="card">
+      <div class="card-header">
+        <div class="card-title"><span class="icon">🗄️</span> Multi-Tenant Database Architecture Design</div>
+        <span class="badge blue">Strict Tenant Isolation</span>
+      </div>
+
+      <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">
+        To guarantee multi-tenancy security, enterprise auditing, and resilient retries, the database schema expands from the minimal legacy models to dedicated audit-ready tables:
+      </p>
+
+      <div class="grid-3">
+        <div class="flow-step-box">
+          <div class="flow-step-title">1. MetaAppConfigurations</div>
+          <div class="flow-step-desc">
+            Platform-level credentials for ZKWAConnect's Meta Developer App (App ID, Secret hash, Config ID, Graph API version, Tech Provider ID).
+          </div>
+        </div>
+
+        <div class="flow-step-box">
+          <div class="flow-step-title">2. MetaBusinessAccounts</div>
+          <div class="flow-step-desc">
+            Tenant business portfolio records (Business ID, legal business name, country, verification status, and timezone).
+          </div>
+        </div>
+
+        <div class="flow-step-box">
+          <div class="flow-step-title">3. WhatsAppBusinessAccounts</div>
+          <div class="flow-step-desc">
+            WABA metadata (wabaId, organizationId, currency, quality rating, messaging tier, display name approval).
+          </div>
+        </div>
+
+        <div class="flow-step-box">
+          <div class="flow-step-title">4. WhatsAppPhoneNumbers</div>
+          <div class="flow-step-desc">
+            Verified numbers (phoneNumberId, displayPhoneNumber, callingEnabled, registrationStatus, qualityRating, limit).
+          </div>
+        </div>
+
+        <div class="flow-step-box">
+          <div class="flow-step-title">5. WhatsAppOnboardingSessions</div>
+          <div class="flow-step-desc">
+            Active onboarding instances (tenantId, sessionId, currentStatus, failureReason, retryCount, startedAt, completedAt).
+          </div>
+        </div>
+
+        <div class="flow-step-box">
+          <div class="flow-step-title">6. WhatsAppCredentials</div>
+          <div class="flow-step-desc">
+            Encrypted access tokens, token types, expiry timestamps, and system user ID references. Never exposed to frontend.
+          </div>
+        </div>
+
+        <div class="flow-step-box">
+          <div class="flow-step-title">7. WhatsAppWebhooks</div>
+          <div class="flow-step-desc">
+            Subscribed WABA events, webhook verification status, delivery health, and last ping timestamp.
+          </div>
+        </div>
+
+        <div class="flow-step-box">
+          <div class="flow-step-title">8. WhatsAppOnboardingLogs</div>
+          <div class="flow-step-desc">
+            Immutable audit logs: timestamps, raw Meta error codes (internal only), sanitized client messages, operator IDs.
+          </div>
+        </div>
+
+        <div class="flow-step-box">
+          <div class="flow-step-title">9. WhatsAppManualRequests</div>
+          <div class="flow-step-desc">
+            Super admin intervention tickets generated when automated onboarding fails, enabling delegated support setup.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- AUTOMATED ONBOARDING 14-STATUS ENGINE -->
+    <section class="card">
+      <div class="card-header">
+        <div class="card-title"><span class="icon">🔄</span> 14-Stage Lifecycle State Machine</div>
+        <span class="badge emerald">Fault-Tolerant Engine</span>
+      </div>
+
+      <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">
+        Every onboarding attempt transitions through deterministic states with clear client recovery actions:
+      </p>
+
+      <table class="matrix">
+        <thead>
+          <tr>
+            <th style="width: 25%;">Lifecycle Status</th>
+            <th style="width: 40%;">System Meaning</th>
+            <th style="width: 35%;">Client Action / UI Response</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="state-badge st-init">NOT_STARTED</span></td>
+            <td>No onboarding has been initiated for this workspace.</td>
+            <td>Display "Connect with Meta" CTA & Readiness Checklist.</td>
+          </tr>
+          <tr>
+            <td><span class="state-badge st-prog">INITIATED</span></td>
+            <td>Onboarding session generated, pre-checks verified.</td>
+            <td>Launch Meta Embedded Signup modal dialog.</td>
+          </tr>
+          <tr>
+            <td><span class="state-badge st-prog">META_AUTH_PENDING</span></td>
+            <td>Waiting for customer to authenticate with Facebook.</td>
+            <td>Prompt user to complete FB login popup.</td>
+          </tr>
+          <tr>
+            <td><span class="state-badge st-prog">BUSINESS_SELECTION</span></td>
+            <td>Customer selecting or creating Business Portfolio.</td>
+            <td>Guided modal instructions in Meta window.</td>
+          </tr>
+          <tr>
+            <td><span class="state-badge st-prog">WABA_CREATION_PENDING</span></td>
+            <td>WABA account name & display profile being submitted.</td>
+            <td>Progress bar shown on client portal.</td>
+          </tr>
+          <tr>
+            <td><span class="state-badge st-prog">PHONE_NUMBER_PENDING</span></td>
+            <td>Phone number input screen open inside Meta modal.</td>
+            <td>Customer enters eligible 10-digit number.</td>
+          </tr>
+          <tr>
+            <td><span class="state-badge st-prog">OTP_VERIFICATION_PENDING</span></td>
+            <td>Meta sent SMS/Voice OTP to provided phone.</td>
+            <td>Customer enters 6-digit OTP code in modal.</td>
+          </tr>
+          <tr>
+            <td><span class="state-badge st-prog">REGISTRATION_PENDING</span></td>
+            <td>Backend calling <code>/{phone_id}/register</code> Cloud API.</td>
+            <td>Spinner: "Registering phone with WhatsApp network…"</td>
+          </tr>
+          <tr>
+            <td><span class="state-badge st-prog">DISPLAY_NAME_PENDING</span></td>
+            <td>Display name under Meta review (number can still send).</td>
+            <td>Notice: "Display name under standard Meta review."</td>
+          </tr>
+          <tr>
+            <td><span class="state-badge st-ok">CONNECTED</span></td>
+            <td>WABA, Phone ID, Token, and Webhooks fully operational.</td>
+            <td>Show connected badge, phone number, health metrics.</td>
+          </tr>
+          <tr>
+            <td><span class="state-badge st-act">ACTION_REQUIRED</span></td>
+            <td>Customer input required (e.g. incorrect OTP, invalid website).</td>
+            <td>Show friendly resolution button (e.g. "Retry OTP").</td>
+          </tr>
+          <tr>
+            <td><span class="state-badge st-err">FAILED</span></td>
+            <td>Technical failure (timeout, network, permission issue).</td>
+            <td>Show sanitized error and "Retry" / "Request Help".</td>
+          </tr>
+          <tr>
+            <td><span class="state-badge st-act">MANUAL_REVIEW</span></td>
+            <td>Customer flagged for Super Admin assisted setup.</td>
+            <td>Support ticket created; admin notified on console.</td>
+          </tr>
+          <tr>
+            <td><span class="state-badge st-err">SUSPENDED</span></td>
+            <td>Meta policy restriction or suspended business status.</td>
+            <td>Alert banner directing customer to Meta Business Manager.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- PRE-ONBOARDING BUSINESS READINESS CHECKLIST -->
+    <section class="card">
+      <div class="card-header">
+        <div class="card-title"><span class="icon">📋</span> Pre-Onboarding Business Readiness Checklist</div>
+        <span class="badge amber">Prevents Meta Modal Drop-Off</span>
+      </div>
+
+      <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">
+        Before launching the Meta Embedded Signup modal, ZKWAConnect runs an interactive pre-flight checklist:
+      </p>
+
+      <div class="grid-2">
+        <div class="check-item">
+          <div class="check-icon">✓</div>
+          <div class="check-body">
+            <strong>Fresh / Eligible Phone Number</strong>
+            <span>Must NOT be currently active on standard WhatsApp or WhatsApp Business App on a phone (or must be deleted from app first).</span>
+          </div>
+        </div>
+
+        <div class="check-item">
+          <div class="check-icon">✓</div>
+          <div class="check-body">
+            <strong>Legal Business Entity & Details</strong>
+            <span>Legal business name, registered corporate address, official email, and GSTIN / PAN / Registration certificate.</span>
+          </div>
+        </div>
+
+        <div class="check-item">
+          <div class="check-icon">✓</div>
+          <div class="check-body">
+            <strong>Live Public Business Website</strong>
+            <span>Functional HTTPS website displaying business contact information and privacy policy.</span>
+          </div>
+        </div>
+
+        <div class="check-item">
+          <div class="check-icon">✓</div>
+          <div class="check-body">
+            <strong>Meta Business Portfolio Admin Access</strong>
+            <span>The Facebook user logging in must hold Full Control / Admin access to the company's Meta Business Portfolio.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SUPER ADMIN CONSOLE AS SAAS PRODUCT OWNER -->
+    <section class="card">
+      <div class="card-header">
+        <div class="card-title"><span class="icon">👑</span> Super Admin Console (SaaS Product Owner Delegation)</div>
+        <span class="badge emerald">Managed White-Glove Onboarding</span>
+      </div>
+
+      <div class="grid-2">
+        <div>
+          <h4 style="font-size: 14px; color: #fff; margin-bottom: 8px;">Delegated Tenant Onboarding Features:</h4>
+          <ul style="padding-left: 20px; font-size: 13px; color: #cbd5e1; line-height: 1.8;">
+            <li><strong>Tenant Workspace Provisioning:</strong> Create customer tenant workspace and initiate managed onboarding in 1 click.</li>
+            <li><strong>Onboarding Session Inspection:</strong> Real-time visibility into every tenant's active step, drop-off point, and Meta error code.</li>
+            <li><strong>Sanitized vs Raw Error Duality:</strong> Customer sees clean friendly guidance; Admin sees exact Meta Graph API code and error subcode.</li>
+            <li><strong>Manual Asset Verification:</strong> Validate customer-provided WABA IDs, Phone IDs, and system user tokens without bypassing OAuth security.</li>
+            <li><strong>Support Ticket Integration:</strong> Auto-generates high-priority support ticket when <code>MANUAL_REVIEW</code> is triggered.</li>
+          </ul>
+        </div>
+
+        <div style="background: #0d1527; border: 1px solid var(--card-border); border-radius: 10px; padding: 20px;">
+          <h4 style="font-size: 13px; color: #fbbf24; margin-bottom: 8px;">🛡️ Security Rule: Strict Token Privacy</h4>
+          <p style="font-size: 12px; color: var(--text-muted); line-height: 1.6;">
+            Admins cannot bypass Meta authorization by arbitrarily entering arbitrary WABA IDs or phone numbers. All connections must originate from cryptographically verified Meta OAuth tokens or authorized Partner System User asset shares.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- MARKETING & PRICING WITH TWILIO ADD-ON -->
+    <section class="card">
+      <div class="card-header">
+        <div class="card-title"><span class="icon">💎</span> Marketing, Features & Pricing Integration (With Twilio Add-On)</div>
+        <span class="badge blue">Public SaaS Tiering</span>
+      </div>
+
+      <table class="matrix">
+        <thead>
+          <tr>
+            <th>Tier / Plan</th>
+            <th>Monthly Price</th>
+            <th>Onboarding & Connectivity Model</th>
+            <th>Gateway Provider</th>
+            <th>Target Customer</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Free Starter</strong></td>
+            <td>₹0 / forever</td>
+            <td>Self-service Meta Embedded Signup v4 (Pay-as-you-go Meta conversation fees directly to Meta).</td>
+            <td>Official Meta Cloud API</td>
+            <td>Small businesses, early startups testing WhatsApp campaigns.</td>
+          </tr>
+          <tr>
+            <td><strong>Growth Business</strong></td>
+            <td>₹1,499 / mo</td>
+            <td>Automated Embedded Signup, Broadcast campaigns, Chatbot flow builder, Blue tick assistance.</td>
+            <td>Official Meta Cloud API</td>
+            <td>Growing brands sending 10k–100k messages monthly.</td>
+          </tr>
+          <tr>
+            <td><strong>Enterprise Pro</strong></td>
+            <td>₹3,999 / mo</td>
+            <td>Managed White-Glove Onboarding, Super Admin assisted setup, Dedicated IP, Multi-agent inbox.</td>
+            <td>Official Meta Cloud API + Priority Gateway</td>
+            <td>Established companies requiring SLA and dedicated account manager.</td>
+          </tr>
+          <tr>
+            <td><strong>Twilio Global Add-on</strong></td>
+            <td>Optional Add-on</td>
+            <td>Dual Gateway: Route global SMS, international WhatsApp, and Voice OTP through Twilio ISV tech provider integration.</td>
+            <td>Twilio Messaging Gateway</td>
+            <td>International cross-border brands requiring global SMS fallback & unified billing.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+  </div>
+
+  <!-- FOOTER -->
+  <footer>
+    <div style="max-width: 1280px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+      <div>ZKWAConnect v6.0.0 Enterprise Architecture Baseline · Built for Official WhatsApp Business API</div>
+      <div>Confidential & Proprietary · Zkandhavel Infotech Private Limited</div>
+    </div>
+  </footer>
+
+</body>
+</html>

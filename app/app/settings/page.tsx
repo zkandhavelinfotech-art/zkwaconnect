@@ -1,6 +1,7 @@
 "use client"
 import { useCallback, useEffect, useState } from "react"
 import { VERTICALS, type Vertical } from "@/lib/meta/profile"
+import { WhatsAppOnboardingManagementModule } from "@/components/whatsapp/WhatsAppOnboardingManagementModule"
 
 type Profile = { about?:string; address?:string; description?:string; email?:string; profile_picture_url?:string; websites?:string[]; vertical?:string }
 type Phone = {
@@ -107,6 +108,10 @@ export default function SettingsPage() {
           <button onClick={load} disabled={loading} style={{border:"1px solid #cbd5e1",borderRadius:8,background:"#fff",padding:"8px 14px",fontSize:12,fontWeight:700,cursor:"pointer"}}>
             {loading?"Syncing…":"↻ Sync from Meta"}</button>
         </div>
+      </div>
+
+      <div style={{ marginBottom: 20 }}>
+        <WhatsAppOnboardingManagementModule />
       </div>
 
       {error&&<div role="alert" style={{padding:11,background:"#fff1f0",color:"#9f2d22",borderRadius:8,marginBottom:12,fontSize:13}}>{error}</div>}
