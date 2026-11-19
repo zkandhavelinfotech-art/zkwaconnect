@@ -3,11 +3,13 @@ import { prisma } from "@/lib/db/prisma"
 import { getOnboardingOrganizationId } from "@/lib/onboarding/context"
 import { metaGraph } from "@/lib/meta/graph"
 import { subscribeWaba } from "@/lib/meta/waba"
+import { sanitizeMetaError } from "@/lib/whatsapp/error-sanitizer"
+import { recordLifecycleLog } from "@/lib/whatsapp/lifecycle"
 
 export const runtime = "nodejs"
 
 // POST /api/whatsapp/accounts/[id]/retry
-// Automatically retries failed phone registration or webhook subscription.
+// Automated self-healing diagnostic retry engine for WABA, registration, and webhooks.
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -40,24 +42,43 @@ export async function POST(
     })
 
     if (!conn?.accessToken) {
+      const sanitized = sanitizeMetaError({ code: 190, message: "No active token" })
+      await recordLifecycleLog({
+        organizationId,
+        eventType: "RETRY_FAILED",
+        statusTo: "ACTION_REQUIRED",
+        rawError: { code: 190 },
+        sanitizedMessage: sanitized.clientMessage,
+      })
       return NextResponse.json(
-        { error: "No active Meta authorization token. Please reconnect Meta via Embedded Signup." },
+        { error: sanitized.clientMessage, title: sanitized.title, status: "ACTION_REQUIRED" },
         { status: 400 }
       )
     }
 
     const primaryPhone = waba.phoneNumbers[0] || null
-    const results: string[] = []
+    const diagnostics: { step: string; success: boolean; detail: string }[] = []
+    let isFullyResolved = true
 
-    // Retry 1: Webhook Subscription
+    // Step 1: Token Validity Check
     try {
-      await subscribeWaba(waba.wabaId, conn.accessToken)
-      results.push("Webhook subscription verified.")
+      await metaGraph<any>(`debug_token?input_token=${encodeURIComponent(conn.accessToken)}`, conn.accessToken)
+      diagnostics.push({ step: "Token Verification", success: true, detail: "Meta OAuth token is active and valid." })
     } catch (err: any) {
-      results.push(`Webhook subscription warning: ${err.message}`)
+      isFullyResolved = false
+      const s = sanitizeMetaError(err)
+      diagnostics.push({ step: "Token Verification", success: false, detail: s.clientMessage })
     }
 
-    // Retry 2: Phone Registration
+    // Step 2: Webhook Subscription
+    try {
+      await subscribeWaba(waba.wabaId, conn.accessToken)
+      diagnostics.push({ step: "Webhook Subscription", success: true, detail: "Subscribed to messages and account updates." })
+    } catch (err: any) {
+      diagnostics.push({ step: "Webhook Subscription", success: false, detail: `Subscription warning: ${err.message}` })
+    }
+
+    // Step 3: Phone Number Registration on Cloud API
     let phoneRegistered = false
     if (primaryPhone) {
       try {
@@ -78,24 +99,56 @@ export async function POST(
           where: { id: primaryPhone.id },
           data: { status: "CONNECTED", verificationStatus: "VERIFIED" },
         })
-        results.push(`Phone number ${primaryPhone.phoneNumber} successfully registered!`)
+        diagnostics.push({ step: "Phone Registration", success: true, detail: `Phone ${primaryPhone.phoneNumber} registered with 6-digit PIN.` })
       } catch (err: any) {
-        results.push(`Phone registration note: ${err.message}`)
+        const s = sanitizeMetaError(err)
+        diagnostics.push({ step: "Phone Registration", success: false, detail: s.clientMessage })
       }
     }
 
-    const status = phoneRegistered ? "CONNECTED" : "ACTION_REQUIRED"
+    // Step 4: Zero-copy Agency Partner Linking
+    const agencyPartnerId = process.env.META_AGENCY_BUSINESS_ID || "246511357935583"
+    const clientBizId = waba.metaBusinessId
+    if (clientBizId && agencyPartnerId) {
+      try {
+        await metaGraph<{ success?: boolean }>(
+          `${clientBizId}/agencies`,
+          conn.accessToken,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              business: agencyPartnerId,
+              permitted_tasks: ["MANAGE", "CREATE_CONTENT", "MESSAGING", "MODERATE", "ADVERTISE", "ANALYZE"],
+            }),
+          }
+        )
+        diagnostics.push({ step: "Agency Partner Linking", success: true, detail: "Agency partner Zkandhavel Infotech verified." })
+      } catch {
+        // Non-blocking
+      }
+    }
+
+    const finalStatus = phoneRegistered ? "CONNECTED" : "ACTION_REQUIRED"
+
+    await recordLifecycleLog({
+      organizationId,
+      eventType: "DIAGNOSTIC_RETRY",
+      statusTo: finalStatus,
+      sanitizedMessage: phoneRegistered ? "Self-healing diagnostics restored connection." : "Diagnostics identified pending action.",
+    })
 
     return NextResponse.json({
       ok: true,
-      status,
-      results,
+      status: finalStatus,
+      isFullyResolved,
+      diagnostics,
       message: phoneRegistered
-        ? "All automated retry diagnostics completed successfully!"
-        : "Retry completed with notes. Customer action may be required.",
+        ? "✓ Automated self-healing diagnostics completed successfully! WhatsApp line is connected."
+        : "Diagnostics completed. Review details for required customer action.",
     })
   } catch (error: any) {
     console.error("[WHATSAPP_RETRY_ERROR]", error)
-    return NextResponse.json({ error: error?.message || "Retry failed." }, { status: 500 })
+    return NextResponse.json({ error: error?.message || "Retry engine failed." }, { status: 500 })
   }
 }

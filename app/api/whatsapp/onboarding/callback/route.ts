@@ -7,6 +7,8 @@ import { metaLoginConfig } from "@/lib/meta/config"
 import { exchangeCode, saveMetaConnection } from "@/lib/meta/connection"
 import { subscribeWaba } from "@/lib/meta/waba"
 import { activateWaba } from "@/lib/onboarding/activate-waba"
+import { recordLifecycleLog } from "@/lib/whatsapp/lifecycle"
+import { sanitizeMetaError } from "@/lib/whatsapp/error-sanitizer"
 
 export const runtime = "nodejs"
 
@@ -54,6 +56,12 @@ export async function POST(request: Request) {
       const token = await exchangeCode(input.code)
       await saveMetaConnection(organizationId, token)
       accessToken = token.accessToken
+      await recordLifecycleLog({
+        organizationId,
+        eventType: "TOKEN_EXCHANGED",
+        statusTo: "META_AUTH_PENDING",
+        sanitizedMessage: "Facebook OAuth token exchanged and encrypted.",
+      })
     } else {
       // Find active meta connection
       const conn = await prisma.metaConnection.findFirst({
@@ -128,11 +136,24 @@ export async function POST(request: Request) {
       waba,
     })
 
+    await recordLifecycleLog({
+      organizationId,
+      eventType: "WABA_ACTIVATED",
+      statusTo: "PHONE_NUMBER_PENDING",
+      sanitizedMessage: `WhatsApp Business Account ${waba.name} (WABA ID: ${waba.id}) connected.`,
+    })
+
     const warnings: string[] = []
 
     // 4. Subscribe to Webhook events
     try {
       await subscribeWaba(waba.id, accessToken)
+      await recordLifecycleLog({
+        organizationId,
+        eventType: "WEBHOOK_SUBSCRIBED",
+        statusTo: "PHONE_NUMBER_PENDING",
+        sanitizedMessage: `Meta Webhook events subscribed for WABA ${waba.id}.`,
+      })
     } catch (err: any) {
       warnings.push(`Webhook subscription pending (${err?.message || "retry in settings"}).`)
     }
@@ -221,6 +242,15 @@ export async function POST(request: Request) {
               },
             })
           }
+
+          await recordLifecycleLog({
+            organizationId,
+            eventType: registeredSuccess ? "PHONE_REGISTERED" : "REGISTRATION_PENDING",
+            statusTo: registeredSuccess ? "CONNECTED" : "REGISTRATION_PENDING",
+            sanitizedMessage: registeredSuccess
+              ? `Phone ${phoneRecord.display_phone_number} successfully registered via Cloud API.`
+              : `Phone ${phoneRecord.display_phone_number} verified via OTP. Final PIN activation pending.`,
+          })
         }
       } catch (err: any) {
         warnings.push(`Phone number sync note: ${err?.message || "requires manual registration PIN"}`)
@@ -276,8 +306,28 @@ export async function POST(request: Request) {
     })
   } catch (error: any) {
     console.error("[WHATSAPP_ONBOARDING_CALLBACK_ERROR]", error)
+    const sanitized = sanitizeMetaError(error)
+    try {
+      const organizationId = await getOnboardingOrganizationId()
+      if (organizationId) {
+        await recordLifecycleLog({
+          organizationId,
+          eventType: "CALLBACK_ERROR",
+          statusTo: sanitized.suggestedStatus || "FAILED",
+          rawError: error,
+          sanitizedMessage: sanitized.clientMessage,
+        })
+      }
+    } catch {}
+
     return NextResponse.json(
-      { error: error?.message || "Failed to process onboarding callback.", status: "FAILED" },
+      {
+        error: sanitized.clientMessage || error?.message || "Failed to process onboarding callback.",
+        title: sanitized.title,
+        status: sanitized.suggestedStatus || "FAILED",
+        actionLabel: sanitized.actionLabel,
+        actionUrl: sanitized.actionUrl,
+      },
       { status: 500 }
     )
   }

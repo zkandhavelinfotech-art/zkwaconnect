@@ -55,7 +55,7 @@ type OnboardingState = {
   }
 }
 
-type HubTab = "overview" | "profile" | "pin" | "test" | "danger"
+type HubTab = "overview" | "profile" | "pin" | "test" | "logs" | "danger"
 
 export function WhatsAppOnboardingManagementModule() {
   const [data, setData] = useState<OnboardingState | null>(null)
@@ -87,6 +87,59 @@ export function WhatsAppOnboardingManagementModule() {
   const [testRecipient, setTestRecipient] = useState("")
   const [testText, setTestText] = useState("Hello from ZKWAConnect! Your WhatsApp Business API connection is verified and active. 🚀")
   const [testResult, setTestResult] = useState<any>(null)
+
+  // Audit Logs & Diagnostics state
+  const [auditLogs, setAuditLogs] = useState<any[]>([])
+  const [logsLoading, setLogsLoading] = useState(false)
+  const [lifecycle, setLifecycle] = useState<any>(null)
+  const [retrying, setRetrying] = useState(false)
+  const [retryResult, setRetryResult] = useState<any>(null)
+
+  const loadAuditLogs = useCallback(async () => {
+    try {
+      setLogsLoading(true)
+      const res = await fetch("/api/whatsapp/onboarding/logs")
+      const json = await res.json()
+      if (res.ok) {
+        if (json.auditLogs) setAuditLogs(json.auditLogs)
+        if (json.lifecycle) setLifecycle(json.lifecycle)
+      }
+    } catch {}
+    finally {
+      setLogsLoading(false)
+    }
+  }, [])
+
+  const handleRetryDiagnostics = async () => {
+    const wabaId = data?.primaryAccount?.wabaId || data?.primaryAccount?.id
+    if (!wabaId) return
+    try {
+      setRetrying(true)
+      setErrorMessage(null)
+      setActionMessage(null)
+      const res = await fetch(`/api/whatsapp/accounts/${wabaId}/retry`, { method: "POST" })
+      const json = await res.json()
+      if (res.ok) {
+        setRetryResult(json)
+        setActionMessage(json.message || "Diagnostics completed successfully.")
+        refreshAccounts()
+        loadAuditLogs()
+      } else {
+        setErrorMessage(json.error || "Retry diagnostics detected issues.")
+        setRetryResult(json)
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || "Network error running diagnostics.")
+    } finally {
+      setRetrying(false)
+    }
+  }
+
+  useEffect(() => {
+    if (activeTab === "logs") {
+      loadAuditLogs()
+    }
+  }, [activeTab, loadAuditLogs])
 
   // 1. Fetch current WhatsApp connection & health
   const refreshAccounts = useCallback(async () => {
@@ -503,6 +556,7 @@ export function WhatsAppOnboardingManagementModule() {
             <TabButton active={activeTab === "profile"} onClick={() => setActiveTab("profile")} label="📝 Business Profile" />
             <TabButton active={activeTab === "pin"} onClick={() => setActiveTab("pin")} label="🔐 Numbers & 2-Step PIN" />
             <TabButton active={activeTab === "test"} onClick={() => setActiveTab("test")} label="💬 Live Messaging Test" />
+            <TabButton active={activeTab === "logs"} onClick={() => setActiveTab("logs")} label="📋 Audit Logs & Diagnostics" />
             <TabButton active={activeTab === "danger"} onClick={() => setActiveTab("danger")} label="⚙️ Account Management" />
           </div>
         )}
@@ -623,7 +677,7 @@ export function WhatsAppOnboardingManagementModule() {
                     style={formInput}
                   >
                     {Object.entries(VERTICALS).map(([key, label]) => (
-                      <option key={key} value={key}>{label}</option>
+                      <option key={key} value={key}>{String(label)}</option>
                     ))}
                   </select>
                 </div>
@@ -824,7 +878,141 @@ export function WhatsAppOnboardingManagementModule() {
             </form>
           )}
 
-          {/* TAB 5: DANGER ZONE & ACCOUNT MANAGEMENT */}
+          {/* TAB 5: AUDIT LOGS & DIAGNOSTICS */}
+          {isConnected && activeTab === "logs" && (
+            <div style={{ display: "grid", gap: 16 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #f1f5f9", paddingBottom: 12, flexWrap: "wrap", gap: 12 }}>
+                <div>
+                  <h3 style={{ fontFamily: "Sora, sans-serif", fontSize: 15, fontWeight: 800, margin: "0 0 4px", color: "#0f172a" }}>
+                    Automated Onboarding Audit Trail &amp; Diagnostics
+                  </h3>
+                  <p style={{ fontSize: 12, color: "#64748b", margin: 0 }}>
+                    Real-time status changes, webhook delivery events, and Meta Cloud API diagnostics.
+                  </p>
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button
+                    type="button"
+                    onClick={loadAuditLogs}
+                    disabled={logsLoading}
+                    style={{ background: "#f8fafc", border: "1px solid #cbd5e1", borderRadius: 8, padding: "7px 12px", fontSize: 12, fontWeight: 700, color: "#334155", cursor: "pointer" }}
+                  >
+                    {logsLoading ? "Refreshing…" : "↻ Refresh Logs"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRetryDiagnostics}
+                    disabled={retrying || busy}
+                    style={{ background: "#0284c7", border: 0, borderRadius: 8, padding: "7px 14px", fontSize: 12, fontWeight: 700, color: "#ffffff", cursor: "pointer" }}
+                  >
+                    {retrying ? "Running Diagnostics…" : "⚡ Run Self-Healing Diagnostics"}
+                  </button>
+                </div>
+              </div>
+
+              {/* RETRY DIAGNOSTIC RESULTS IF ANY */}
+              {retryResult && (
+                <div style={{ background: retryResult.fullyResolved ? "#f0fdf4" : "#fffbeb", border: `1px solid ${retryResult.fullyResolved ? "#bbf7d0" : "#fef08a"}`, borderRadius: 10, padding: 14 }}>
+                  <div style={{ fontWeight: 800, fontSize: 13, color: retryResult.fullyResolved ? "#166534" : "#854d0e", marginBottom: 8 }}>
+                    {retryResult.fullyResolved ? "✓ All Diagnostic Checks Passed" : "⚠️ Attention Required in Meta Business Portfolio"}
+                  </div>
+                  {retryResult.diagnostics && (
+                    <div style={{ display: "grid", gap: 6, fontSize: 12 }}>
+                      {retryResult.diagnostics.map((d: any, idx: number) => (
+                        <div key={idx} style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                          <span>{d.success ? "✅" : "❌"}</span>
+                          <div>
+                            <strong>{d.step}:</strong> <span style={{ color: "#475569" }}>{d.detail}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* LOG ENTRIES TABLE / LIST */}
+              {logsLoading && auditLogs.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "32px 0", color: "#94a3b8", fontSize: 13 }}>
+                  Loading onboarding audit trail…
+                </div>
+              ) : auditLogs.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "32px 0", color: "#94a3b8", fontSize: 13, background: "#f8fafc", borderRadius: 10, border: "1px dashed #cbd5e1" }}>
+                  No onboarding audit events logged yet. Events will appear here as Meta webhooks and status changes occur.
+                </div>
+              ) : (
+                <div style={{ display: "grid", gap: 10 }}>
+                  {auditLogs.map((log: any) => {
+                    const isError = log.eventType.includes("ERROR") || log.eventType.includes("FAIL")
+                    const isSuccess = log.eventType.includes("SUCCESS") || log.eventType.includes("REGISTERED") || log.eventType.includes("CONNECTED")
+                    const badgeBg = isError ? "#fef2f2" : isSuccess ? "#f0fdf4" : "#f0f9ff"
+                    const badgeColor = isError ? "#b91c1c" : isSuccess ? "#166534" : "#0369a1"
+                    const badgeBorder = isError ? "#fecaca" : isSuccess ? "#bbf7d0" : "#bae6fd"
+
+                    return (
+                      <div
+                        key={log.id}
+                        style={{
+                          background: "#ffffff",
+                          border: "1px solid #e2e8f0",
+                          borderRadius: 8,
+                          padding: "12px 16px",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "flex-start",
+                          gap: 12,
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <div style={{ flex: 1, minWidth: 260 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                            <span
+                              style={{
+                                background: badgeBg,
+                                color: badgeColor,
+                                border: `1px solid ${badgeBorder}`,
+                                padding: "2px 8px",
+                                borderRadius: 4,
+                                fontSize: 10,
+                                fontWeight: 800,
+                                letterSpacing: "0.03em",
+                              }}
+                            >
+                              {log.eventType}
+                            </span>
+                            {log.statusTo && (
+                              <span style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>
+                                State: <strong style={{ color: "#334155" }}>{log.statusTo}</strong>
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: 13, color: "#1e293b", fontWeight: 500, lineHeight: 1.5 }}>
+                            {log.clientMessage}
+                          </div>
+                          {log.rawError && (
+                            <details style={{ marginTop: 6, fontSize: 11, color: "#94a3b8" }}>
+                              <summary style={{ cursor: "pointer", color: "#64748b" }}>Raw Diagnostic Error Object</summary>
+                              <pre style={{ margin: "4px 0 0", padding: 8, background: "#f8fafc", borderRadius: 4, overflowX: "auto", fontSize: 10, color: "#334155" }}>
+                                {JSON.stringify(log.rawError, null, 2)}
+                              </pre>
+                            </details>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 11, color: "#94a3b8", whiteSpace: "nowrap" }}>
+                          {new Date(log.createdAt).toLocaleString(undefined, {
+                            dateStyle: "short",
+                            timeStyle: "medium",
+                          })}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 6: DANGER ZONE & ACCOUNT MANAGEMENT */}
           {isConnected && activeTab === "danger" && (
             <div style={{ display: "grid", gap: 16 }}>
               <div style={{ borderBottom: "1px solid #f1f5f9", paddingBottom: 12 }}>
