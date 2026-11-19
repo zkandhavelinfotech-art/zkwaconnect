@@ -3,7 +3,15 @@ export const graphVersion = () => process.env.META_GRAPH_API_VERSION || "v25.0"
 
 // Keeps Meta's error code so callers can tell temporary failures (rate limits, outages) from permanent ones.
 export class MetaApiError extends Error {
-  constructor(message: string, readonly code: number | null, readonly httpStatus: number, readonly details?: string) {
+  constructor(
+    message: string,
+    readonly code: number | null,
+    readonly httpStatus: number,
+    readonly details?: string,
+    readonly subcode: number | null = null,
+    readonly userTitle?: string,
+    readonly traceId?: string,
+  ) {
     super(message)
     this.name = "MetaApiError"
   }
@@ -16,12 +24,25 @@ export async function metaGraph<T>(path: string, accessToken: string, init: Requ
 
   const response = await fetch(url, { ...init, headers, cache: "no-store" })
   const body = await response.json().catch(() => ({})) as {
-    error?: { message?: string; error_user_msg?: string; code?: number; error_data?: { details?: string } }
+    error?: {
+      message?: string
+      error_user_msg?: string
+      error_user_title?: string
+      code?: number
+      error_subcode?: number
+      fbtrace_id?: string
+      error_data?: { details?: string }
+    }
   }
 
   if (!response.ok || body.error)
     throw new MetaApiError(body.error?.error_user_msg || body.error?.message || "Meta API request failed",
-      typeof body.error?.code === "number" ? body.error.code : null, response.status, body.error?.error_data?.details)
+      typeof body.error?.code === "number" ? body.error.code : null,
+      response.status,
+      body.error?.error_data?.details,
+      typeof body.error?.error_subcode === "number" ? body.error.error_subcode : null,
+      body.error?.error_user_title,
+      body.error?.fbtrace_id)
 
   return body as T
 }

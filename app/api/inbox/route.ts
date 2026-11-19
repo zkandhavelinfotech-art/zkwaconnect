@@ -5,11 +5,12 @@ import { z } from "zod"
 import { Prisma } from "@/generated/prisma/client"
 import { getSession } from "@/lib/auth/session"
 import { prisma } from "@/lib/db/prisma"
-import { getMetaAccessToken } from "@/lib/onboarding/context"
+import { getMetaAccessTokenForWaba } from "@/lib/onboarding/context"
 import { sendAndRecord } from "@/lib/whatsapp/send"
 import { buildTemplateMessage } from "@/lib/whatsapp/template-media"
 import { attachmentRule, storeMedia, uploadToWhatsApp } from "@/lib/whatsapp/media"
 import { metaGraph } from "@/lib/meta/graph"
+import { resolveMetaError } from "@/lib/meta/access"
 
 export const runtime = "nodejs"
 
@@ -171,7 +172,7 @@ export async function POST(request: Request) {
     }
 
     const conversation = await prisma.conversation.findFirst({ where:{ id:input.conversationId, organizationId },
-      include:{ contact:true, phoneNumber:true } })
+      include:{ contact:true, phoneNumber:{include:{waba:{select:{wabaId:true}}}} } })
     if (!conversation) return NextResponse.json({ error:"Conversation not found." }, { status:404 })
     // Internal notes are only visible to the team, never sent to WhatsApp.
     if ("note" in input) {
@@ -186,8 +187,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok:true }, { status:201 })
     }
     const phone = conversation.phoneNumber
-    const accessToken = await getMetaAccessToken(organizationId)
-    if (!accessToken) return NextResponse.json({ error:"Connect Meta before sending messages." }, { status:409 })
+    const accessToken = await getMetaAccessTokenForWaba(organizationId, phone.waba.wabaId)
+    if (!accessToken) return NextResponse.json({ error:"Reconnect the Meta Business Portfolio that owns this WhatsApp number before sending." }, { status:409 })
     const target = { accessToken, metaPhoneNumberId:phone.phoneNumberId, to:conversation.contact.phone,
       conversationId:conversation.id, senderUserId:member.userId }
 
@@ -237,6 +238,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ ok: true, messageId: msg.id, status: "SENT" })
       } catch (err: any) {
         const errMsg = err.message || "Meta API retry failed."
+        const resolution = resolveMetaError(err)
         await prisma.message.update({
           where: { id: msg.id },
           data: {
@@ -249,7 +251,7 @@ export async function POST(request: Request) {
             },
           },
         })
-        return NextResponse.json({ error: `Retry failed: ${errMsg}` }, { status: 400 })
+        return NextResponse.json({ error: `Retry failed: ${errMsg}`, resolution }, { status: 400 })
       }
     }
 
@@ -301,7 +303,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok:true }, { status:201 })
   } catch (error) {
     const message = error instanceof z.ZodError ? error.issues[0]?.message : error instanceof Error ? error.message : "Message could not be sent."
-    return NextResponse.json({ error:message }, { status:400 })
+    return NextResponse.json({ error:message, ...(error instanceof z.ZodError ? {} : { resolution:resolveMetaError(error) }) }, { status:400 })
   }
 }
 
@@ -311,7 +313,7 @@ async function sendAttachment(request: Request, member: { organizationId: string
   const file = form.get("file")
   const caption = String(form.get("caption") || "").trim().slice(0, 1024)
   const conversation = await prisma.conversation.findFirst({ where:{ id:String(form.get("conversationId") || ""), organizationId:member.organizationId },
-    include:{ contact:true, phoneNumber:true } })
+    include:{ contact:true, phoneNumber:{include:{waba:{select:{wabaId:true}}}} } })
   if (!conversation) return NextResponse.json({ error:"Conversation not found." }, { status:404 })
   const phone = conversation.phoneNumber
   if (!phone) return NextResponse.json({ error:"File sending is available for WhatsApp chats." }, { status:400 })
@@ -321,8 +323,8 @@ async function sendAttachment(request: Request, member: { organizationId: string
   const inboundAt = await lastInboundAt(conversation.id)
   if (!inboundAt || Date.now() - inboundAt.getTime() > WINDOW_MS)
     return NextResponse.json({ error:"The 24-hour reply window has closed, so files can't be sent. Send an approved template first." }, { status:409 })
-  const accessToken = await getMetaAccessToken(member.organizationId)
-  if (!accessToken) return NextResponse.json({ error:"Connect Meta before sending messages." }, { status:409 })
+  const accessToken = await getMetaAccessTokenForWaba(member.organizationId, phone.waba.wabaId)
+  if (!accessToken) return NextResponse.json({ error:"Reconnect the Meta Business Portfolio that owns this WhatsApp number before sending." }, { status:409 })
   const bytes = new Uint8Array(await file.arrayBuffer())
   const filename = file.name.replace(/[^\w.\- ()]/g, "_").slice(0, 120) || `file.${rule.kind}`
   const mediaId = await uploadToWhatsApp(bytes, file.type, filename, phone.phoneNumberId, accessToken)

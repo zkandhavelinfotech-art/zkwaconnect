@@ -47,8 +47,7 @@ const NAV:NavGroup[] = [
   { id:"account", icon:"⚙️", label:"Account", items:[
     { href:"/app/profile",      icon:"👤", label:"My Profile" },
     { href:"/app/team",         icon:"👥", label:"Team" },
-    { href:"/app/meta-account", icon:"🔗", label:"Meta Account" },
-    { href:"/app/rta-connect",  icon:"⚡", label:"RTA WhatsApp & Page" },
+    { href:"/app/meta-account", icon:"🔗", label:"Channel status" },
     { href:"/app/settings",     icon:"⚙️", label:"Settings" },
     { href:"/app/billing",      icon:"💳", label:"Billing" },
     { href:"/app/green-tick",   icon:"✔️", label:"Green tick" },
@@ -70,7 +69,7 @@ function findActive(pathname:string) {
 }
 
 type Me = {
-  user:{name:string;email:string}
+  user:{name:string;email:string;isPlatformAdmin?:boolean}
   workspace:{id:string;name:string;role:string;walletBalance:number;currency:string;count:number}
   workspaces?:{id:string;name:string;slug:string;role:string;isCurrent:boolean}[]
   plan:{name:string;status:string;interval:string;renewsOn:string|null;trialEndsAt:string|null}|null
@@ -234,14 +233,14 @@ export default function AppLayout({ children }:{ children:React.ReactNode }) {
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
             <span style={{fontSize:10,color:"rgba(255,255,255,.5)",textTransform:"uppercase",letterSpacing:".06em"}}>Project Workspace</span>
             <div style={{display:"flex",gap:8,alignItems:"center"}}>
-              <button
+              {me?.user.isPlatformAdmin&&<button
                 type="button"
                 onClick={()=>setCreateWorkspaceOpen(true)}
                 style={{border:0,background:"none",fontSize:10,color:"#86efac",fontWeight:700,cursor:"pointer",padding:0}}
                 title="Create a new brand / multi-tenant workspace"
               >
                 + New
-              </button>
+              </button>}
               <Link href="/projects" style={{fontSize:10,color:"rgba(255,255,255,.7)",textDecoration:"none"}}>All ⇄</Link>
             </div>
           </div>
@@ -285,20 +284,20 @@ export default function AppLayout({ children }:{ children:React.ReactNode }) {
                   {w.name}
                 </option>
               ))}
-              <option value="__NEW__" style={{ background: "#065f46", color: "#86efac", fontWeight: 700 }}>
+              {me?.user.isPlatformAdmin&&<option value="__NEW__" style={{ background: "#065f46", color: "#86efac", fontWeight: 700 }}>
                 ➕ Create New Project…
-              </option>
+              </option>}
             </select>
           ) : (
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <div style={{fontSize:13,fontWeight:600,color:"#fff",fontFamily:"Sora,sans-serif",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{workspace}</div>
-              <button
+              {me?.user.isPlatformAdmin&&<button
                 type="button"
                 onClick={()=>setCreateWorkspaceOpen(true)}
                 style={{border:0,background:"rgba(255,255,255,.15)",color:"#86efac",fontSize:10,fontWeight:700,borderRadius:4,padding:"2px 6px",cursor:"pointer"}}
               >
                 + Add
-              </button>
+              </button>}
             </div>
           )}
           <div style={{display:"flex",alignItems:"center",gap:6,fontSize:11,marginTop:6,color:me?.whatsapp.connected?"#86efac":"rgba(255,255,255,.55)"}}>
@@ -388,8 +387,8 @@ export default function AppLayout({ children }:{ children:React.ReactNode }) {
             </nav>
           </div>
           <div style={{display:"flex",alignItems:"center",gap:12}}>
-            {me && !me.whatsapp.connected && <a href="/onboarding" className="zk-hide-sm" style={{fontSize:12,color:"#053d36",fontWeight:700,textDecoration:"none",
-              background:"#dcf8c6",borderRadius:20,padding:"6px 12px",whiteSpace:"nowrap"}}>Finish WhatsApp setup →</a>}
+            {me && !me.whatsapp.connected && <a href={me.user.isPlatformAdmin?"/onboarding":"/app/meta-account"} className="zk-hide-sm" style={{fontSize:12,color:"#053d36",fontWeight:700,textDecoration:"none",
+              background:"#dcf8c6",borderRadius:20,padding:"6px 12px",whiteSpace:"nowrap"}}>{me.user.isPlatformAdmin?"Finish customer setup →":"View channel status →"}</a>}
             {me && <span className="zk-hide-sm" style={{fontSize:13,color:"rgba(255,255,255,.85)",whiteSpace:"nowrap"}}>
               Current Plan : <strong style={{color:"#fff"}}>{me.access?.internal ? "INTERNAL" : me.plan ? me.plan.name.toUpperCase() : "FREE"}</strong>{" "}
               <span style={{fontSize:11,opacity:.8}}>({me.access?.internal ? "all features" : me.plan?.status === "TRIAL" ? "trial" : me.plan ? me.plan.interval : "forever"})</span></span>}
@@ -424,7 +423,7 @@ export default function AppLayout({ children }:{ children:React.ReactNode }) {
           })()}
         </main>
       </div>
-      <WorkspaceCreatorModal isOpen={createWorkspaceOpen} onClose={()=>setCreateWorkspaceOpen(false)}/>
+      {me?.user.isPlatformAdmin&&<WorkspaceCreatorModal isOpen={createWorkspaceOpen} onClose={()=>setCreateWorkspaceOpen(false)}/>}
     </div>
   )
 }

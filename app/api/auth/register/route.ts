@@ -1,53 +1,37 @@
-import { NextResponse }   from "next/server"
-import { z }              from "zod"
-import { prisma }         from "@/lib/db/prisma"
-import { hashPassword }   from "@/lib/auth/password"
-import { createSession, setActiveWorkspace }  from "@/lib/auth/session"
-import { createWorkspace } from "@/lib/workspaces"
-import { headers } from "next/headers"
-import { brandForHost } from "@/lib/partners/brand"
-import { creditWallet, getMessagingSettings } from "@/lib/billing/messaging"
+import { NextResponse } from "next/server"
+import { z } from "zod"
+import { prisma } from "@/lib/db/prisma"
+import { clientIp } from "@/lib/auth/throttle"
 
-const schema = z.object({
-  name:             z.string().min(2),
-  email:            z.string().email(),
-  password:         z.string().min(8),
-  organizationName: z.string().min(2),
-  country:          z.string().default("IN"),
-  timezone:         z.string().default("Asia/Kolkata"),
-  gstin:            z.string().optional(),
-  phone:            z.string().trim().regex(/^\+?[\d\s-]{8,18}$/, "Enter a valid WhatsApp number.").optional().or(z.literal("")),
+const requestSchema = z.object({
+  name: z.string().trim().min(2).max(100),
+  businessName: z.string().trim().min(2).max(120),
+  email: z.string().trim().email().max(160),
+  phone: z.string().trim().min(8).max(24),
+  expectedVolume: z.enum(["UNDER_1K", "1K_10K", "10K_100K", "OVER_100K"]).optional(),
+  message: z.string().trim().max(600).optional(),
+  website: z.string().max(0).optional(),
 })
 
-export async function POST(req: Request) {
+// A public signup is a request for managed onboarding. It cannot create a tenant.
+export async function POST(request: Request) {
   try {
-    const input = schema.parse(await req.json())
+    const input = requestSchema.parse(await request.json())
+    if (input.website) return NextResponse.json({ ok: true })
     const email = input.email.toLowerCase()
-
-    if (await prisma.user.findUnique({ where: { email } }))
-      return NextResponse.json({ error: "An account with this email already exists." }, { status: 409 })
-
-    const passwordHash = await hashPassword(input.password)
-    const user = await prisma.user.create({ data: { email, name: input.name, passwordHash, phone: input.phone || null } })
-    const workspace = await createWorkspace(user.id, { name: input.organizationName, country: input.country, timezone: input.timezone, gstin: input.gstin })
-    // Signed up on a partner's address: the workspace becomes that partner's client.
-    const list = await headers()
-    const brand = await brandForHost(list.get("x-forwarded-host") || list.get("host"))
-    if (brand) await prisma.organization.update({ where: { id: workspace.id }, data: { partnerId: brand.partnerId, billingExempt: false } })
-    // Welcome credit in the WhatsApp wallet (amount set under Admin → Messaging charges; internal workspaces never pay, so they get none).
-    const { welcomeCredit } = await getMessagingSettings()
-    if (welcomeCredit > 0 && !workspace.billingExempt)
-      await prisma.$transaction(tx => creditWallet(tx, { organizationId: workspace.id, amount: welcomeCredit, type: "WELCOME", reason: "Welcome credit" }))
-
-    await createSession(user.id)
-    await setActiveWorkspace(workspace.id)
-    return NextResponse.json({ ok: true, redirect: "/onboarding" }, { status: 201 })
-  } catch (e) {
-    if (e instanceof z.ZodError) {
-      const issue = e.issues[0]
-      const field: Record<string,string> = { name:"Name", email:"Email", password:"Password", organizationName:"Business name" }
-      return NextResponse.json({ error: `${field[String(issue?.path[0])] ?? "Input"}: ${issue?.message ?? "is invalid"}` }, { status: 400 })
-    }
-    return NextResponse.json({ error: e instanceof Error ? e.message : "Registration failed" }, { status: 400 })
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000)
+    const recent = await prisma.auditLog.findFirst({
+      where: { action: "SIGNUP_REQUESTED", createdAt: { gte: since }, metadata: { path: ["email"], equals: email } },
+      select: { id: true },
+    })
+    if (!recent) await prisma.auditLog.create({ data: {
+      actorType: "PROSPECT", action: "SIGNUP_REQUESTED", resource: "ManagedOnboarding",
+      ipAddress: await clientIp(), userAgent: request.headers.get("user-agent")?.slice(0, 500) || null,
+      metadata: { name: input.name, businessName: input.businessName, email, phone: input.phone,
+        expectedVolume: input.expectedVolume || "UNDER_1K", message: input.message || "" },
+    } })
+    return NextResponse.json({ ok: true, message: "Your workspace request was received. Our onboarding team will verify the business and contact you before creating login credentials." }, { status: 202 })
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof z.ZodError ? error.issues[0]?.message : "Could not submit your request. Please try again." }, { status: 400 })
   }
 }

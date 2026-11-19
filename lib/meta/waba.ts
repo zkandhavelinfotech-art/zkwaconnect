@@ -7,7 +7,8 @@ export async function isWabaSubscribed(wabaId: string, accessToken: string) {
   const result = await metaGraph<SubscribedApps>(`${wabaId}/subscribed_apps`, accessToken)
   const appId = process.env.META_APP_ID
   const apps = (result.data || []).map(item => item.whatsapp_business_api_data).filter(Boolean)
-  const hasApp = apps.some(app => app?.id === appId || app?.id === "1710743377107186" || app?.id === "1746457943465521") || apps.length > 0
+  // Another BSP being subscribed does not mean this deployment receives webhooks.
+  const hasApp = Boolean(appId && apps.some(app => app?.id === appId))
   return { subscribed: hasApp, apps: apps.map(app => ({ id: app?.id || "", name: app?.name || "" })) }
 }
 

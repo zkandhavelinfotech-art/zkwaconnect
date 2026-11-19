@@ -22,6 +22,7 @@ type DashboardData = {
 }
 
 type AdminPlan = { id: string; name: string; monthlyPrice: number | string }
+type SignupRequest = { id:string; createdAt:string; metadata:{name?:string;businessName?:string;email?:string;phone?:string;expectedVolume?:string;message?:string}|null }
 type AdminTenant = {
   id: string
   name: string
@@ -52,6 +53,7 @@ type AdminWaba = {
   qualityRating: string | null
   verificationStatus: string | null
   organization: {
+    id: string
     name: string
     slug: string
     status: string
@@ -60,7 +62,13 @@ type AdminWaba = {
   }
   phoneNumbers: { phoneNumber: string; status: string; verificationStatus: string | null; qualityRating: string | null }[]
 }
-type AdminTab = "overview" | "profit" | "tenants" | "payments" | "wabas"
+type MetaSetupResult = {
+  checks: { id:string; step:number; title:string; status:"pass"|"warn"|"fail"|"info"; detail:string }[]
+  values: { appId:string; configId:string; publicUrl:string; graphVersion:string; appSecretSet:boolean }
+  summary: { pass:number; attention:number }
+  checkedAt: string
+}
+type AdminTab = "overview" | "meta" | "profit" | "tenants" | "payments" | "wabas"
 
 export default function AdminDashboard() {
   const router = useRouter()
@@ -71,14 +79,19 @@ export default function AdminDashboard() {
   const [tab, setTab] = useState<AdminTab>("overview")
   const [tenants, setTenants] = useState<AdminTenant[]>([])
   const [plans, setPlans] = useState<AdminPlan[]>([])
+  const [signupRequests, setSignupRequests] = useState<SignupRequest[]>([])
   const [payments, setPayments] = useState<AdminPayment[]>([])
   const [wabas, setWabas] = useState<AdminWaba[]>([])
+  const [metaSetup, setMetaSetup] = useState<MetaSetupResult | null>(null)
   const [query, setQuery] = useState("")
   const [sectionLoading, setSectionLoading] = useState(false)
   const [sectionError, setSectionError] = useState("")
   const [notice, setNotice] = useState("")
   const [tenantPlanIds, setTenantPlanIds] = useState<Record<string,string>>({})
   const [workingId, setWorkingId] = useState("")
+  const [showProvision, setShowProvision] = useState(false)
+  const [provision, setProvision] = useState({organizationName:"",ownerName:"",email:"",password:"",phone:"",internal:false,signupRequestId:""})
+  const [createdLogin, setCreatedLogin] = useState<{name:string;email:string;password:string}|null>(null)
 
   useEffect(() => {
     let active = true
@@ -103,7 +116,7 @@ export default function AdminDashboard() {
   }, [refresh, router])
 
   useEffect(() => {
-    if (tab === "overview") return
+    if (tab === "overview" || tab === "profit") return
     let active = true
     setSectionLoading(true)
     setSectionError("")
@@ -112,22 +125,39 @@ export default function AdminDashboard() {
       ? `/api/admin/customers?q=${encodeURIComponent(query)}`
       : tab === "payments" ? "/api/admin/payments?status=PENDING" : "/api/admin/wabas"
 
-    fetch(endpoint)
+    const request = tab === "meta"
+      ? Promise.all([fetch("/api/admin/meta-setup"), fetch("/api/admin/wabas")]).then(async ([setupResponse,wabaResponse]) => {
+          const setup = await setupResponse.json()
+          const accounts = await wabaResponse.json()
+          if (!setupResponse.ok) throw new Error(setup.error || "Could not inspect the Meta platform app.")
+          if (!wabaResponse.ok) throw new Error(accounts.error || "Could not load connected portfolios.")
+          return { setup, accounts }
+        })
+      : fetch(endpoint).then(async response => {
+          const body = await response.json()
+          if (!response.ok) throw new Error(body.error || "Could not load admin data.")
+          return body
+        })
+
+    request
       .then(async response => {
-        const body = await response.json()
-        if (!response.ok) throw new Error(body.error || "Could not load admin data.")
         if (!active) return
-        if (tab === "tenants") {
+        if (tab === "meta" && "setup" in response) {
+          setMetaSetup(response.setup as MetaSetupResult)
+          setWabas(response.accounts.wabas || [])
+        } else if (tab === "tenants") {
+          const body = response as {organizations?:AdminTenant[];plans?:AdminPlan[];signupRequests?:SignupRequest[]}
           setTenants(body.organizations || [])
           setPlans(body.plans || [])
+          setSignupRequests(body.signupRequests || [])
           setTenantPlanIds(current => {
             const next = { ...current }
             for (const tenant of body.organizations || [])
               if (!next[tenant.id]) next[tenant.id] = tenant.subscriptions?.[0]?.plan?.id || ""
             return next
           })
-        } else if (tab === "payments") setPayments(body.payments || [])
-        else setWabas(body.wabas || [])
+        } else if (tab === "payments") setPayments((response as {payments?:AdminPayment[]}).payments || [])
+        else setWabas((response as {wabas?:AdminWaba[]}).wabas || [])
       })
       .catch(reason => { if (active) setSectionError(reason instanceof Error ? reason.message : "Could not load admin data.") })
       .finally(() => { if (active) setSectionLoading(false) })
@@ -152,6 +182,35 @@ export default function AdminDashboard() {
     } finally {
       setWorkingId("")
     }
+  }
+
+  async function provisionCustomer(event: React.FormEvent) {
+    event.preventDefault(); setWorkingId("provision"); setSectionError(""); setNotice(""); setCreatedLogin(null)
+    try {
+      const response = await fetch("/api/admin/customers", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(provision) })
+      const body = await response.json()
+      if (!response.ok) throw new Error(body.error || "Customer provisioning failed.")
+      setCreatedLogin({name:provision.organizationName,email:provision.email,password:provision.password})
+      setNotice(body.message); setShowProvision(false); setProvision({organizationName:"",ownerName:"",email:"",password:"",phone:"",internal:false,signupRequestId:""}); setRefresh(value => value + 1)
+    } catch (reason) { setSectionError(reason instanceof Error ? reason.message : "Customer provisioning failed.") }
+    finally { setWorkingId("") }
+  }
+
+  function provisionFromRequest(request:SignupRequest) {
+    const details = request.metadata || {}
+    setProvision({organizationName:details.businessName || "",ownerName:details.name || "",email:details.email || "",password:"",phone:details.phone || "",internal:false,signupRequestId:request.id})
+    setShowProvision(true); setCreatedLogin(null); setNotice("")
+    window.scrollTo({top:0,behavior:"smooth"})
+  }
+
+  async function openOnboarding(id:string) {
+    setWorkingId(id); setSectionError("")
+    try {
+      const response = await fetch("/api/admin/customers", {method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,action:"open-onboarding"})})
+      const body = await response.json()
+      if (!response.ok) throw new Error(body.error || "Could not open managed onboarding.")
+      window.location.href = body.redirect || "/onboarding"
+    } catch (reason) { setSectionError(reason instanceof Error ? reason.message : "Could not open managed onboarding."); setWorkingId("") }
   }
 
   async function reviewPayment(id: string, action: "approve" | "reject") {
@@ -208,15 +267,18 @@ export default function AdminDashboard() {
   return (
     <div style={{minHeight:"100vh",background:"#0f172a",color:"#fff",
       fontFamily:"DM Sans,sans-serif"}}>
-      <div style={{background:"#1e293b",borderBottom:"1px solid rgba(255,255,255,.08)",
-        padding:"16px 32px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+      <div style={{background:"linear-gradient(120deg,#121f35 0%,#152a3b 55%,#12382f 100%)",borderBottom:"1px solid rgba(255,255,255,.08)",
+        padding:"18px clamp(18px,3vw,36px)",display:"flex",alignItems:"center",justifyContent:"space-between",gap:20,flexWrap:"wrap"}}>
         <div style={{fontFamily:"Sora,sans-serif",fontSize:18,fontWeight:700}}>
-          ZKWAConnect Admin
+          ZKWAConnect Control Center
           <span style={{marginLeft:12,background:"rgba(220,38,38,.15)",
             border:"1px solid rgba(220,38,38,.3)",color:"#fca5a5",
             borderRadius:20,padding:"2px 10px",fontSize:11,fontWeight:700}}>SUPER ADMIN</span>
         </div>
-        <div style={{display:"flex",gap:10}}>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          <button type="button" onClick={()=>setTab("meta")} style={{background:"#25D366",border:0,color:"#052e2b",borderRadius:8,padding:"8px 13px",fontSize:12,fontWeight:800,cursor:"pointer"}}>
+            Meta operations
+          </button>
           <a href="/admin/meta-setup" style={{background:"rgba(37,211,102,.15)",border:"1px solid rgba(37,211,102,.35)",
             color:"#86efac",borderRadius:6,padding:"7px 12px",fontSize:12,fontWeight:700,textDecoration:"none"}}>
             Meta app setup
@@ -251,6 +313,7 @@ export default function AdminDashboard() {
       <nav aria-label="Admin sections" style={{display:"flex",gap:4,padding:"8px 32px",
         background:"#172235",borderBottom:"1px solid rgba(255,255,255,.08)",overflowX:"auto"}}>
         {([
+          ["meta","Meta & portfolios"],
           ["overview","Overview"],["profit","💰 Profit & Margins"],["tenants","Tenants"],["payments","Payments"],["wabas","WABA health"],
         ] as [AdminTab,string][]).map(([key,label]) => (
           <button key={key} onClick={() => setTab(key)} aria-current={tab === key ? "page" : undefined}
@@ -264,10 +327,11 @@ export default function AdminDashboard() {
           flexWrap:"wrap",marginBottom:24}}>
           <div>
             <h1 style={{fontFamily:"Sora,sans-serif",fontSize:24,margin:0}}>
-              {tab === "overview" ? "Operations overview" : tab === "profit" ? "SaaS Product Owner Profit Analytics" : tab === "tenants" ? "Tenant management" : tab === "payments" ? "Payment review" : "WABA health"}
+              {tab === "overview" ? "Operations overview" : tab === "meta" ? "Meta account & business portfolios" : tab === "profit" ? "SaaS Product Owner Profit Analytics" : tab === "tenants" ? "Customer management" : tab === "payments" ? "Payment review" : "WhatsApp health"}
             </h1>
             <p style={{fontSize:13,color:"rgba(255,255,255,.48)",margin:"6px 0 0"}}>
               {tab === "overview" ? "Customer, payment, messaging, and platform activity" :
+                tab === "meta" ? "Create the platform app, create or select a portfolio, and manage customer access from one guided workspace" :
                 tab === "profit" ? "Monthly, quarterly, and yearly net profit tracking per client and message commission" :
                 tab === "tenants" ? "Customer accounts, onboarding, and subscription plans" :
                 tab === "payments" ? "Review customer UPI references and settle invoices" :
@@ -289,6 +353,15 @@ export default function AdminDashboard() {
           background:"rgba(52,211,153,.1)",color:"#6ee7b7",fontSize:13}}>{notice}</div>}
 
         {tab === "overview" ? <>
+
+        <section style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:20,flexWrap:"wrap",padding:"20px 22px",marginBottom:18,borderRadius:14,background:"linear-gradient(105deg,rgba(37,211,102,.13),rgba(59,130,246,.08))",border:"1px solid rgba(37,211,102,.22)"}}>
+          <div style={{maxWidth:720}}>
+            <div style={{fontSize:10,fontWeight:800,letterSpacing:".08em",textTransform:"uppercase",color:"#86efac"}}>Meta onboarding control</div>
+            <h2 style={{fontFamily:"Sora,sans-serif",fontSize:18,margin:"6px 0"}}>Set up the platform once, then connect every customer safely.</h2>
+            <p style={{fontSize:12,lineHeight:1.6,color:"rgba(255,255,255,.55)",margin:0}}>Create the ZKWAConnect Meta app, select the product-owner portfolio, and manage customer portfolio access with separate status for WABA, phone, webhook and outbound permission.</p>
+          </div>
+          <button type="button" onClick={()=>setTab("meta")} style={{border:0,borderRadius:8,padding:"10px 14px",background:"#25D366",color:"#052e2b",fontSize:12,fontWeight:850,cursor:"pointer"}}>Open Meta & portfolios →</button>
+        </section>
 
         <section aria-label="Key metrics" style={{display:"grid",
           gridTemplateColumns:"repeat(auto-fit,minmax(min(100%,190px),1fr))",gap:12,marginBottom:24}}>
@@ -373,14 +446,32 @@ export default function AdminDashboard() {
             </div>
           </section>
         </div>
-        </> : tab === "profit" ? <SaasProfitDashboard />
+        </> : tab === "meta" ? <MetaPortfolioPanel result={metaSetup} wabas={wabas} loading={sectionLoading} openCustomers={()=>setTab("tenants")} />
+          : tab === "profit" ? <SaasProfitDashboard />
           : sectionLoading ? <div style={{padding:24,color:"rgba(255,255,255,.55)"}}>Loading {tab}…</div>
           : tab === "tenants" ? <section style={{background:"#172235",border:"1px solid rgba(255,255,255,.08)",borderRadius:8,overflow:"hidden"}}>
-            <div style={{padding:16,borderBottom:"1px solid rgba(255,255,255,.08)"}}>
+            <div style={{padding:16,borderBottom:"1px solid rgba(255,255,255,.08)",display:"flex",gap:10,justifyContent:"space-between",alignItems:"center",flexWrap:"wrap"}}>
               <input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search organization or owner"
                 style={{width:"min(100%,360px)",boxSizing:"border-box",border:"1px solid rgba(255,255,255,.16)",
                   borderRadius:5,padding:"9px 11px",background:"#0f172a",color:"#fff",fontSize:13}} />
+              <button type="button" onClick={()=>setShowProvision(value=>!value)} style={{border:0,borderRadius:6,padding:"9px 13px",background:"#25D366",color:"#052e2b",fontSize:12,fontWeight:800,cursor:"pointer"}}>{showProvision?"Close":"+ Create customer workspace"}</button>
             </div>
+            {signupRequests.length>0&&<div style={{padding:16,background:"rgba(37,211,102,.06)",borderBottom:"1px solid rgba(255,255,255,.08)"}}>
+              <div style={{fontFamily:"Sora,sans-serif",fontSize:13,fontWeight:800,color:"#a7f3d0",marginBottom:9}}>Pending workspace requests ({signupRequests.length})</div>
+              <div style={{display:"grid",gap:7}}>{signupRequests.slice(0,8).map(request=>{const details=request.metadata||{};return <div key={request.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap",padding:"9px 11px",background:"#0f172a",borderRadius:6,fontSize:11}}>
+                <div><strong>{details.businessName||"Unnamed business"}</strong> · {details.name||"Unknown contact"}<div style={{color:"rgba(255,255,255,.48)",marginTop:3}}>{details.email||"No email"} · {details.phone||"No phone"} · {details.expectedVolume||"Volume not supplied"} · {new Date(request.createdAt).toLocaleString("en-IN")}</div>{details.message&&<div style={{color:"rgba(255,255,255,.58)",marginTop:3}}>{details.message}</div>}</div>
+                <button type="button" onClick={()=>provisionFromRequest(request)} style={{border:0,borderRadius:5,padding:"7px 10px",background:"#25D366",color:"#052e2b",fontSize:10,fontWeight:900,cursor:"pointer"}}>Review & provision</button>
+              </div>})}</div>
+            </div>}
+            {showProvision&&<form onSubmit={provisionCustomer} style={{padding:16,background:"#101b2d",borderBottom:"1px solid rgba(255,255,255,.08)"}}>
+              <div style={{fontFamily:"Sora,sans-serif",fontSize:14,fontWeight:700,marginBottom:4}}>Provision customer and login</div>
+              <p style={{fontSize:11,color:"rgba(255,255,255,.48)",margin:"0 0 12px"}}>The client receives only the workspace login. Complete Meta onboarding before sharing it.</p>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:9}}>
+                {([['organizationName','Business / workspace','Recruitment Training Academy'],['ownerName','Client owner name','RTA Admin'],['email','Login email','admin@client.com'],['password','Temporary password','Minimum 10 characters'],['phone','Client phone (optional)','+91…']] as const).map(([key,label,placeholder])=><label key={key} style={{fontSize:10,color:"rgba(255,255,255,.62)",fontWeight:700}}>{label}<input required={key!=="phone"} type={key==="password"?"text":key==="email"?"email":"text"} minLength={key==="password"?10:undefined} value={provision[key]} onChange={event=>setProvision(current=>({...current,[key]:event.target.value}))} placeholder={placeholder} style={{display:"block",width:"100%",boxSizing:"border-box",marginTop:4,border:"1px solid rgba(255,255,255,.16)",borderRadius:5,padding:"8px 9px",background:"#0f172a",color:"#fff",fontSize:12}}/></label>)}
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:12,marginTop:12,flexWrap:"wrap"}}><label style={{fontSize:11,color:"rgba(255,255,255,.68)"}}><input type="checkbox" checked={provision.internal} onChange={event=>setProvision(current=>({...current,internal:event.target.checked}))}/> Managed/internal client (no billing limits)</label><button disabled={workingId==="provision"} type="submit" style={{border:0,borderRadius:5,padding:"8px 13px",background:"#0e8b71",color:"#fff",fontSize:11,fontWeight:800,cursor:"pointer"}}>{workingId==="provision"?"Creating…":"Create workspace & login"}</button></div>
+            </form>}
+            {createdLogin&&<div style={{margin:16,padding:14,background:"rgba(52,211,153,.1)",border:"1px solid rgba(52,211,153,.32)",borderRadius:7,color:"#a7f3d0",fontSize:12}}><strong>Credentials created for {createdLogin.name}</strong><div style={{marginTop:6}}>Login: <code>{createdLogin.email}</code> · Temporary password: <code>{createdLogin.password}</code></div><div style={{marginTop:5,color:"rgba(255,255,255,.55)"}}>Save and share securely after onboarding. The password is not retrievable later.</div></div>}
             <div style={{overflowX:"auto"}}><table style={{width:"100%",minWidth:900,borderCollapse:"collapse",fontSize:12,textAlign:"left"}}>
               <thead style={{color:"rgba(255,255,255,.45)",background:"rgba(255,255,255,.025)"}}><tr>
                 {[["Tenant",220],["Owner",200],["Onboarding",130],["WABA",180],["Plan",190],["Actions",200]].map(([label,width]) =>
@@ -407,6 +498,8 @@ export default function AdminDashboard() {
                 </td>
                 <td style={{padding:14}}>
                   <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                    <button disabled={workingId === tenant.id} onClick={() => openOnboarding(tenant.id)}
+                      style={{border:0,borderRadius:4,padding:"6px 8px",background:"#25D366",color:"#052e2b",fontSize:10,fontWeight:800,cursor:"pointer"}}>Manage onboarding</button>
                     <button disabled={workingId === tenant.id || !tenantPlanIds[tenant.id]}
                       onClick={() => updateTenant(tenant.id,"assign-plan",{planId:tenantPlanIds[tenant.id]})}
                       style={{border:0,borderRadius:4,padding:"6px 8px",background:"#0e8b71",color:"#fff",fontSize:10,fontWeight:700,cursor:"pointer"}}>Invoice plan</button>
@@ -462,4 +555,85 @@ export default function AdminDashboard() {
       </main>
     </div>
   )
+}
+
+function MetaPortfolioPanel({result,wabas,loading,openCustomers}:{
+  result:MetaSetupResult|null; wabas:AdminWaba[]; loading:boolean; openCustomers:()=>void
+}) {
+  const connected = wabas.filter(item=>item.status==="CONNECTED")
+  const connectedPortfolios = new Set(connected.map(item=>item.organization.id)).size
+  const appReady = Boolean(result?.values.appId && result.values.appSecretSet)
+  const attention = result?.summary.attention ?? 0
+  const primary:React.CSSProperties = {display:"inline-flex",alignItems:"center",justifyContent:"center",border:0,borderRadius:8,padding:"9px 12px",background:"#25D366",color:"#052e2b",fontSize:12,fontWeight:800,textDecoration:"none",cursor:"pointer"}
+  const secondary:React.CSSProperties = {...primary,background:"rgba(255,255,255,.07)",color:"#e2e8f0",border:"1px solid rgba(255,255,255,.13)"}
+
+  if (loading && !result) return <div style={{padding:32,borderRadius:14,background:"#172235",color:"rgba(255,255,255,.55)"}}>Checking the Meta app and customer portfolios…</div>
+
+  return <div style={{display:"grid",gap:18}}>
+    <section style={{position:"relative",overflow:"hidden",padding:"clamp(22px,4vw,38px)",borderRadius:18,border:"1px solid rgba(37,211,102,.24)",background:"linear-gradient(135deg,#17263c 0%,#183449 56%,#124538 100%)"}}>
+      <div aria-hidden="true" style={{position:"absolute",right:-70,top:-100,width:260,height:260,borderRadius:"50%",background:"rgba(37,211,102,.11)",filter:"blur(2px)"}} />
+      <div style={{position:"relative",maxWidth:780}}>
+        <div style={{display:"inline-flex",gap:7,alignItems:"center",padding:"5px 9px",borderRadius:20,background:appReady?"rgba(37,211,102,.12)":"rgba(251,191,36,.12)",color:appReady?"#86efac":"#fde68a",fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".07em"}}>
+          <span style={{width:6,height:6,borderRadius:"50%",background:"currentColor"}} />{appReady?"Platform app configured":"Platform setup required"}
+        </div>
+        <h2 style={{fontFamily:"Sora,sans-serif",fontSize:"clamp(22px,3vw,34px)",lineHeight:1.15,margin:"14px 0 10px"}}>One Meta app. Every customer portfolio. Clear access status.</h2>
+        <p style={{margin:0,maxWidth:670,color:"rgba(255,255,255,.64)",fontSize:14,lineHeight:1.7}}>ZKWAConnect owns one platform Meta app. Each customer keeps ownership of their business portfolio and authorizes access through managed onboarding. This is the same scalable separation used by WhatsApp SaaS providers.</p>
+        <div style={{display:"flex",gap:9,flexWrap:"wrap",marginTop:20}}>
+          <a href="/admin/meta-setup" style={primary}>Open platform setup</a>
+          <a href="https://business.facebook.com/settings" target="_blank" rel="noreferrer" style={secondary}>Open Meta Business Settings ↗</a>
+        </div>
+      </div>
+    </section>
+
+    <section aria-label="Meta setup operations" style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(min(100%,280px),1fr))",gap:14}}>
+      <OperationCard number="01" title="Create Meta developer app" status={appReady?"Configured":"Owner action"} good={appReady}
+        body="Create the ZKWAConnect platform app once, then add WhatsApp and Facebook Login for Business. Customers never create a developer app."
+        actions={<><a href="https://developers.facebook.com/apps" target="_blank" rel="noreferrer" style={primary}>Create / open app ↗</a><a href="/admin/meta-setup" style={secondary}>Configure IDs</a></>} />
+      <OperationCard number="02" title="Create business portfolio" status="Owner action" good={false}
+        body="Create or select the product owner's Meta business portfolio. Meta requires a portfolio admin to complete this step in Business Suite."
+        actions={<><a href="https://business.facebook.com/overview" target="_blank" rel="noreferrer" style={primary}>Create / select portfolio ↗</a><a href="https://business.facebook.com/settings/info" target="_blank" rel="noreferrer" style={secondary}>Portfolio information ↗</a></>} />
+      <OperationCard number="03" title="Access customer portfolios" status={`${connectedPortfolios} connected`} good={connectedPortfolios>0}
+        body="Provision a customer workspace, launch managed onboarding, then let the owner authorize the correct portfolio, WABA and phone number."
+        actions={<><button type="button" onClick={openCustomers} style={primary}>Choose customer</button><a href="/admin/partners" style={secondary}>Agency partners</a></>} />
+    </section>
+
+    <section style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(min(100%,340px),1fr))",gap:14}}>
+      <div style={{background:"#172235",border:"1px solid rgba(255,255,255,.08)",borderRadius:14,overflow:"hidden"}}>
+        <div style={{padding:"17px 18px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,borderBottom:"1px solid rgba(255,255,255,.07)"}}>
+          <div><h3 style={{fontFamily:"Sora,sans-serif",fontSize:15,margin:0}}>Connected customer assets</h3><p style={{fontSize:11,color:"rgba(255,255,255,.43)",margin:"4px 0 0"}}>Only current connected WABAs are counted</p></div>
+          <span style={{fontSize:11,color:"#86efac",fontWeight:800}}>{connected.length} WABA{connected.length===1?"":"s"}</span>
+        </div>
+        {connected.length?<div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse",fontSize:12,textAlign:"left"}}>
+          <thead style={{color:"rgba(255,255,255,.42)"}}><tr><th style={{padding:"11px 18px"}}>Customer</th><th style={{padding:"11px 18px"}}>WABA</th><th style={{padding:"11px 18px"}}>Phone</th><th style={{padding:"11px 18px"}}>Access</th></tr></thead>
+          <tbody>{connected.slice(0,8).map(item=><tr key={item.id} style={{borderTop:"1px solid rgba(255,255,255,.06)"}}>
+            <td style={{padding:"13px 18px",fontWeight:700}}>{item.organization.name}</td>
+            <td style={{padding:"13px 18px"}}>{item.name}<div style={{color:"rgba(255,255,255,.4)",marginTop:3}}>{item.wabaId}</div></td>
+            <td style={{padding:"13px 18px"}}>{item.phoneNumbers[0]?.phoneNumber||"Not registered"}</td>
+            <td style={{padding:"13px 18px"}}><a href={`/admin/customers/meta?org=${item.organization.id}`} style={{color:"#86efac",fontWeight:800,textDecoration:"none"}}>View status →</a></td>
+          </tr>)}</tbody>
+        </table></div>:<div style={{padding:22,color:"rgba(255,255,255,.48)",fontSize:13}}>No customer portfolio is connected yet. Create a customer workspace and start managed onboarding.</div>}
+      </div>
+      <aside style={{background:"#172235",border:"1px solid rgba(255,255,255,.08)",borderRadius:14,padding:18}}>
+        <h3 style={{fontFamily:"Sora,sans-serif",fontSize:15,margin:"0 0 14px"}}>Readiness</h3>
+        <StatusRow label="Meta App ID" value={result?.values.appId||"Not configured"} good={Boolean(result?.values.appId)} />
+        <StatusRow label="App secret" value={result?.values.appSecretSet?"Stored securely":"Missing"} good={Boolean(result?.values.appSecretSet)} />
+        <StatusRow label="Embedded Signup" value={result?.values.configId?"Configured":"Needs configuration ID"} good={Boolean(result?.values.configId)} />
+        <StatusRow label="Live checks" value={attention?`${attention} need attention`:`${result?.summary.pass||0} passing`} good={!attention&&Boolean(result)} />
+        <a href="/admin/meta-setup" style={{...secondary,width:"100%",boxSizing:"border-box",marginTop:16}}>Review all checks</a>
+      </aside>
+    </section>
+  </div>
+}
+
+function OperationCard({number,title,status,good,body,actions}:{number:string;title:string;status:string;good:boolean;body:string;actions:React.ReactNode}) {
+  return <article style={{display:"flex",flexDirection:"column",minHeight:238,padding:19,borderRadius:14,background:"#172235",border:"1px solid rgba(255,255,255,.08)"}}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}}><span style={{fontFamily:"Sora,sans-serif",fontSize:11,color:"rgba(255,255,255,.35)",fontWeight:800}}>{number}</span><span style={{fontSize:10,padding:"4px 8px",borderRadius:20,background:good?"rgba(37,211,102,.12)":"rgba(251,191,36,.1)",color:good?"#86efac":"#fde68a",fontWeight:800}}>{status}</span></div>
+    <h3 style={{fontFamily:"Sora,sans-serif",fontSize:17,margin:"18px 0 8px"}}>{title}</h3>
+    <p style={{fontSize:12,color:"rgba(255,255,255,.55)",lineHeight:1.65,margin:0}}>{body}</p>
+    <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:"auto",paddingTop:18}}>{actions}</div>
+  </article>
+}
+
+function StatusRow({label,value,good}:{label:string;value:string;good:boolean}) {
+  return <div style={{padding:"11px 0",borderTop:"1px solid rgba(255,255,255,.07)"}}><div style={{display:"flex",justifyContent:"space-between",gap:10,fontSize:11}}><span style={{color:"rgba(255,255,255,.48)"}}>{label}</span><span style={{color:good?"#86efac":"#fde68a",fontWeight:800,textAlign:"right",overflowWrap:"anywhere"}}>{value}</span></div></div>
 }

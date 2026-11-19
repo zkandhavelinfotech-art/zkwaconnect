@@ -10,5 +10,6 @@ export default async function OnboardingLayout({ children }: { children: React.R
     redirect(`/api/auth/logout?next=${encodeURIComponent("/login?from=/onboarding")}`)
   if (!session.user.memberships.length)
     redirect(session.user.adminRole !== "NONE" ? "/admin/dashboard" : "/api/auth/logout?next=/register")
+  if (session.user.adminRole === "NONE") redirect("/app/meta-account")
   return children
 }

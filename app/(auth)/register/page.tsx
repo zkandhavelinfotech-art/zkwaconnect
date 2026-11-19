@@ -1,129 +1,69 @@
 "use client"
+
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import { BrandMark, brandBackground, useBrand } from "@/components/brand/BrandMark"
 
-const GSTIN_PATTERN = /^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$/
+const input: React.CSSProperties = { width:"100%", boxSizing:"border-box", marginTop:6, border:"1.5px solid #dbe4ea", borderRadius:9, padding:"11px 12px", fontSize:14, background:"#fff" }
 
 export default function RegisterPage() {
-  const router = useRouter()
-  const [form,     setForm]     = useState({ name:"", organizationName:"", email:"", password:"", gstin:"", phone:"" })
-  const [showPass, setShowPass] = useState(false)
-  const [agreed,   setAgreed]   = useState(false)
-  const [loading,  setLoading]  = useState(false)
-  const [error,    setError]    = useState("")
   const brand = useBrand()
+  const [form,setForm] = useState({name:"",businessName:"",email:"",phone:"",expectedVolume:"UNDER_1K",message:"",website:""})
+  const [loading,setLoading] = useState(false)
+  const [error,setError] = useState("")
+  const [success,setSuccess] = useState("")
 
-  const F = (k:keyof typeof form) => (e:React.ChangeEvent<HTMLInputElement>) =>
-    setForm(f=>({...f,[k]:k==="gstin"?e.target.value.toUpperCase().replace(/\s/g,""):e.target.value}))
-
-  const focus = (e:React.FocusEvent<HTMLInputElement>) => (e.target.style.borderColor="#075E54")
-  const blur  = (e:React.FocusEvent<HTMLInputElement>) => (e.target.style.borderColor="#e2e8f0")
-
-  async function submit(e:React.FormEvent) {
-    e.preventDefault()
-    setError("")
-    if (form.password.length < 8) { setError("Password must be at least 8 characters."); return }
-    if (form.gstin && !GSTIN_PATTERN.test(form.gstin)) { setError("GSTIN should be 15 characters, e.g. 29ABCDE1234F1Z5."); return }
-    if (!agreed) { setError("Please accept the Terms and Privacy Policy to continue."); return }
-    setLoading(true)
+  async function submit(event:React.FormEvent) {
+    event.preventDefault(); setLoading(true); setError("")
     try {
-      const r = await fetch("/api/auth/register",{
-        method:"POST", headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({ name:form.name.trim(), organizationName:form.organizationName.trim(),
-          email:form.email.trim(), password:form.password, gstin:form.gstin||undefined, phone:form.phone.trim()||undefined }),
-      })
-      const d = await r.json()
-      if (!r.ok) { setError(d.error||"Could not create your account."); setLoading(false); return }
-      router.push(d.redirect||"/onboarding/meta-connect")
-    } catch { setError("Network error. Please try again."); setLoading(false) }
+      const response = await fetch("/api/auth/register", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(form)})
+      const body = await response.json()
+      if(!response.ok) throw new Error(body.error || "Could not submit your request.")
+      setSuccess(body.message)
+    } catch(reason) { setError(reason instanceof Error ? reason.message : "Could not submit your request.") }
+    finally { setLoading(false) }
   }
 
-  return (
-    <div style={{ minHeight:"100vh", background:brandBackground(brand),
-      display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
-      padding:20, fontFamily:"DM Sans,sans-serif" }}>
-
-      <div style={{ textAlign:"center", marginBottom:24 }}>
-        <a href="/marketing" style={{ display:"inline-flex", alignItems:"center", gap:12, textDecoration:"none",
-          background:"rgba(255,255,255,.12)", border:"1px solid rgba(255,255,255,.2)",
-          borderRadius:16, padding:"12px 20px", marginBottom:10 }}>
-          <BrandMark brand={brand} />
-        </a>
-        <div style={{ fontSize:14, color:"rgba(255,255,255,.7)" }}>Official WhatsApp Business API · Free forever plan</div>
-      </div>
-
-      <div style={{ width:"100%", maxWidth:440, background:"#fff", borderRadius:20,
-        padding:36, boxShadow:"0 24px 64px rgba(0,0,0,.25)", boxSizing:"border-box" }}>
-        <h1 style={{ fontFamily:"Sora,sans-serif", fontSize:22, fontWeight:700,
-          color:"#0f172a", margin:"0 0 4px" }}>Create your account</h1>
-        <p style={{ fontSize:13, color:"#64748b", margin:"0 0 22px" }}>
-          Start your 7-day free trial. No credit card required.
-        </p>
-
-        <form onSubmit={submit} style={{ display:"flex", flexDirection:"column" }}>
-          <label className="form-label" htmlFor="name">Your name</label>
-          <input id="name" className="form-input" placeholder="Priya Sharma" value={form.name} onChange={F("name")}
-            required minLength={2} maxLength={80} autoComplete="name" style={{ marginBottom:14 }} onFocus={focus} onBlur={blur} />
-
-          <label className="form-label" htmlFor="org">Business name</label>
-          <input id="org" className="form-input" placeholder="Sharma Textiles" value={form.organizationName} onChange={F("organizationName")}
-            required minLength={2} maxLength={100} autoComplete="organization" style={{ marginBottom:14 }} onFocus={focus} onBlur={blur} />
-
-          <label className="form-label" htmlFor="email">Work email</label>
-          <input id="email" className="form-input" type="email" placeholder="you@company.com" value={form.email} onChange={F("email")}
-            required autoComplete="email" style={{ marginBottom:14 }} onFocus={focus} onBlur={blur} />
-
-          <label className="form-label" htmlFor="phone">WhatsApp number <span style={{ fontWeight:400, color:"#94a3b8" }}>(optional, for password reset codes)</span></label>
-          <input id="phone" className="form-input" type="tel" placeholder="+91 98765 43210" value={form.phone} onChange={F("phone")}
-            autoComplete="tel" maxLength={18} style={{ marginBottom:14 }} onFocus={focus} onBlur={blur} />
-
-          <label className="form-label" htmlFor="password">Password</label>
-          <div style={{ position:"relative", marginBottom:4 }}>
-            <input id="password" className="form-input" type={showPass?"text":"password"} placeholder="At least 8 characters"
-              value={form.password} onChange={F("password")} required minLength={8} autoComplete="new-password"
-              style={{ paddingRight:64, width:"100%", boxSizing:"border-box" }} onFocus={focus} onBlur={blur} />
-            <button type="button" onClick={()=>setShowPass(v=>!v)} aria-label={showPass?"Hide password":"Show password"}
-              style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", background:"none", border:"none",
-                fontSize:12, color:"#075E54", fontWeight:600, cursor:"pointer" }}>{showPass?"Hide":"Show"}</button>
+  return <main style={{minHeight:"100vh",background:brandBackground(brand),padding:"28px 18px",fontFamily:"DM Sans,sans-serif"}}>
+    <div style={{maxWidth:980,margin:"0 auto"}}>
+      <header style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:16,marginBottom:28}}>
+        <a href="/marketing" style={{display:"inline-flex",background:"rgba(255,255,255,.12)",border:"1px solid rgba(255,255,255,.18)",borderRadius:14,padding:"10px 16px",textDecoration:"none"}}><BrandMark brand={brand}/></a>
+        <a href="/login" style={{color:"#fff",border:"1px solid rgba(255,255,255,.32)",borderRadius:9,padding:"9px 14px",fontSize:13,fontWeight:800,textDecoration:"none"}}>Existing customer? Sign in →</a>
+      </header>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(min(100%,390px),1fr))",gap:22,alignItems:"start"}}>
+        <section style={{color:"#fff",padding:"24px 10px"}}>
+          <div style={{display:"inline-flex",background:"rgba(37,211,102,.14)",color:"#86efac",border:"1px solid rgba(37,211,102,.24)",borderRadius:20,padding:"5px 11px",fontSize:11,fontWeight:900,letterSpacing:".05em"}}>MANAGED BUSINESS ONBOARDING</div>
+          <h1 style={{fontFamily:"Sora,sans-serif",fontSize:"clamp(30px,5vw,46px)",lineHeight:1.08,margin:"18px 0 12px"}}>Start your WhatsApp workspace.</h1>
+          <p style={{color:"rgba(255,255,255,.72)",fontSize:15,lineHeight:1.65,maxWidth:500}}>Request a free workspace review. Our SaaS onboarding team verifies your business, creates an isolated tenant, connects the approved Meta assets, and securely issues your login.</p>
+          <div style={{display:"grid",gap:12,marginTop:26,fontSize:13}}>
+            {["Submit business details","SaaS Admin creates your workspace","Meta and WhatsApp access is verified","You receive secure client login credentials"].map((label,index)=><div key={label} style={{display:"flex",alignItems:"center",gap:11}}><span style={{width:26,height:26,borderRadius:"50%",background:index===0?"#25D366":"rgba(255,255,255,.1)",color:index===0?"#053d36":"#fff",display:"grid",placeItems:"center",fontWeight:900,fontSize:11}}>{index+1}</span>{label}</div>)}
           </div>
-          <div style={{ fontSize:11, color:form.password&&form.password.length<8?"#b45309":"#94a3b8", marginBottom:14 }}>
-            {form.password&&form.password.length<8?`${8-form.password.length} more character(s) needed`:"Use 8 or more characters"}
-          </div>
-
-          <label className="form-label" htmlFor="gstin">GSTIN <span style={{ fontWeight:400, color:"#94a3b8" }}>(optional, for GST invoices)</span></label>
-          <input id="gstin" className="form-input" placeholder="29ABCDE1234F1Z5" value={form.gstin} onChange={F("gstin")}
-            maxLength={15} style={{ marginBottom:14, fontFamily:"monospace", letterSpacing:1 }} onFocus={focus} onBlur={blur} />
-
-          <label style={{ display:"flex", gap:9, alignItems:"flex-start", fontSize:12, color:"#475569", marginBottom:14, lineHeight:1.5 }}>
-            <input type="checkbox" checked={agreed} onChange={e=>setAgreed(e.target.checked)} style={{ marginTop:2 }} />
-            <span>I agree to the <a href="/terms" target="_blank" style={{ color:"#075E54", fontWeight:700 }}>Terms of Service</a>, <a href="/privacy" target="_blank" style={{ color:"#075E54", fontWeight:700 }}>Privacy Policy</a> and <a href="/refund-policy" target="_blank" style={{ color:"#075E54", fontWeight:700 }}>Refund Policy</a>.</span>
-          </label>
-
-          {error && (
-            <div role="alert" style={{ background:"#fef2f2", border:"1px solid #fecaca",
-              borderRadius:8, padding:"10px 14px", fontSize:13, color:"#991b1b",
-              marginBottom:12, textAlign:"center" }}>{error}</div>
-          )}
-
-          <button type="submit" disabled={loading} style={{
-            width:"100%", background:"#075E54", color:"#fff", border:"none",
-            borderRadius:10, padding:13, fontFamily:"Sora,sans-serif",
-            fontSize:15, fontWeight:700, cursor:loading?"not-allowed":"pointer",
-            boxShadow:"0 4px 14px rgba(7,94,84,.35)", opacity:loading?.7:1, marginBottom:16
-          }}>{loading?"Creating your account…":"Start for FREE →"}</button>
-        </form>
-
-        <div style={{ textAlign:"center", fontSize:13, color:"#64748b" }}>
-          Already have an account?{" "}
-          <a href="/login" style={{ color:"#075E54", fontWeight:600, textDecoration:"none" }}>Sign in →</a>
-        </div>
-      </div>
-
-      <div style={{ display:"flex", gap:16, flexWrap:"wrap", justifyContent:"center", marginTop:18,
-        fontSize:12, color:"rgba(255,255,255,.6)" }}>
-        <span>✓ Free WhatsApp API</span><span>✓ No credit card</span><span>✓ 5-min setup</span>
+          <p style={{fontSize:11,color:"rgba(255,255,255,.5)",lineHeight:1.55,marginTop:24}}>The same isolated onboarding process is used for every customer and future business. No client-specific account is hardcoded.</p>
+        </section>
+        <section style={{background:"#fff",borderRadius:20,padding:"clamp(22px,4vw,34px)",boxShadow:"0 24px 64px rgba(0,0,0,.25)"}}>
+          {success ? <div style={{textAlign:"center",padding:"20px 4px"}}>
+            <div style={{width:54,height:54,borderRadius:"50%",background:"#dcfce7",color:"#15803d",display:"grid",placeItems:"center",fontSize:26,fontWeight:900,margin:"0 auto 14px"}}>✓</div>
+            <h2 style={{fontFamily:"Sora,sans-serif",fontSize:21,color:"#0f172a",margin:"0 0 9px"}}>Request received</h2>
+            <p style={{fontSize:13,color:"#64748b",lineHeight:1.6}}>{success}</p>
+            <a href="/login" style={{display:"block",marginTop:18,background:"#075e54",color:"#fff",borderRadius:9,padding:11,fontWeight:800,fontSize:13,textDecoration:"none"}}>Already received credentials? Sign in →</a>
+          </div> : <>
+            <h2 style={{fontFamily:"Sora,sans-serif",fontSize:21,color:"#0f172a",margin:"0 0 5px"}}>Request your workspace</h2>
+            <p style={{fontSize:12,color:"#64748b",lineHeight:1.5,margin:"0 0 18px"}}>No credit card required. Submitting this form does not create unverified Meta access.</p>
+            <form onSubmit={submit} style={{display:"grid",gap:12}}>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(170px,1fr))",gap:12}}>
+                <label style={{fontSize:12,fontWeight:800,color:"#475569"}}>Your name<input required minLength={2} value={form.name} onChange={e=>setForm(v=>({...v,name:e.target.value}))} style={input}/></label>
+                <label style={{fontSize:12,fontWeight:800,color:"#475569"}}>Business name<input required minLength={2} value={form.businessName} onChange={e=>setForm(v=>({...v,businessName:e.target.value}))} style={input}/></label>
+              </div>
+              <label style={{fontSize:12,fontWeight:800,color:"#475569"}}>Work email<input required type="email" autoComplete="email" value={form.email} onChange={e=>setForm(v=>({...v,email:e.target.value}))} style={input}/></label>
+              <label style={{fontSize:12,fontWeight:800,color:"#475569"}}>Phone / WhatsApp number<input required type="tel" autoComplete="tel" value={form.phone} onChange={e=>setForm(v=>({...v,phone:e.target.value}))} placeholder="+91 …" style={input}/></label>
+              <label style={{fontSize:12,fontWeight:800,color:"#475569"}}>Expected monthly messages<select value={form.expectedVolume} onChange={e=>setForm(v=>({...v,expectedVolume:e.target.value}))} style={input}><option value="UNDER_1K">Under 1,000</option><option value="1K_10K">1,000–10,000</option><option value="10K_100K">10,000–100,000</option><option value="OVER_100K">More than 100,000</option></select></label>
+              <label style={{fontSize:12,fontWeight:800,color:"#475569"}}>What do you want to automate? <span style={{fontWeight:500,color:"#94a3b8"}}>(optional)</span><textarea rows={3} maxLength={600} value={form.message} onChange={e=>setForm(v=>({...v,message:e.target.value}))} style={{...input,resize:"vertical"}}/></label>
+              <input tabIndex={-1} autoComplete="off" aria-hidden="true" value={form.website} onChange={e=>setForm(v=>({...v,website:e.target.value}))} style={{display:"none"}}/>
+              {error&&<div role="alert" style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:8,padding:"9px 11px",fontSize:12,color:"#991b1b"}}>{error}</div>}
+              <button disabled={loading} style={{border:0,borderRadius:10,padding:12,background:"#075e54",color:"#fff",fontFamily:"Sora,sans-serif",fontSize:14,fontWeight:800,cursor:"pointer",opacity:loading?.7:1}}>{loading?"Submitting…":"Request free workspace →"}</button>
+            </form>
+          </>}
+        </section>
       </div>
     </div>
-  )
+  </main>
 }

@@ -6,30 +6,11 @@ import { metaGraph } from "@/lib/meta/graph"
 
 export const runtime = "nodejs"
 
-const RTA_BUSINESS_ID = "1707214344108990"
-
 async function getConnection(organizationId: string) {
-  // 1. Check for connection in active workspace
-  let conn = await prisma.metaConnection.findFirst({
+  return prisma.metaConnection.findFirst({
     where: { organizationId, status: "CONNECTED", accessTokenEncrypted: { not: null } },
     orderBy: { updatedAt: "desc" },
   })
-
-  // 2. Fallback to RTA connection if inside RTA context
-  if (!conn) {
-    conn = await prisma.metaConnection.findFirst({
-      where: {
-        OR: [
-          { metaUserId: "122145064659242402", status: "CONNECTED" },
-          { organization: { slug: { in: ["rta", "recruitment-training-academy"] } }, status: "CONNECTED" },
-        ],
-        accessTokenEncrypted: { not: null },
-      },
-      orderBy: { updatedAt: "desc" },
-    })
-  }
-
-  return conn
 }
 
 export async function GET(request: NextRequest) {
@@ -52,7 +33,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "No active Meta connection found." }, { status: 409 })
     }
 
-    const targetBizId = conn?.businessManagerId || RTA_BUSINESS_ID
+    const targetBizId = conn?.businessManagerId
+    if (!targetBizId) return NextResponse.json({ error: "No Meta Business Portfolio is assigned to this workspace." }, { status: 409 })
 
     // 1. Fetch Owned Pages under Business Portfolio
     let ownedPages: any[] = []
@@ -129,7 +111,7 @@ export async function GET(request: NextRequest) {
       ok: true,
       businessPortfolio: {
         id: targetBizId,
-        name: "Recruitment Training Academy",
+        name: membership.organization.name,
         url: `https://business.facebook.com/latest/settings?business_id=${targetBizId}`,
         pagesSettingsUrl: `https://business.facebook.com/settings/pages?business_id=${targetBizId}`,
         instagramSettingsUrl: `https://business.facebook.com/settings/instagram-account?business_id=${targetBizId}`,
@@ -163,6 +145,8 @@ export async function POST(request: NextRequest) {
     if (!organizationId) {
       return NextResponse.json({ error: "No organization found." }, { status: 400 })
     }
+    if (session.user.adminRole === "NONE")
+      return NextResponse.json({ error: "Only the SaaS administrator can change connected Meta profiles." }, { status: 403 })
 
     const conn = await getConnection(organizationId)
     const token = conn?.accessTokenEncrypted ? decryptMetaToken(conn.accessTokenEncrypted) : null
@@ -173,7 +157,8 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
     const { action } = body
-    const targetBizId = body.businessId || conn?.businessManagerId || RTA_BUSINESS_ID
+    const targetBizId = body.businessId || conn?.businessManagerId
+    if (!targetBizId) return NextResponse.json({ error: "No Meta Business Portfolio is assigned to this workspace." }, { status: 409 })
 
     // ==============================================================
     // ACTION 1: ASSIGN USER ACCESS TO PAGE (FIXES "NO PROFILES" IN SUITE)
@@ -188,7 +173,8 @@ export async function POST(request: NextRequest) {
       let userIdToUse = businessUserId
       if (!userIdToUse) {
         const uRes = await metaGraph<{ data: any[] }>(`${targetBizId}/business_users?limit=5`, token)
-        userIdToUse = uRes.data?.[0]?.id || "122094731961551662"
+        userIdToUse = uRes.data?.[0]?.id
+        if (!userIdToUse) return NextResponse.json({ error: "No business user is available in this client's portfolio." }, { status: 409 })
       }
 
       try {

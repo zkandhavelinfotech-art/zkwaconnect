@@ -37,6 +37,8 @@ export async function POST(request: Request) {
   try {
     const session = await getSession()
     if (!session) return NextResponse.json({ error: "Sign in to continue." }, { status: 401 })
+    if (session.user.adminRole === "NONE")
+      return NextResponse.json({ error: "Only the SaaS administrator can create customer workspaces." }, { status: 403 })
     const input = createSchema.parse(await request.json())
     const workspace = await createWorkspace(session.user.id, { name: input.name, gstin: input.gstin || undefined })
     await setActiveWorkspace(workspace.id)

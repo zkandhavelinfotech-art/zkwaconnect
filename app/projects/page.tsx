@@ -27,7 +27,7 @@ export default function ProjectsPage() {
       const body = await response.json()
       if (!response.ok) throw new Error(body.error || "Could not load your projects.")
       setData(body)
-      if (!body.workspaces.length) setCreating(true)
+      if (!body.workspaces.length && body.user.isPlatformAdmin) setCreating(true)
     }).catch(reason => setError(reason instanceof Error ? reason.message : "Could not load your projects."))
   }, [])
 
@@ -67,13 +67,13 @@ export default function ProjectsPage() {
             <p style={{ fontSize: 14, color: "#475569", margin: "6px 0 0" }}>
               {data ? `Welcome${data.user.name ? `, ${data.user.name.split(" ")[0]}` : ""}! ` : ""}Each project is a separate business with its own WhatsApp number, contacts, campaigns and plan.</p>
           </div>
-          {data && data.workspaces.length > 0 && !creating && <button type="button" onClick={() => setCreating(true)} style={{ border: 0, borderRadius: 8,
+          {data?.user.isPlatformAdmin && data.workspaces.length > 0 && !creating && <button type="button" onClick={() => setCreating(true)} style={{ border: 0, borderRadius: 8,
             padding: "11px 18px", background: "#25D366", color: "#053d36", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>+ Create new project</button>}
         </div>
 
         {error && <div role="alert" style={{ padding: 12, background: "#fef2f2", border: "1px solid #fecaca", color: "#991b1b", borderRadius: 10, marginBottom: 16, fontSize: 13 }}>{error}</div>}
 
-        {creating && <form onSubmit={create} style={{ background: "#fff", borderRadius: 14, border: "1px solid #e2e8f0", padding: 22, marginBottom: 20, boxShadow: "0 1px 3px rgba(11,20,26,.08)" }}>
+        {creating && data?.user.isPlatformAdmin && <form onSubmit={create} style={{ background: "#fff", borderRadius: 14, border: "1px solid #e2e8f0", padding: 22, marginBottom: 20, boxShadow: "0 1px 3px rgba(11,20,26,.08)" }}>
           <h2 style={{ fontFamily: "Sora,sans-serif", fontSize: 17, margin: "0 0 4px" }}>{data?.workspaces.length ? "Create a new project" : "Create your first project"}</h2>
           <p style={{ fontSize: 13, color: "#64748b", margin: "0 0 14px" }}>Use one project per business or brand. You&apos;ll connect its WhatsApp number next.</p>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,240px),1fr))", gap: 12 }}>
@@ -114,7 +114,7 @@ export default function ProjectsPage() {
                 <button type="button" onClick={() => open(workspace.id)} disabled={Boolean(busy)} style={{ marginTop: 16, border: 0, borderRadius: 8, padding: "11px 14px",
                   background: workspace.setupComplete ? "#054640" : "#25D366", color: workspace.setupComplete ? "#fff" : "#053d36", fontSize: 14, fontWeight: 700, cursor: "pointer",
                   opacity: busy && busy !== workspace.id ? .6 : 1 }}>
-                  {busy === workspace.id ? "Opening…" : workspace.setupComplete ? "Open dashboard →" : "Continue WhatsApp setup →"}</button>
+                  {busy === workspace.id ? "Opening…" : workspace.setupComplete ? "Open dashboard →" : data.user.isPlatformAdmin ? "Continue managed setup →" : "Open workspace →"}</button>
               </div>
             })}
           </div>}

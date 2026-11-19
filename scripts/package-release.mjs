@@ -220,7 +220,7 @@ To create all 50+ tables, foreign keys, indexes, and seed default plans and admi
 \`\`\`bash
 npm run db:migrate:mysql
 \`\`\`
-This script automatically applies the MySQL schema, generates the Prisma client, pushes all tables, and seeds the default plans, super admin (\`admin@zkwaconnect.in\`), WABA account, and client logins.
+This script applies the schema and seeds plans plus the configured product-owner account. Set \`SEED_ADMIN_EMAIL\` and \`SEED_ADMIN_PASSWORD\` first. Customer accounts are provisioned separately from SaaS Admin.
 
 ### Option 2 (via phpMyAdmin UI):
 1. Open **phpMyAdmin** in your hosting control panel.
@@ -231,10 +231,9 @@ This script automatically applies the MySQL schema, generates the Prisma client,
 ---
 
 ## 🔑 3. Default Initial Logins
-- **SaaS Product Admin:** \`admin@zkwaconnect.in\` / \`admin2026!\`
-- **WABA Root Admin:** \`waba@zkandavelinfotech.com\` / \`waba1234\`
-- **Customer Client 1 (RTA):** \`rta@recruitmentacademy.com\` / \`rta1234\`
-- **Customer Client 2 (Smeram):** \`smeram@smeramindustries.com\` / \`smeram1234\`
+- **SaaS Admin:** use the configured \`SEED_ADMIN_EMAIL\` at \`/admin/login\`.
+- **Client Portal:** each customer receives unique credentials created in SaaS Admin > Tenants and signs in at \`/login\`.
+- No default or shared customer passwords are included in a release.
 `
 fs.writeFileSync(path.join(stagingDir, "DEPLOY-README.md"), deployReadme, "utf8")
 

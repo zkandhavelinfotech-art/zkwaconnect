@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { z } from "zod"
 import { getSession } from "@/lib/auth/session"
 import { prisma } from "@/lib/db/prisma"
-import { getMetaAccessToken } from "@/lib/onboarding/context"
+import { getMetaAccessToken, getMetaAccessTokenForWaba } from "@/lib/onboarding/context"
 import { metaGraph } from "@/lib/meta/graph"
 import { isWabaSubscribed, subscribeWaba } from "@/lib/meta/waba"
 import { VERTICAL_KEYS } from "@/lib/meta/profile"
@@ -18,7 +18,7 @@ type Profile = { about?:string; address?:string; description?:string; email?:str
 async function getMember() {
   const session = await getSession()
   const membership = session?.user.memberships.find(item => item.status === "ACTIVE")
-  return membership ? { organizationId:membership.organizationId, role:membership.role } : null
+  return membership ? { organizationId:membership.organizationId, role:membership.role, platformAdmin:session!.user.adminRole !== "NONE" } : null
 }
 
 function message(error:unknown) {
@@ -46,24 +46,26 @@ export async function GET() {
     if (!accessToken && wabas.length) warnings.push("Meta is not connected, so live details could not be loaded. Reconnect Meta from setup.")
 
     const accounts = await Promise.all(wabas.map(async waba => {
-      const live = accessToken ? await Promise.all([
-        metaGraph<{ name?:string; account_review_status?:string; currency?:string; timezone_id?:string }>(
-          `${waba.wabaId}?fields=name,account_review_status,currency,timezone_id`, accessToken).catch(error => { warnings.push(`WABA ${waba.name}: ${message(error)}`); return null }),
-        waba.metaBusinessId ? metaGraph<{ verification_status?:string }>(`${waba.metaBusinessId}?fields=verification_status`, accessToken)
+      const wabaAccessToken = await getMetaAccessTokenForWaba(organizationId, waba.wabaId)
+      if (!wabaAccessToken) warnings.push(`No Meta connection matches the Business Portfolio for ${waba.name}. Reconnect this exact customer account.`)
+      const live = wabaAccessToken ? await Promise.all([
+        metaGraph<{ name?:string; status?:string; account_review_status?:string; currency?:string; timezone_id?:string }>(
+          `${waba.wabaId}?fields=name,status,account_review_status,currency,timezone_id`, wabaAccessToken).catch(error => { warnings.push(`WABA ${waba.name}: ${message(error)}`); return null }),
+        waba.metaBusinessId ? metaGraph<{ verification_status?:string }>(`${waba.metaBusinessId}?fields=verification_status`, wabaAccessToken)
           .catch(() => null) : Promise.resolve(null),
-        isWabaSubscribed(waba.wabaId, accessToken).catch(error => { warnings.push(`Webhook subscription check for ${waba.name}: ${message(error)}`); return null }),
+        isWabaSubscribed(waba.wabaId, wabaAccessToken).catch(error => { warnings.push(`Webhook subscription check for ${waba.name}: ${message(error)}`); return null }),
         metaGraph<{ data:MetaPhone[] }>(`${waba.wabaId}/phone_numbers?fields=id,display_phone_number,verified_name,quality_rating,code_verification_status,name_status,status,platform_type&limit=50`,
-          accessToken).catch(error => { warnings.push(`Phone numbers for ${waba.name}: ${message(error)}`); return null }),
+          wabaAccessToken).catch(error => { warnings.push(`Phone numbers for ${waba.name}: ${message(error)}`); return null }),
       ]) : null
       const [info, business, subscribed, phonesLive] = live || [null, null, null, null]
 
       const phones = await Promise.all(waba.phoneNumbers.map(async phone => {
         const metaPhone = phonesLive?.data.find(item => item.id === phone.phoneNumberId)
         // Messaging tier is requested separately because Meta rejects the whole call if a field is unavailable.
-        const tier = accessToken && metaPhone ? await metaGraph<{ messaging_limit_tier?:string }>(`${phone.phoneNumberId}?fields=messaging_limit_tier`, accessToken)
+        const tier = wabaAccessToken && metaPhone ? await metaGraph<{ messaging_limit_tier?:string }>(`${phone.phoneNumberId}?fields=messaging_limit_tier`, wabaAccessToken)
           .then(result => result.messaging_limit_tier).catch(() => undefined) : undefined
-        const profile = accessToken && phone.status === "CONNECTED" ? await metaGraph<{ data:Profile[] }>(
-          `${phone.phoneNumberId}/whatsapp_business_profile?fields=about,address,description,email,profile_picture_url,websites,vertical`, accessToken)
+        const profile = wabaAccessToken && phone.status === "CONNECTED" ? await metaGraph<{ data:Profile[] }>(
+          `${phone.phoneNumberId}/whatsapp_business_profile?fields=about,address,description,email,profile_picture_url,websites,vertical`, wabaAccessToken)
           .then(result => result.data[0] || {}).catch(error => { warnings.push(`Profile for ${phone.phoneNumber}: ${message(error)}`); return null }) : null
         if (metaPhone && (metaPhone.quality_rating !== phone.qualityRating || (tier && tier !== phone.messagingLimit) || metaPhone.verified_name !== phone.displayName))
           await prisma.phoneNumber.update({ where:{ id:phone.id }, data:{ qualityRating:metaPhone.quality_rating ?? phone.qualityRating,
@@ -80,14 +82,16 @@ export async function GET() {
       if (info && (reviewStatus !== waba.verificationStatus || (info.name && info.name !== waba.name)))
         await prisma.waba.update({ where:{ id:waba.id }, data:{ verificationStatus:reviewStatus, name:info.name || waba.name } })
       return {
-        id:waba.id, wabaId:waba.wabaId, name:info?.name || waba.name, status:waba.status, metaBusinessId:waba.metaBusinessId,
+        id:waba.id, wabaId:waba.wabaId, name:info?.name || waba.name,
+        status:wabaAccessToken && info ? "CONNECTED" : waba.status, isActive:waba.status === "CONNECTED", liveMetaStatus:info?.status || null,
+        metaBusinessId:waba.metaBusinessId,
         currency:info?.currency || waba.currency, timezone:info?.timezone_id || waba.timezone, accountReviewStatus:reviewStatus,
         businessVerificationStatus:business?.verification_status || null, webhookSubscribed:subscribed?.subscribed ?? null, phones,
       }
     }))
 
     return NextResponse.json({
-      metaConnected:Boolean(accessToken), accounts, warnings, canEdit:["OWNER","ADMIN","MANAGER"].includes(member.role),
+      metaConnected:Boolean(accessToken), accounts, warnings, canEdit:["OWNER","ADMIN","MANAGER"].includes(member.role), canManageConnection:member.platformAdmin,
       webhook:{ lastEventAt:lastEvent?.createdAt || null, lastEventType:lastEvent?.eventType || null, events24h },
       plan:subscription ? { name:subscription.plan.name, status:subscription.status, monthlyPrice:subscription.plan.monthlyPrice,
         maxMessages:subscription.plan.maxMessages, maxPhoneNumbers:subscription.plan.maxPhoneNumbers, maxUsers:subscription.plan.maxUsers,
@@ -119,19 +123,24 @@ export async function POST(request:Request) {
     if (!["OWNER","ADMIN","MANAGER"].includes(member.role))
       return NextResponse.json({ error:"Only owners, admins and managers can change WhatsApp settings." }, { status:403 })
     const { organizationId } = member
-    const accessToken = await getMetaAccessToken(organizationId)
-    if (!accessToken) return NextResponse.json({ error:"Connect Meta first." }, { status:409 })
     const input = postSchema.parse(await request.json())
 
     if (input.action === "subscribeWebhook") {
+      if (!member.platformAdmin) return NextResponse.json({ error:"Connection repair is managed by the SaaS administrator." }, { status:403 })
       const waba = await prisma.waba.findFirst({ where:{ id:input.wabaId, organizationId } })
       if (!waba) return NextResponse.json({ error:"WhatsApp account not found." }, { status:404 })
+      const accessToken = await getMetaAccessTokenForWaba(organizationId, waba.wabaId)
+      if (!accessToken) return NextResponse.json({ error:"Reconnect the Meta Business Portfolio that owns this WhatsApp account." }, { status:409 })
       await subscribeWaba(waba.wabaId, accessToken)
+      const verified = await isWabaSubscribed(waba.wabaId, accessToken)
+      if (!verified.subscribed) return NextResponse.json({ error:"Meta accepted the request, but this app is still not listed on the WABA. Check the Meta App ID and app access." }, { status:409 })
       return NextResponse.json({ message:"Webhook subscription enabled. New messages will now reach ZKWAConnect." })
     }
 
-    const phone = await prisma.phoneNumber.findFirst({ where:{ id:input.phoneId, waba:{ organizationId } } })
+    const phone = await prisma.phoneNumber.findFirst({ where:{ id:input.phoneId, waba:{ organizationId } }, include:{waba:{select:{wabaId:true}}} })
     if (!phone) return NextResponse.json({ error:"Phone number not found." }, { status:404 })
+    const accessToken = await getMetaAccessTokenForWaba(organizationId, phone.waba.wabaId)
+    if (!accessToken) return NextResponse.json({ error:"Reconnect the Meta Business Portfolio that owns this WhatsApp number." }, { status:409 })
     await metaGraph(`${phone.phoneNumberId}/whatsapp_business_profile`, accessToken, {
       method:"POST", headers:{ "Content-Type":"application/json" },
       body:JSON.stringify({ messaging_product:"whatsapp", about:input.about || undefined, address:input.address, description:input.description,

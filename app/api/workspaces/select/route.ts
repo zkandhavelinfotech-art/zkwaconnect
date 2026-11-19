@@ -12,7 +12,7 @@ export async function POST(request: Request) {
     if (!membership) return NextResponse.json({ error: "You don't have access to that project." }, { status: 403 })
     await setActiveWorkspace(organizationId)
     const done = Boolean(membership.organization.onboarding?.completedAt)
-    return NextResponse.json({ ok: true, redirect: done ? "/app/dashboard" : "/onboarding" })
+    return NextResponse.json({ ok: true, redirect: !done && session.user.adminRole !== "NONE" ? "/onboarding" : "/app/dashboard" })
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Could not open the project." }, { status: 400 })
   }

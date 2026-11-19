@@ -9,10 +9,10 @@ type Phone = {
 }
 type Account = {
   id:string; wabaId:string; name:string; status:string; metaBusinessId:string|null; currency:string|null; timezone:string|null
-  accountReviewStatus:string|null; businessVerificationStatus:string|null; webhookSubscribed:boolean|null; phones:Phone[]
+  isActive:boolean; liveMetaStatus:string|null; accountReviewStatus:string|null; businessVerificationStatus:string|null; webhookSubscribed:boolean|null; phones:Phone[]
 }
 type Data = {
-  metaConnected:boolean; accounts:Account[]; warnings:string[]; canEdit:boolean
+  metaConnected:boolean; accounts:Account[]; warnings:string[]; canEdit:boolean; canManageConnection:boolean
   webhook:{lastEventAt:string|null;lastEventType:string|null;events24h:number}
   plan:{name:string;status:string;monthlyPrice:string|number;maxMessages:number|null;maxPhoneNumbers:number|null;maxUsers:number|null
     trialEndsAt:string|null;currentPeriodEnd:string|null;messagesUsed:number}|null
@@ -56,14 +56,16 @@ export default function SettingsPage() {
       const body = await response.json()
       if(!response.ok)throw new Error(body.error||"Could not load settings.")
       setData(body)
-      const phones = (body.accounts as Account[]).flatMap(account=>account.phones).filter(phone=>phone.profile)
+      const phones = (body.accounts as Account[]).filter(account=>account.isActive).flatMap(account=>account.phones).filter(phone=>phone.profile)
       setPhoneId(current=>phones.some(phone=>phone.id===current)?current:phones[0]?.id||"")
     }catch(reason){setError(reason instanceof Error?reason.message:"Could not load settings.")}
     finally{setLoading(false)}
   },[])
   useEffect(()=>{load()},[load])
 
-  const phones = data?.accounts.flatMap(account=>account.phones)||[]
+  const activeAccounts = data?.accounts.filter(account=>account.isActive)||[]
+  const archivedAccounts = data?.accounts.filter(account=>!account.isActive)||[]
+  const phones = activeAccounts.flatMap(account=>account.phones)
   const editable = phones.filter(phone=>phone.profile)
   const selectedPhone = phones.find(phone=>phone.id===phoneId)
   useEffect(()=>{setForm(selectedPhone?toForm(selectedPhone.profile):null)},[selectedPhone?.id,data]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -99,9 +101,9 @@ export default function SettingsPage() {
           <p style={{fontSize:13,color:"#64748b",margin:"4px 0 0"}}>Your business profile, numbers, account health and plan — read live from Meta.</p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <a href="/app/settings/gateway" style={{ border: "1px solid #cbd5e1", borderRadius: 8, background: "#f8fafc", padding: "8px 14px", fontSize: 12, fontWeight: 700, textDecoration: "none", color: "#0f172a" }}>
+          {data?.canManageConnection&&<a href="/app/settings/gateway" style={{ border: "1px solid #cbd5e1", borderRadius: 8, background: "#f8fafc", padding: "8px 14px", fontSize: 12, fontWeight: 700, textDecoration: "none", color: "#0f172a" }}>
             ⚡ Gateway Settings ↗
-          </a>
+          </a>}
           <button onClick={load} disabled={loading} style={{border:"1px solid #cbd5e1",borderRadius:8,background:"#fff",padding:"8px 14px",fontSize:12,fontWeight:700,cursor:"pointer"}}>
             {loading?"Syncing…":"↻ Sync from Meta"}</button>
         </div>
@@ -164,9 +166,9 @@ export default function SettingsPage() {
           </section>
 
           {/* Accounts and numbers */}
-          {data.accounts.map(account=><section key={account.id} style={card}>
+          {activeAccounts.map(account=><section key={account.id} style={{...card,borderTop:"3px solid #25D366"}}>
             <div style={{display:"flex",justifyContent:"space-between",gap:10,flexWrap:"wrap",marginBottom:12}}>
-              <div><h2 style={cardHead}>{account.name}</h2><div style={{fontSize:12,color:"#64748b"}}>WhatsApp Business Account</div></div>
+              <div><h2 style={cardHead}>{account.name}</h2><div style={{fontSize:12,color:"#64748b"}}>Current WhatsApp Business Account · live Meta status {account.liveMetaStatus||"available"}</div></div>
               <Badge value={account.status}/>
             </div>
             <table style={{width:"100%",borderCollapse:"collapse",fontSize:13,marginBottom:14}}><tbody>
@@ -184,7 +186,7 @@ export default function SettingsPage() {
                 <strong>Incoming messages:</strong> {account.webhookSubscribed===null?"could not check subscription":account.webhookSubscribed?
                   "this account is subscribed — customer messages reach your inbox and chatbots.":"not subscribed — customer messages will NOT reach ZKWAConnect."}
               </div>
-              {account.webhookSubscribed===false&&data.canEdit&&<button onClick={()=>post({action:"subscribeWebhook",wabaId:account.id},`sub-${account.id}`)}
+              {account.webhookSubscribed===false&&data.canManageConnection&&<button onClick={()=>post({action:"subscribeWebhook",wabaId:account.id},`sub-${account.id}`)}
                 disabled={busy===`sub-${account.id}`} style={{border:0,borderRadius:8,padding:"7px 12px",background:"#b91c1c",color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer"}}>
                 {busy===`sub-${account.id}`?"Fixing…":"Fix now"}</button>}
             </div>
@@ -204,6 +206,12 @@ export default function SettingsPage() {
             </table></div>
             <div style={{fontSize:11,color:"#94a3b8",marginTop:10}}>Messaging limits rise automatically as you send to more customers with good quality. Keep quality GREEN by messaging only opted-in contacts.</div>
           </section>)}
+          {!activeAccounts.length&&<section style={{...card,borderTop:"3px solid #f59e0b"}}><h2 style={cardHead}>No current WhatsApp account</h2><p style={{fontSize:12,color:"#64748b"}}>No WABA is marked connected for this workspace. Ask SaaS Admin to select the correct WABA during managed onboarding.</p></section>}
+          {archivedAccounts.length>0&&<section style={{...card,background:"#f8fafc"}}>
+            <h2 style={cardHead}>Previous / archived WhatsApp accounts</h2>
+            <p style={{fontSize:12,color:"#64748b",margin:"4px 0 12px"}}>These records are retained for message history. They are not used for current sending, webhook checks or channel health.</p>
+            {archivedAccounts.map(account=><div key={account.id} style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"center",padding:"9px 0",borderTop:"1px solid #e2e8f0",fontSize:12}}><span><strong>{account.name}</strong><span style={{color:"#64748b"}}> · WABA {account.wabaId}</span></span><Badge value="ARCHIVED" good={[]}/></div>)}
+          </section>}
         </div>
 
         <div>
@@ -242,10 +250,10 @@ export default function SettingsPage() {
             <h2 style={cardHead}>Connection</h2>
             <div style={{fontSize:13,color:data.metaConnected?"#15803d":"#b91c1c",margin:"8px 0 12px",fontWeight:600}}>
               {data.metaConnected?"✓ Meta business connected":"✗ Meta not connected"}</div>
-            <div style={{display:"grid",gap:8}}>
+            {data.canManageConnection?<div style={{display:"grid",gap:8}}>
               {data.metaConnected&&<a href="/onboarding/waba-setup" style={{fontSize:12,color:"#075e54",fontWeight:700,textDecoration:"none"}}>Switch WhatsApp Business Account →</a>}
               <a href="/onboarding/meta-connect" style={{fontSize:12,color:"#075e54",fontWeight:700,textDecoration:"none"}}>{data.metaConnected?"Reconnect Facebook →":"Connect Meta →"}</a>
-            </div>
+            </div>:<div style={{fontSize:12,color:"#64748b",lineHeight:1.5}}>Connection changes are managed by your SaaS administrator. Open <a href="/app/meta-account" style={{color:"#075e54",fontWeight:700}}>Channel status</a> for errors and solutions.</div>}
           </section>
 
           <section style={{...card,borderTop:"3px solid #075e54"}}>

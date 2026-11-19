@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
     const granted = debug?.scopes || null
     return NextResponse.json({
       organization,
-      viewer: { isAdmin, viewingOther: Boolean(requested && isAdmin), canManage: ["OWNER", "ADMIN"].includes(session.user.memberships.find(item => item.organizationId === organizationId)?.role || "") },
+      viewer: { isAdmin, viewingOther: Boolean(requested && isAdmin), canManage: isAdmin },
       connection: connection ? {
         status: connection.status, connectedAt: connection.connectedAt, lastSyncedAt: connection.lastSyncedAt,
         tokenStored: Boolean(connection.accessTokenEncrypted),

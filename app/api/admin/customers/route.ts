@@ -4,6 +4,9 @@ import { z } from "zod"
 import { prisma }        from "@/lib/db/prisma"
 import { getSession }    from "@/lib/auth/session"
 import { createGstInvoice } from "@/lib/billing/invoices"
+import { hashPassword } from "@/lib/auth/password"
+import { createWorkspace } from "@/lib/workspaces"
+import { setActiveWorkspace } from "@/lib/auth/session"
 
 async function assertAdmin() {
   const s = await getSession()
@@ -27,7 +30,7 @@ export async function GET(req: Request) {
       ]
     } : {}
 
-    const [total, organizations, plans] = await Promise.all([
+    const [total, organizations, plans, signupRequests] = await Promise.all([
       prisma.organization.count({ where }),
       prisma.organization.findMany({
         where,
@@ -41,10 +44,74 @@ export async function GET(req: Request) {
         skip: (page - 1) * limit, take: limit,
       }),
       prisma.plan.findMany({ where: { status:true }, orderBy: { monthlyPrice:"asc" }, select: { id:true, name:true, monthlyPrice:true } }),
+      prisma.auditLog.findMany({
+        where: { action: "SIGNUP_REQUESTED" },
+        orderBy: { createdAt: "desc" },
+        take: 50,
+        select: { id:true, metadata:true, createdAt:true },
+      }),
     ])
-    return NextResponse.json({ organizations, plans, total, page, pages: Math.ceil(total / limit) })
+    return NextResponse.json({ organizations, plans, signupRequests, total, page, pages: Math.ceil(total / limit) })
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "Forbidden" }, { status: 403 })
+  }
+}
+
+// SaaS-owner provisioning: creates the client's isolated tenant and login in one operation.
+// The platform admin is added as an ADMIN member so they can enter the tenant and complete Meta onboarding.
+export async function POST(req: Request) {
+  try {
+    const admin = await assertAdmin()
+    const input = z.object({
+      organizationName: z.string().trim().min(2).max(100),
+      ownerName: z.string().trim().min(2).max(100),
+      email: z.string().trim().email(),
+      password: z.string().min(10).max(128),
+      phone: z.string().trim().max(24).optional(),
+      internal: z.boolean().default(false),
+      signupRequestId: z.string().min(1).optional(),
+    }).parse(await req.json())
+    const email = input.email.toLowerCase()
+    if (await prisma.user.findUnique({ where: { email } }))
+      return NextResponse.json({ error: "A user with this email already exists." }, { status: 409 })
+
+    const owner = await prisma.user.create({ data: {
+      name: input.ownerName, email, phone: input.phone || null,
+      passwordHash: await hashPassword(input.password), passwordChangedAt: new Date(),
+    } })
+    try {
+      const workspace = await createWorkspace(owner.id, { name: input.organizationName })
+      await prisma.$transaction([
+        prisma.membership.upsert({
+          where: { organizationId_userId: { organizationId: workspace.id, userId: admin.id } },
+          create: { organizationId: workspace.id, userId: admin.id, role: "ADMIN", status: "ACTIVE" },
+          update: { role: "ADMIN", status: "ACTIVE" },
+        }),
+        prisma.organization.update({ where: { id: workspace.id }, data: {
+          ...(input.internal ? { billingExempt: true, status: "ACTIVE" } : {}),
+          email, phone: input.phone || null,
+        } }),
+        prisma.auditLog.create({ data: {
+          userId: admin.id, organizationId: workspace.id, actorType: "ADMIN", action: "CUSTOMER_PROVISIONED", resource: "Organization", resourceId: workspace.id,
+          metadata: { ownerEmail: email, managedOnboarding: true },
+        } }),
+        ...(input.signupRequestId ? [prisma.auditLog.updateMany({
+          where: { id: input.signupRequestId, action: "SIGNUP_REQUESTED" },
+          data: { action: "SIGNUP_REQUEST_FULFILLED", resourceId: workspace.id, organizationId: workspace.id, userId: admin.id },
+        })] : []),
+      ])
+      return NextResponse.json({
+        ok: true, workspace: { id: workspace.id, name: workspace.name, slug: workspace.slug },
+        login: { email, loginUrl: "/login" },
+        message: `${workspace.name} was created. Open onboarding to connect the client's Meta assets before sharing credentials.`,
+      }, { status: 201 })
+    } catch (error) {
+      await prisma.user.delete({ where: { id: owner.id } }).catch(() => null)
+      throw error
+    }
+  } catch (error) {
+    const message = error instanceof z.ZodError ? error.issues[0]?.message : error instanceof Error ? error.message : "Could not provision customer."
+    return NextResponse.json({ error: message }, { status: 400 })
   }
 }
 
@@ -53,12 +120,22 @@ export async function PATCH(req: Request) {
     await assertAdmin()
     const input = z.object({
       id: z.string().min(1),
-      action: z.enum(["suspend", "activate", "extend-trial", "assign-plan", "set-internal"]),
+      action: z.enum(["suspend", "activate", "extend-trial", "assign-plan", "set-internal", "open-onboarding"]),
       internal: z.boolean().optional(),
       trialDays: z.number().int().min(1).max(365).optional(),
       planId: z.string().min(1).optional(),
     }).parse(await req.json())
     const { id, action, trialDays, planId } = input
+    if (action === "open-onboarding") {
+      const admin = await assertAdmin()
+      await prisma.membership.upsert({
+        where: { organizationId_userId: { organizationId: id, userId: admin.id } },
+        create: { organizationId: id, userId: admin.id, role: "ADMIN", status: "ACTIVE" },
+        update: { role: "ADMIN", status: "ACTIVE" },
+      })
+      await setActiveWorkspace(id)
+      return NextResponse.json({ ok: true, redirect: "/onboarding" })
+    }
     if (action === "set-internal") {
       const updated = await prisma.organization.update({ where: { id }, data: { billingExempt: Boolean(input.internal), ...(input.internal ? { status: "ACTIVE" } : {}) } })
       forgetPlanCache(id)

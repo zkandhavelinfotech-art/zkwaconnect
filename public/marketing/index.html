@@ -32,6 +32,8 @@ nav{position:sticky;top:0;z-index:100;background:rgba(6,16,30,.97);
 .nav-free{background:rgba(37,211,102,.15);border:1px solid rgba(37,211,102,.3);
   color:var(--green);border-radius:20px;padding:5px 14px;
   font-size:12px;font-weight:700;margin-right:4px}
+.nav-login{color:#fff;border:1px solid rgba(255,255,255,.22);border-radius:8px;
+  padding:8px 14px;font-size:12px;font-weight:700;white-space:nowrap}
 .nav-cta{background:var(--green);color:#fff;border:none;border-radius:8px;
   padding:9px 20px;font-family:"Sora",sans-serif;font-size:13px;font-weight:700;cursor:pointer}
 
@@ -316,6 +318,7 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:40px 6%
   .nav-links::-webkit-scrollbar{display:none}
   .nav-links a{font-size:12px;white-space:nowrap}
   .nav-free{display:none}
+.nav-login{padding:7px 10px;font-size:11px}
   .nav-cta{padding:8px 12px;font-size:11px;white-space:nowrap}
   .hero{padding:48px 20px}
   .hero-inner{gap:32px}
@@ -382,7 +385,8 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:40px 6%
     <a href="#compare">Compare</a>
   </div>
   <a href="#pricing" class="nav-free">Free Forever</a>
-  <a href="/register" class="nav-cta">Start for FREE →</a>
+  <a href="/login" target="_top" class="nav-login">Sign in</a>
+  <a href="/register?intent=trial" target="_top" class="nav-cta">Start for FREE →</a>
 </nav>
 
 <!-- HERO -->
@@ -397,7 +401,7 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:40px 6%
         <strong>Built on the Official WhatsApp Business API.</strong>
       </p>
       <div class="hero-actions">
-        <a href="/register" class="btn-g">▶ Start for FREE</a>
+        <a href="/register?intent=trial" target="_top" class="btn-g">▶ Start for FREE</a>
         <a href="#features" class="btn-o">See All Features</a>
       </div>
       <div class="trust-row">
@@ -694,7 +698,7 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:40px 6%
         <div class="bullet"><span class="bi">👤</span><div><b>Human handoff</b> — alert your team when a customer needs a person.</div></div>
         <div class="bullet"><span class="bi">▶</span><div><b>Test before going live</b> — try every path in the built-in preview.</div></div>
       </div>
-      <div style="margin-top:26px"><a href="/register" class="btn-g">Build your first chatbot →</a></div>
+      <div style="margin-top:26px"><a href="/register?intent=trial" target="_top" class="btn-g">Build your first chatbot →</a></div>
     </div>
     <div class="flow-demo" aria-label="Example chatbot flow">
       <div class="fd-node fd-start"><div class="fd-t">🚀 Start</div>Customer sends “hi”</div>
@@ -821,7 +825,7 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:40px 6%
         <h2>Start FREE. Scale without limits.</h2>
         <p>Get Official WhatsApp Business API free. No monthly fee. No credit card. No hidden costs.</p>
         <div style="display:flex;gap:14px;margin-top:24px">
-          <a href="/register" class="btn-g">Start for FREE →</a>
+          <a href="/register?intent=trial" target="_top" class="btn-g">Start for FREE →</a>
           <a href="#pricing" class="btn-o" style="color:#fff;border-color:rgba(255,255,255,.25)">View Plans</a>
         </div>
       </div>
@@ -831,7 +835,7 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:40px 6%
           <div class="trial-lbl">Forever Plan</div>
           <div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:4px">+ 14-Day Free Trial on paid</div>
         </div>
-        <a href="/register" class="cta-btn">Get Started →</a>
+        <a href="/register?intent=trial" target="_top" class="cta-btn">Get Started →</a>
       </div>
     </div>
   </div>

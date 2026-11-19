@@ -16,6 +16,7 @@ type Message = {
 }
 type QuickReply = {id:string;shortcut:string;content:string}
 type AdReferral = {sourceType:string;sourceId:string|null;sourceUrl:string|null;headline:string|null;body:string|null;createdAt:string}
+type AccessIssue = {title:string;action:string;code:number|null;subcode:number|null;retryable:boolean}
 type Detail = {
   conversation:{
     id:string; status:Status; assignedUser:{id:string;name:string}|null; channel?:string; instagramAccount?:{username:string}|null
@@ -90,6 +91,7 @@ export default function InboxPage() {
   const [file,setFile] = useState<File|null>(null)
   const [quickOpen,setQuickOpen] = useState(false)
   const [productsOpen,setProductsOpen] = useState(false)
+  const [accessIssue,setAccessIssue] = useState<AccessIssue|null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const endRef = useRef<HTMLDivElement>(null)
   const lastMessageId = useRef("")
@@ -154,11 +156,11 @@ export default function InboxPage() {
 
   async function send(payload:Record<string,unknown>){
     if(!selectedId)return false
-    setSending(true);setError("")
+    setSending(true);setError("");setAccessIssue(null)
     try{
       const response = await fetch("/api/inbox",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({conversationId:selectedId,...payload})})
       const body = await response.json()
-      if(!response.ok)throw new Error(body.error||"Message could not be sent.")
+      if(!response.ok){if(body.resolution)setAccessIssue(body.resolution);throw new Error(body.error||"Message could not be sent.")}
       await loadDetail(selectedId)
       return true
     }catch(reason){setError(reason instanceof Error?reason.message:"Message could not be sent.");return false}
@@ -179,7 +181,7 @@ export default function InboxPage() {
   async function handleRetryMessage(messageId: string) {
     if (!selectedId) return
     setRetryingId(messageId)
-    setError("")
+    setError("");setAccessIssue(null)
     try {
       const response = await fetch("/api/inbox", {
         method: "POST",
@@ -187,7 +189,7 @@ export default function InboxPage() {
         body: JSON.stringify({ conversationId: selectedId, retryMessageId: messageId }),
       })
       const body = await response.json()
-      if (!response.ok) throw new Error(body.error || "Retry failed.")
+      if (!response.ok) { if(body.resolution)setAccessIssue(body.resolution); throw new Error(body.error || "Retry failed.") }
       await loadDetail(selectedId)
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Retry failed.")
@@ -476,7 +478,10 @@ export default function InboxPage() {
             <div ref={endRef}/>
           </div>
 
-          {error&&<div role="alert" style={{background:"#fef2f2",color:"#991b1b",fontSize:12,padding:"8px 16px",borderTop:"1px solid #fecaca"}}>{error}</div>}
+          {error&&<div role="alert" style={{background:"#fef2f2",color:"#991b1b",fontSize:12,padding:"9px 16px",borderTop:"1px solid #fecaca"}}>
+            <strong>{accessIssue?.title||"Message not sent"}:</strong> {error}
+            {accessIssue&&<div style={{marginTop:4,color:"#7f1d1d"}}>{accessIssue.action}{accessIssue.code?` (Meta Code ${accessIssue.code}${accessIssue.subcode?` / ${accessIssue.subcode}`:""})`:""} <a href="/app/meta-account" style={{color:"#075e54",fontWeight:800}}>Fix access &amp; view status →</a></div>}
+          </div>}
           <div style={{background:"#fff",padding:"10px 16px",borderTop:"1px solid #e2e8f0"}}>
             <div role="tablist" style={{display:"flex",gap:4,marginBottom:8}}>
               {([["reply","💬 Reply"],["note","📝 Internal note"]] as const).map(([value,label])=><button key={value} role="tab" aria-selected={mode===value}

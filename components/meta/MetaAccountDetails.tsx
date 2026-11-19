@@ -155,7 +155,7 @@ export function MetaAccountDetails({ organizationId }: { organizationId?: string
         </table></div>
       </>}
       {data.otherWabas.length > 0 && <div style={{ marginTop: 14, fontSize: 12, color: "#64748b" }}>
-        Other accounts linked before (inactive): {data.otherWabas.map(item => `${item.name} (${item.wabaId})`).join(", ")}
+        Archived records retained for history (not used for current status or sending): {data.otherWabas.map(item => `${item.name} · ${item.wabaId}`).join(", ")}
         {manageLinks && <> · <a href="/onboarding/waba-setup" style={{ color: "#075e54", fontWeight: 700 }}>Switch account →</a></>}</div>}
     </section>
     <p style={{ fontSize: 11, color: "#94a3b8", margin: 0 }}>Access tokens are stored encrypted and are never shown. All details above are read live from Meta.</p>

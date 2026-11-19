@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db/prisma"
 import { errorStatus, requireMember } from "@/lib/auth/member"
 import { getMetaAccessToken } from "@/lib/onboarding/context"
 import { connectInstagram, pagesWithInstagram } from "@/lib/instagram/accounts"
+import { getSession } from "@/lib/auth/session"
 
 const fail = (error: unknown) => NextResponse.json({ error: error instanceof z.ZodError ? error.issues[0]?.message : error instanceof Error ? error.message : "Failed" },
   { status: errorStatus(error) })
@@ -30,6 +31,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const session = await getSession()
+    if (!session || session.user.adminRole === "NONE") return NextResponse.json({ error: "Instagram connection is managed by the SaaS administrator." }, { status: 403 })
     const { organizationId } = await requireMember({ manager: true })
     const { pageId } = z.object({ pageId: z.string().regex(/^\d+$/) }).parse(await request.json())
     const token = await getMetaAccessToken(organizationId)
@@ -41,6 +44,8 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
+    const session = await getSession()
+    if (!session || session.user.adminRole === "NONE") return NextResponse.json({ error: "Instagram connection is managed by the SaaS administrator." }, { status: 403 })
     const { organizationId } = await requireMember({ manager: true })
     await prisma.instagramAccount.updateMany({ where: { id: new URL(request.url).searchParams.get("id") || "", organizationId }, data: { status: "DISCONNECTED" } })
     return NextResponse.json({ ok: true, message: "Instagram disconnected. Existing chats stay in the inbox." })

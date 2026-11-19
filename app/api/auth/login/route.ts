@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { z }             from "zod"
 import { prisma }        from "@/lib/db/prisma"
 import { verifyPassword } from "@/lib/auth/password"
-import { createSession }  from "@/lib/auth/session"
+import { createSession, setActiveWorkspace }  from "@/lib/auth/session"
 import { LIMITS, ThrottleError, assertNotLocked, clearThrottle, clientIp, recordFailure } from "@/lib/auth/throttle"
 import { verifySecondFactor } from "@/lib/auth/totp"
 
@@ -50,7 +50,18 @@ export async function POST(req: Request) {
     if (adminLogin)
       return NextResponse.json({ ok: true, redirect: "/admin/dashboard" })
 
-    // Everyone starts on All Projects to pick (or create) the workspace to open.
+    // A normal client usually owns one managed workspace and should enter it directly.
+    // Multi-workspace users and platform admins still choose the tenant explicitly.
+    const memberships = await prisma.membership.findMany({
+      where: { userId: user.id, status: "ACTIVE" },
+      select: { organizationId: true },
+      orderBy: { createdAt: "asc" },
+      take: 2,
+    })
+    if (user.adminRole === "NONE" && memberships.length === 1) {
+      await setActiveWorkspace(memberships[0].organizationId)
+      return NextResponse.json({ ok: true, redirect: "/app/dashboard" })
+    }
     return NextResponse.json({ ok: true, redirect: "/projects" })
   } catch (e) {
     if (e instanceof ThrottleError) return NextResponse.json({ error: e.message }, { status: 429, headers: { "Retry-After": String(e.retryAfterSeconds) } })

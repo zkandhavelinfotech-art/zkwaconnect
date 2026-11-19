@@ -5,7 +5,7 @@ import { FEATURES, type FeatureKey } from "@/lib/billing/features"
 
 type Stats = { openConversations: number; unread: number; contacts: number; optedIn: number; runningCampaigns: number; messagesSent: number; activeFlows: number
   whatsapp: { phoneNumber: string; displayName: string | null } | null }
-type Me = { user: { name: string }; workspace: { name: string; walletBalance: number; currency: string }
+type Me = { user: { name: string; isPlatformAdmin?:boolean }; workspace: { name: string; walletBalance: number; currency: string }
   plan: { name: string; status: string; interval: string; renewsOn: string | null; trialEndsAt: string | null } | null
   whatsapp: { connected: boolean; phoneNumber: string | null }
   access?: { onFree: boolean; internal?: boolean; planName: string | null; features: FeatureKey[]; messagesUsed: number; messagesLimit: number | null
@@ -60,10 +60,10 @@ export default function DashboardPage() {
           {stats && !stats.whatsapp && <div style={{ background: "linear-gradient(135deg,#075E54,#128C7E)", borderRadius: 14, padding: "18px 20px", marginBottom: 18,
             display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", boxShadow: "0 4px 14px rgba(7,94,84,.2)" }}>
             <div>
-              <div style={{ fontFamily: "Sora,sans-serif", fontSize: 15, fontWeight: 700, color: "#fff", marginBottom: 3 }}>Connect your WhatsApp Business Account</div>
-              <div style={{ fontSize: 13, color: "rgba(255,255,255,.75)" }}>Finish setup to start messaging customers — it takes about 5 minutes.</div>
+              <div style={{ fontFamily: "Sora,sans-serif", fontSize: 15, fontWeight: 700, color: "#fff", marginBottom: 3 }}>{me?.user.isPlatformAdmin?"Connect the customer’s WhatsApp account":"WhatsApp setup is not complete"}</div>
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,.75)" }}>{me?.user.isPlatformAdmin?"Finish managed onboarding before sharing the customer login.":"Your SaaS administrator is configuring the assigned business account and number."}</div>
             </div>
-            <a href="/onboarding" style={{ background: "#25D366", color: "#053d36", borderRadius: 8, padding: "9px 18px", fontWeight: 700, fontSize: 13, textDecoration: "none" }}>Connect WhatsApp →</a>
+            <a href={me?.user.isPlatformAdmin?"/onboarding":"/app/meta-account"} style={{ background: "#25D366", color: "#053d36", borderRadius: 8, padding: "9px 18px", fontWeight: 700, fontSize: 13, textDecoration: "none" }}>{me?.user.isPlatformAdmin?"Open onboarding →":"View status →"}</a>
           </div>}
           {stats?.whatsapp && <div style={{ ...card, display: "flex", alignItems: "center", gap: 12, marginBottom: 18, padding: "14px 18px" }}>
             <span style={{ width: 40, height: 40, borderRadius: "50%", background: "#25D366", display: "grid", placeItems: "center", fontSize: 20 }}>💬</span>
@@ -159,7 +159,7 @@ function WhatsAppLinkCard({ phone }: { phone: string | null }) {
     <div style={{ fontSize: 36 }}>🔗</div>
     <div style={{ fontSize: 17, fontWeight: 700, margin: "8px 0 4px" }}>Customize WhatsApp Link</div>
     <div style={{ fontSize: 13, color: "#64748b", lineHeight: 1.5 }}>Create shareable links &amp; QR for your WA business number</div>
-    {!digits ? <a href="/onboarding" style={{ ...smallBtn, display: "inline-block", marginTop: 12 }}>Connect WhatsApp first</a>
+    {!digits ? <a href="/app/meta-account" style={{ ...smallBtn, display: "inline-block", marginTop: 12 }}>View WhatsApp status</a>
       : !open ? <button type="button" onClick={() => setOpen(true)} style={{ ...smallBtn, marginTop: 12 }}>Create link</button>
       : <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
         <label style={{ fontSize: 12, fontWeight: 600 }}>Pre-filled message
@@ -192,7 +192,7 @@ function WebsiteButtonCard({ phone }: { phone: string | null }) {
     <div style={{ fontSize: 36 }}>🖥️</div>
     <div style={{ fontSize: 17, fontWeight: 700, margin: "8px 0 4px" }}>WhatsApp Website Button</div>
     <div style={{ fontSize: 13, color: "#64748b", lineHeight: 1.5 }}>Drive WhatsApp sales with personalised CTAs</div>
-    {!digits ? <a href="/onboarding" style={{ ...smallBtn, display: "inline-block", marginTop: 12 }}>Connect WhatsApp first</a>
+    {!digits ? <a href="/app/meta-account" style={{ ...smallBtn, display: "inline-block", marginTop: 12 }}>View WhatsApp status</a>
       : !open ? <button type="button" onClick={() => setOpen(true)} style={{ ...smallBtn, marginTop: 12 }}>Create button</button>
       : <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 110px", gap: 8 }}>

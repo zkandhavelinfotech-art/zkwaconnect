@@ -11,6 +11,8 @@ export async function GET() {
   const session = await getSession()
   const membership = session?.user.status === "ACTIVE" ? session.user.memberships[0] : undefined
   if (!session || !membership) return NextResponse.json({ error: "Sign in to continue." }, { status: 401 })
+  if (session.user.adminRole === "NONE")
+    return NextResponse.json({ error: "Workspace onboarding is managed by your SaaS provider. View channel status under Settings." }, { status: 403 })
   const organizationId = membership.organizationId
 
   const [onboarding, connection, waba] = await Promise.all([
@@ -37,7 +39,7 @@ export async function GET() {
 
   return NextResponse.json({
     account: { name: session.user.name, email: session.user.email, workspace: membership.organization.name, role: membership.role,
-      isPlatformAdmin: session.user.adminRole !== "NONE" },
+      isPlatformAdmin: true },
     metaLogin,
     // Served at request time so admin changes to .env apply without rebuilding the browser bundle.
     embeddedSignup: metaLogin.ready && /^\d{5,25}$/.test(configId)
