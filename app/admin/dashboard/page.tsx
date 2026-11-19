@@ -68,7 +68,7 @@ type MetaSetupResult = {
   summary: { pass:number; attention:number }
   checkedAt: string
 }
-type AdminTab = "overview" | "meta" | "profit" | "tenants" | "payments" | "wabas"
+type AdminTab = "overview" | "onboarding" | "meta" | "profit" | "tenants" | "payments" | "wabas"
 
 export default function AdminDashboard() {
   const router = useRouter()
@@ -314,6 +314,7 @@ export default function AdminDashboard() {
         background:"#172235",borderBottom:"1px solid rgba(255,255,255,.08)",overflowX:"auto"}}>
         {([
           ["meta","Meta & portfolios"],
+          ["onboarding","👑 Delegated Onboarding"],
           ["overview","Overview"],["profit","💰 Profit & Margins"],["tenants","Tenants"],["payments","Payments"],["wabas","WABA health"],
         ] as [AdminTab,string][]).map(([key,label]) => (
           <button key={key} onClick={() => setTab(key)} aria-current={tab === key ? "page" : undefined}
@@ -327,10 +328,11 @@ export default function AdminDashboard() {
           flexWrap:"wrap",marginBottom:24}}>
           <div>
             <h1 style={{fontFamily:"Sora,sans-serif",fontSize:24,margin:0}}>
-              {tab === "overview" ? "Operations overview" : tab === "meta" ? "Meta account & business portfolios" : tab === "profit" ? "SaaS Product Owner Profit Analytics" : tab === "tenants" ? "Customer management" : tab === "payments" ? "Payment review" : "WhatsApp health"}
+              {tab === "overview" ? "Operations overview" : tab === "onboarding" ? "Super Admin Delegated Tenant Onboarding" : tab === "meta" ? "Meta account & business portfolios" : tab === "profit" ? "SaaS Product Owner Profit Analytics" : tab === "tenants" ? "Customer management" : tab === "payments" ? "Payment review" : "WhatsApp health"}
             </h1>
             <p style={{fontSize:13,color:"rgba(255,255,255,.48)",margin:"6px 0 0"}}>
               {tab === "overview" ? "Customer, payment, messaging, and platform activity" :
+                tab === "onboarding" ? "Inspect tenant onboarding sessions, review error diagnostics, and configure WABA assets on behalf of clients" :
                 tab === "meta" ? "Create the platform app, create or select a portfolio, and manage customer access from one guided workspace" :
                 tab === "profit" ? "Monthly, quarterly, and yearly net profit tracking per client and message commission" :
                 tab === "tenants" ? "Customer accounts, onboarding, and subscription plans" :
@@ -446,7 +448,8 @@ export default function AdminDashboard() {
             </div>
           </section>
         </div>
-        </> : tab === "meta" ? <MetaPortfolioPanel result={metaSetup} wabas={wabas} loading={sectionLoading} openCustomers={()=>setTab("tenants")} />
+        </> : tab === "onboarding" ? <DelegatedOnboardingTabContent />
+          : tab === "meta" ? <MetaPortfolioPanel result={metaSetup} wabas={wabas} loading={sectionLoading} openCustomers={()=>setTab("tenants")} />
           : tab === "profit" ? <SaasProfitDashboard />
           : sectionLoading ? <div style={{padding:24,color:"rgba(255,255,255,.55)"}}>Loading {tab}…</div>
           : tab === "tenants" ? <section style={{background:"#172235",border:"1px solid rgba(255,255,255,.08)",borderRadius:8,overflow:"hidden"}}>
@@ -636,4 +639,92 @@ function OperationCard({number,title,status,good,body,actions}:{number:string;ti
 
 function StatusRow({label,value,good}:{label:string;value:string;good:boolean}) {
   return <div style={{padding:"11px 0",borderTop:"1px solid rgba(255,255,255,.07)"}}><div style={{display:"flex",justifyContent:"space-between",gap:10,fontSize:11}}><span style={{color:"rgba(255,255,255,.48)"}}>{label}</span><span style={{color:good?"#86efac":"#fde68a",fontWeight:800,textAlign:"right",overflowWrap:"anywhere"}}>{value}</span></div></div>
+}
+
+function DelegatedOnboardingTabContent() {
+  const [sessions, setSessions] = useState<any[]>([])
+  const [summary, setSummary] = useState<any>({ total: 0, connected: 0, pending: 0, notStarted: 0 })
+  const [loading, setLoading] = useState(true)
+  const [query, setQuery] = useState("")
+
+  useEffect(() => {
+    fetch("/api/admin/onboarding/sessions")
+      .then(res => res.json())
+      .then(data => {
+        if (data.ok) {
+          setSessions(data.sessions || [])
+          setSummary(data.summary || { total: 0, connected: 0, pending: 0, notStarted: 0 })
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  const filtered = sessions.filter(s => !query || s.organizationName?.toLowerCase().includes(query.toLowerCase()) || s.phone?.phoneNumber?.includes(query))
+
+  return (
+    <div style={{ display: "grid", gap: 18 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <span style={{ background: "#172235", border: "1px solid rgba(255,255,255,.08)", padding: "8px 14px", borderRadius: 8, fontSize: 12 }}>
+            Total Tenants: <strong style={{ color: "#fff" }}>{summary.total}</strong>
+          </span>
+          <span style={{ background: "#172235", border: "1px solid rgba(255,255,255,.08)", padding: "8px 14px", borderRadius: 8, fontSize: 12 }}>
+            Connected: <strong style={{ color: "#86efac" }}>{summary.connected}</strong>
+          </span>
+          <span style={{ background: "#172235", border: "1px solid rgba(255,255,255,.08)", padding: "8px 14px", borderRadius: 8, fontSize: 12 }}>
+            Pending: <strong style={{ color: "#fde68a" }}>{summary.pending}</strong>
+          </span>
+        </div>
+        <a href="/admin/onboarding" style={{ background: "#25D366", color: "#052e2b", textDecoration: "none", borderRadius: 6, padding: "8px 14px", fontSize: 12, fontWeight: 800 }}>
+          Open Full Onboarding Console ↗
+        </a>
+      </div>
+
+      <div style={{ background: "#172235", border: "1px solid rgba(255,255,255,.08)", borderRadius: 10, overflow: "hidden" }}>
+        <div style={{ padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,.08)" }}>
+          <input
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Search tenant or phone…"
+            style={{ width: "min(100%,320px)", background: "#0f172a", border: "1px solid rgba(255,255,255,.16)", borderRadius: 6, padding: "7px 10px", color: "#fff", fontSize: 12 }}
+          />
+        </div>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, textAlign: "left" }}>
+          <thead style={{ color: "rgba(255,255,255,.45)", background: "rgba(255,255,255,.02)" }}>
+            <tr>
+              <th style={{ padding: "10px 14px" }}>Tenant</th>
+              <th style={{ padding: "10px 14px" }}>Status</th>
+              <th style={{ padding: "10px 14px" }}>WABA ID</th>
+              <th style={{ padding: "10px 14px" }}>Phone</th>
+              <th style={{ padding: "10px 14px", textAlign: "right" }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan={5} style={{ padding: 20, textAlign: "center", color: "#94a3b8" }}>Loading onboarding records…</td></tr>
+            ) : filtered.length === 0 ? (
+              <tr><td colSpan={5} style={{ padding: 20, textAlign: "center", color: "#94a3b8" }}>No tenants found.</td></tr>
+            ) : (
+              filtered.map(item => (
+                <tr key={item.organizationId} style={{ borderTop: "1px solid rgba(255,255,255,.06)" }}>
+                  <td style={{ padding: "11px 14px", fontWeight: 700 }}>{item.organizationName}</td>
+                  <td style={{ padding: "11px 14px" }}>
+                    <span style={{ padding: "2px 8px", borderRadius: 12, fontSize: 10, fontWeight: 800, background: item.status === "CONNECTED" ? "rgba(16,185,129,.15)" : "rgba(245,158,11,.15)", color: item.status === "CONNECTED" ? "#86efac" : "#fde68a" }}>
+                      {item.status}
+                    </span>
+                  </td>
+                  <td style={{ padding: "11px 14px" }}><code>{item.waba?.wabaId || "—"}</code></td>
+                  <td style={{ padding: "11px 14px" }}>{item.phone?.phoneNumber || "—"}</td>
+                  <td style={{ padding: "11px 14px", textAlign: "right" }}>
+                    <a href="/admin/onboarding" style={{ color: "#38bdf8", fontWeight: 700, textDecoration: "none" }}>Assist →</a>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
 }

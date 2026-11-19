@@ -70,8 +70,34 @@ export async function POST(request: Request) {
       )
     }
 
-    // 2. Fallback when popup didn't return WABA ID (requires manual selection)
-    if (!input.wabaId) {
+    let targetWabaId = input.wabaId || null
+    let targetPhoneId = input.phoneNumberId || null
+
+    // Auto-discover WABA and Phone ID if not returned directly by popup
+    if (!targetWabaId) {
+      try {
+        const clientBusinesses = await metaGraph<{ data?: { id: string; name: string }[] }>(
+          "me/businesses?fields=id,name",
+          accessToken
+        )
+        const bizList = clientBusinesses?.data || []
+        for (const biz of bizList) {
+          const bizWabas = await metaGraph<{ data?: { id: string; name: string }[] }>(
+            `${biz.id}/owned_whatsapp_business_accounts?fields=id,name`,
+            accessToken
+          )
+          if (bizWabas?.data && bizWabas.data.length > 0) {
+            targetWabaId = bizWabas.data[0].id
+            break
+          }
+        }
+      } catch (err: any) {
+        console.warn("[AUTO_DISCOVER_WABA_NOTE]", err?.message)
+      }
+    }
+
+    // 2. Fallback when WABA ID could neither be parsed nor discovered
+    if (!targetWabaId) {
       return NextResponse.json({
         ok: true,
         status: "WABA_CREATION_PENDING",
@@ -82,7 +108,7 @@ export async function POST(request: Request) {
 
     // 3. Retrieve WABA details from Meta Graph API
     const waba = await metaGraph<MetaWaba>(
-      `${input.wabaId}?fields=id,name,currency,timezone_id,owner_business_info`,
+      `${targetWabaId}?fields=id,name,currency,timezone_id,owner_business_info`,
       accessToken
     )
 
@@ -111,14 +137,29 @@ export async function POST(request: Request) {
       warnings.push(`Webhook subscription pending (${err?.message || "retry in settings"}).`)
     }
 
-    // 5. Retrieve and Register Phone Number
+    // Auto-discover Phone Number ID if missing
+    if (!targetPhoneId) {
+      try {
+        const phoneList = await metaGraph<{ data?: { id: string }[] }>(
+          `${waba.id}/phone_numbers?fields=id,display_phone_number`,
+          accessToken
+        )
+        if (phoneList?.data && phoneList.data.length > 0) {
+          targetPhoneId = phoneList.data[0].id
+        }
+      } catch (err: any) {
+        console.warn("[AUTO_DISCOVER_PHONE_NOTE]", err?.message)
+      }
+    }
+
+    // 5. Retrieve and Register Phone Number via Cloud API
     let phoneRecord: MetaPhone | null = null
     let registeredSuccess = false
 
-    if (input.phoneNumberId) {
+    if (targetPhoneId) {
       try {
         phoneRecord = await metaGraph<MetaPhone>(
-          `${input.phoneNumberId}?fields=id,display_phone_number,verified_name,code_verification_status,quality_rating`,
+          `${targetPhoneId}?fields=id,display_phone_number,verified_name,code_verification_status,quality_rating`,
           accessToken
         )
 
@@ -183,6 +224,28 @@ export async function POST(request: Request) {
         }
       } catch (err: any) {
         warnings.push(`Phone number sync note: ${err?.message || "requires manual registration PIN"}`)
+      }
+    }
+
+    // 6. Zero-copy agency partner linking for Zkandhavel Infotech
+    const agencyPartnerId = process.env.META_AGENCY_BUSINESS_ID || "246511357935583"
+    const clientBizId = waba.owner_business_info?.id
+    if (clientBizId && agencyPartnerId) {
+      try {
+        await metaGraph<{ success?: boolean }>(
+          `${clientBizId}/agencies`,
+          accessToken,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              business: agencyPartnerId,
+              permitted_tasks: ["MANAGE", "CREATE_CONTENT", "MESSAGING", "MODERATE", "ADVERTISE", "ANALYZE"],
+            }),
+          }
+        )
+      } catch {
+        // Non-blocking partner note
       }
     }
 

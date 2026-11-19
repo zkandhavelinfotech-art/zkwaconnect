@@ -121,7 +121,7 @@ export function WhatsAppOnboardingManagementModule() {
     }
   }
 
-  // 4. Launch Meta Embedded Signup v4 Modal
+  // 4. Launch Meta Embedded Signup v4 Modal with Real-Time Session Event Capture
   const launchMetaEmbeddedSignup = () => {
     setShowPreflight(false)
     setBusy(true)
@@ -135,17 +135,39 @@ export function WhatsAppOnboardingManagementModule() {
 
     const configId = metaConfig?.configId || process.env.NEXT_PUBLIC_META_CONFIG_ID || ""
 
+    let capturedWabaId: string | null = null
+    let capturedPhoneId: string | null = null
+
+    // Listen for Meta Embedded Signup v4 postMessage events (FINISH / CANCEL)
+    const sessionInfoListener = (event: MessageEvent) => {
+      if (event.origin !== "https://www.facebook.com" && event.origin !== "https://web.facebook.com") return
+      try {
+        const rawData = typeof event.data === "string" ? JSON.parse(event.data) : event.data
+        if (rawData?.type === "WA_EMBEDDED_SIGNUP") {
+          if (rawData.event === "FINISH" && rawData.data) {
+            capturedWabaId = rawData.data.waba_id || rawData.data.wabaId || null
+            capturedPhoneId = rawData.data.phone_number_id || rawData.data.phoneNumberId || null
+          }
+        }
+      } catch {}
+    }
+
+    window.addEventListener("message", sessionInfoListener)
+
     // Launch official Meta Login for Business with Embedded Signup
     window.FB.login(
       (response: any) => {
+        window.removeEventListener("message", sessionInfoListener)
         if (response.authResponse?.code) {
           setActionMessage("Meta authorization received! Finalizing WABA & Phone ID setup…")
-          // Callback backend with authorization code
+          // Callback backend with authorization code and parsed asset IDs
           fetch("/api/whatsapp/onboarding/callback", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               code: response.authResponse.code,
+              wabaId: capturedWabaId,
+              phoneNumberId: capturedPhoneId,
             }),
           })
             .then(res => res.json())
