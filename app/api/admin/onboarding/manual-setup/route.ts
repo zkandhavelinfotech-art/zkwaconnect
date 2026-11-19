@@ -3,6 +3,8 @@ import { z } from "zod"
 import { prisma } from "@/lib/db/prisma"
 import { getAdminSession } from "@/lib/auth/admin"
 import { metaGraph } from "@/lib/meta/graph"
+import { subscribeWaba } from "@/lib/meta/waba"
+import { recordLifecycleLog } from "@/lib/whatsapp/lifecycle"
 
 export const runtime = "nodejs"
 
@@ -96,7 +98,7 @@ export async function POST(request: Request) {
       },
     })
 
-    // Attempt registration if token available
+    // Attempt registration & webhook subscription if token available
     let registrationMessage = "Assets saved in database."
     if (org.metaConnection?.accessToken) {
       try {
@@ -116,7 +118,34 @@ export async function POST(request: Request) {
       } catch (err: any) {
         registrationMessage = `Assets saved. Cloud API registration note: ${err.message}`
       }
+
+      // Auto-subscribe webhooks
+      try {
+        await subscribeWaba(waba.wabaId, org.metaConnection.accessToken)
+      } catch {}
     }
+
+    // Auto-resolve any open Assisted Onboarding tickets for this tenant
+    await prisma.supportTicket.updateMany({
+      where: {
+        organizationId: org.id,
+        subject: { contains: "Onboarding" },
+        status: { in: ["OPEN", "IN_PROGRESS"] },
+      },
+      data: {
+        status: "RESOLVED",
+        closedAt: new Date(),
+        description: `Automated Resolution: Delegated setup completed by Super Admin on ${new Date().toLocaleDateString()}. WABA: ${waba.wabaId}, Phone: ${phone.phoneNumber}`,
+      },
+    })
+
+    // Write audit log entry
+    await recordLifecycleLog({
+      organizationId: org.id,
+      eventType: "DELEGATED_SETUP_COMPLETED",
+      statusTo: "CONNECTED",
+      sanitizedMessage: `Super Admin completed delegated setup for WABA ${waba.wabaId} and Phone ${phone.phoneNumber}.`,
+    })
 
     return NextResponse.json({
       ok: true,

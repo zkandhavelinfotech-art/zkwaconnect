@@ -47,6 +47,24 @@ export default function AdminOnboardingPage() {
     pin: "123456",
   })
 
+  // Meta Permissions Modal state
+  const [showPermissionsModal, setShowPermissionsModal] = useState(false)
+  const [permissionsData, setPermissionsData] = useState<any>(null)
+  const [permissionsLoading, setPermissionsLoading] = useState(false)
+
+  const loadPermissions = async () => {
+    setShowPermissionsModal(true)
+    setPermissionsLoading(true)
+    try {
+      const res = await fetch("/api/meta/permissions-request")
+      const json = await res.json()
+      if (res.ok) setPermissionsData(json)
+    } catch {}
+    finally {
+      setPermissionsLoading(false)
+    }
+  }
+
   const loadTickets = useCallback(async () => {
     try {
       const res = await fetch("/api/admin/onboarding/tickets")
@@ -170,7 +188,14 @@ export default function AdminOnboardingPage() {
             </p>
           </div>
 
-          <div style={{ display: "flex", gap: 10 }}>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button
+              type="button"
+              onClick={loadPermissions}
+              style={{ background: "#0284c7", color: "#ffffff", border: 0, padding: "8px 14px", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}
+            >
+              <span>🛡️</span> Meta App Review &amp; Permissions
+            </button>
             <a href="/admin/dashboard" style={{ background: "#1e293b", color: "#e2e8f0", textDecoration: "none", padding: "8px 14px", borderRadius: 8, fontSize: 12, fontWeight: 700, border: "1px solid #334155" }}>
               ← Admin Dashboard
             </a>
@@ -459,7 +484,88 @@ export default function AdminOnboardingPage() {
           </>
         )}
 
-        {/* MODAL FOR DELEGATED SETUP */}
+        {/* MODAL FOR META APP REVIEW & PERMISSIONS */}
+        {showPermissionsModal && (
+          <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 20 }}>
+            <div style={{ background: "#172235", border: "1px solid #334155", borderRadius: 14, maxWidth: 640, width: "100%", padding: 24, boxShadow: "0 20px 40px rgba(0,0,0,0.5)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                <h3 style={{ fontFamily: "Sora, sans-serif", fontSize: 17, fontWeight: 800, color: "#fff", margin: 0 }}>
+                  🛡️ Meta App Review &amp; Permissions Inspector
+                </h3>
+                <button onClick={() => setShowPermissionsModal(false)} style={{ background: "transparent", border: 0, color: "#94a3b8", fontSize: 18, cursor: "pointer" }}>✕</button>
+              </div>
+
+              <p style={{ fontSize: 12, color: "#94a3b8", margin: "0 0 16px", lineHeight: 1.5 }}>
+                To onboard external production customers without adding them as app testers, your Meta Developer App requires <strong>Advanced Access</strong> for the following WhatsApp scopes:
+              </p>
+
+              {permissionsLoading ? (
+                <div style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>Querying Meta Graph API permissions…</div>
+              ) : (
+                <div style={{ display: "grid", gap: 12, marginBottom: 20 }}>
+                  {permissionsData?.requiredPermissions?.map((p: any) => (
+                    <div key={p.permission} style={{ background: "#0b1320", border: "1px solid #334155", borderRadius: 8, padding: 14 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, flexWrap: "wrap", marginBottom: 6 }}>
+                        <div>
+                          <code style={{ fontSize: 13, fontWeight: 800, color: "#38bdf8" }}>{p.permission}</code>
+                          <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>{p.description}</div>
+                        </div>
+                        <span style={{
+                          fontSize: 10,
+                          fontWeight: 800,
+                          borderRadius: 12,
+                          padding: "2px 8px",
+                          background: p.hasAdvancedAccess ? "rgba(16,185,129,0.2)" : "rgba(245,158,11,0.2)",
+                          color: p.hasAdvancedAccess ? "#86efac" : "#fde68a",
+                        }}>
+                          {p.liveAccessLevel?.replace(/_/g, " ").toUpperCase() || "STANDARD ACCESS"}
+                        </span>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+                        <a
+                          href={p.directSubmissionUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{
+                            background: "#2563eb",
+                            color: "#fff",
+                            textDecoration: "none",
+                            borderRadius: 6,
+                            padding: "5px 12px",
+                            fontSize: 11,
+                            fontWeight: 700,
+                          }}
+                        >
+                          Request in App Dashboard ↗
+                        </a>
+                      </div>
+                    </div>
+                  )) || (
+                    <div style={{ color: "#f87171", fontSize: 12 }}>Could not query Meta API. Check META_APP_ID in .env.</div>
+                  )}
+                </div>
+              )}
+
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid #334155", paddingTop: 14 }}>
+                <a
+                  href="https://developers.facebook.com/apps"
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ color: "#38bdf8", fontSize: 12, textDecoration: "none", fontWeight: 700 }}
+                >
+                  Open Meta Developer Console ↗
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setShowPermissionsModal(false)}
+                  style={{ background: "#334155", color: "#e2e8f0", border: 0, borderRadius: 8, padding: "8px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         {showSetupModal && selectedSession && (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 20 }}>
             <div style={{ background: "#172235", border: "1px solid #334155", borderRadius: 14, maxWidth: 480, width: "100%", padding: 24, boxShadow: "0 20px 40px rgba(0,0,0,0.5)" }}>

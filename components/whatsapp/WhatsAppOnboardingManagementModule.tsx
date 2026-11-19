@@ -380,7 +380,8 @@ export function WhatsAppOnboardingManagementModule() {
       return
     }
 
-    const configId = metaConfig?.configId || process.env.NEXT_PUBLIC_META_CONFIG_ID || ""
+    const rawConfigId = metaConfig?.configId || ""
+    const hasValidConfigId = Boolean(rawConfigId && !/your-|replace-|example|changeme/i.test(rawConfigId))
 
     let capturedWabaId: string | null = null
     let capturedPhoneId: string | null = null
@@ -400,6 +401,20 @@ export function WhatsAppOnboardingManagementModule() {
     }
 
     window.addEventListener("message", sessionInfoListener)
+
+    const loginOptions: any = hasValidConfigId
+      ? {
+          config_id: rawConfigId,
+          response_type: "code",
+          override_default_response_type: true,
+          extras: { setup: {} },
+        }
+      : {
+          scope: "whatsapp_business_management,whatsapp_business_messaging,business_management",
+          response_type: "code",
+          override_default_response_type: true,
+          extras: { setup: {} },
+        }
 
     // Launch official Meta Login for Business with Embedded Signup
     window.FB.login(
@@ -444,16 +459,7 @@ export function WhatsAppOnboardingManagementModule() {
           setErrorMessage("Meta onboarding was cancelled or closed before completing.")
         }
       },
-      {
-        config_id: configId,
-        response_type: "code",
-        override_default_response_type: true,
-        extras: {
-          setup: {
-            // Embedded Signup v4 features
-          },
-        },
-      }
+      loginOptions
     )
   }
 
@@ -703,24 +709,93 @@ export function WhatsAppOnboardingManagementModule() {
 
         {/* TAB CONTENTS */}
         <div style={{ padding: 24 }}>
-          {/* NOT CONNECTED CTA */}
+          {/* NOT CONNECTED: INTERACTIVE PRE-ONBOARDING COMMAND CENTER */}
           {!isConnected && (
-            <div style={{ background: "#f8fafc", border: "1.5px dashed #cbd5e1", borderRadius: 12, padding: 32, textAlign: "center" }}>
-              <div style={{ fontSize: 36, marginBottom: 10 }}>⚡</div>
-              <h3 style={{ fontFamily: "Sora, sans-serif", fontSize: 17, fontWeight: 800, color: "#0f172a", margin: "0 0 6px" }}>
-                Connect your WhatsApp Business Account with Meta
-              </h3>
-              <p style={{ fontSize: 13, color: "#64748b", maxWidth: 540, margin: "0 auto 20px", lineHeight: 1.6 }}>
-                Connect an existing corporate account or create a brand new WABA in minutes through official Meta Embedded Signup v4.
-              </p>
-              <button
-                type="button"
-                onClick={handleStartOnboarding}
-                disabled={busy}
-                style={{ background: "#1877f2", color: "#ffffff", border: 0, borderRadius: 8, padding: "12px 24px", fontSize: 14, fontWeight: 800, cursor: busy ? "not-allowed" : "pointer", display: "inline-flex", alignItems: "center", gap: 10, boxShadow: "0 4px 14px rgba(24,119,242,0.3)" }}
-              >
-                <span>f</span> Continue with Facebook (Meta Login)
-              </button>
+            <div style={{ background: "#ffffff", border: "1.5px solid #e2e8f0", borderRadius: 14, padding: 32, boxShadow: "0 4px 20px rgba(0,0,0,0.03)" }}>
+              <div style={{ maxWidth: 720, margin: "0 auto", textAlign: "center" }}>
+                <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#f0fdf4", border: "1px solid #bbf7d0", padding: "4px 12px", borderRadius: 20, fontSize: 12, fontWeight: 800, color: "#166534", marginBottom: 16 }}>
+                  <span>✓</span> Official Meta Cloud API Tech Provider Engine (v25.0)
+                </div>
+
+                <h3 style={{ fontFamily: "Sora, sans-serif", fontSize: 22, fontWeight: 800, color: "#0f172a", margin: "0 0 8px" }}>
+                  Connect your WhatsApp Business Account
+                </h3>
+                <p style={{ fontSize: 13, color: "#64748b", margin: "0 0 28px", lineHeight: 1.6 }}>
+                  Connect an existing Meta Business Portfolio or create a brand new WABA in minutes. Your number will be verified and provisioned on Meta Cloud API instantly.
+                </p>
+
+                {/* 3-STEP VISUAL ONBOARDING GUIDE */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14, textAlign: "left", marginBottom: 28 }}>
+                  <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: 16 }}>
+                    <div style={{ width: 26, height: 26, borderRadius: "50%", background: "#1877f2", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 850, marginBottom: 10 }}>1</div>
+                    <div style={{ fontWeight: 800, fontSize: 13, color: "#0f172a", marginBottom: 4 }}>Meta Login</div>
+                    <div style={{ fontSize: 11, color: "#64748b", lineHeight: 1.4 }}>Log in with your Facebook account and select or create your Business Portfolio.</div>
+                  </div>
+
+                  <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: 16 }}>
+                    <div style={{ width: 26, height: 26, borderRadius: "50%", background: "#16a34a", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 850, marginBottom: 10 }}>2</div>
+                    <div style={{ fontWeight: 800, fontSize: 13, color: "#0f172a", marginBottom: 4 }}>Phone &amp; OTP</div>
+                    <div style={{ fontSize: 11, color: "#64748b", lineHeight: 1.4 }}>Enter your physical SIM or virtual number and verify the 6-digit SMS/Voice OTP.</div>
+                  </div>
+
+                  <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: 16 }}>
+                    <div style={{ width: 26, height: 26, borderRadius: "50%", background: "#0284c7", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 850, marginBottom: 10 }}>3</div>
+                    <div style={{ fontWeight: 800, fontSize: 13, color: "#0f172a", marginBottom: 4 }}>Live Messaging</div>
+                    <div style={{ fontSize: 11, color: "#64748b", lineHeight: 1.4 }}>2-Step PIN provisioned automatically. Start sending broadcasts &amp; templates!</div>
+                  </div>
+                </div>
+
+                {/* PRIMARY ACTIONS */}
+                <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 20 }}>
+                  <button
+                    type="button"
+                    onClick={handleStartOnboarding}
+                    disabled={busy}
+                    style={{
+                      background: "#1877f2",
+                      color: "#ffffff",
+                      border: 0,
+                      borderRadius: 8,
+                      padding: "13px 28px",
+                      fontSize: 14,
+                      fontWeight: 800,
+                      cursor: busy ? "not-allowed" : "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 10,
+                      boxShadow: "0 6px 18px rgba(24,119,242,0.3)",
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    <span style={{ fontSize: 16, fontWeight: 900 }}>f</span> Continue with Facebook (Meta Login)
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowSupportModal(true)}
+                    style={{
+                      background: "#f1f5f9",
+                      border: "1.5px solid #cbd5e1",
+                      borderRadius: 8,
+                      padding: "12px 20px",
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: "#334155",
+                      cursor: "pointer",
+                    }}
+                  >
+                    🤝 Request Assisted Setup
+                  </button>
+                </div>
+
+                {/* TRUST & SECURITY BADGES */}
+                <div style={{ fontSize: 11, color: "#94a3b8", display: "flex", justifyContent: "center", gap: 16, flexWrap: "wrap" }}>
+                  <span>🔒 End-to-End Encrypted</span>
+                  <span>⚡ Official Meta Embedded Signup v4</span>
+                  <span>🛡️ Zero Password Sharing</span>
+                  <span>🏢 Multi-Tenant Isolation</span>
+                </div>
+              </div>
             </div>
           )}
 
