@@ -55,7 +55,7 @@ type OnboardingState = {
   }
 }
 
-type HubTab = "overview" | "profile" | "pin" | "test" | "logs" | "danger"
+type HubTab = "overview" | "profile" | "pin" | "test" | "greentick" | "logs" | "danger"
 
 export function WhatsAppOnboardingManagementModule() {
   const [data, setData] = useState<OnboardingState | null>(null)
@@ -134,6 +134,136 @@ export function WhatsAppOnboardingManagementModule() {
       setRetrying(false)
     }
   }
+
+  // Support Ticket Modal state
+  const [showSupportModal, setShowSupportModal] = useState(false)
+  const [ticketForm, setTicketForm] = useState({ subject: "", description: "", priority: "HIGH" as "NORMAL" | "HIGH" | "URGENT" })
+  const [ticketSubmitting, setTicketSubmitting] = useState(false)
+
+  // Green Tick (Official Business Account) state
+  const [greenTickData, setGreenTickData] = useState<any>(null)
+  const [greenTickLoading, setGreenTickLoading] = useState(false)
+  const [obaForm, setObaForm] = useState({
+    brandWebsite: "",
+    pressLink1: "",
+    pressLink2: "",
+    businessRegistrationNumber: "",
+    commercialSummary: "",
+  })
+  const [obaSubmitting, setObaSubmitting] = useState(false)
+
+  // Twilio Gateway state
+  const [twilioGateway, setTwilioGateway] = useState<any>(null)
+
+  const loadGreenTickInfo = useCallback(async (phoneId: string) => {
+    try {
+      setGreenTickLoading(true)
+      const [gtRes, twilioRes] = await Promise.all([
+        fetch(`/api/whatsapp/accounts/${phoneId}/green-tick`),
+        fetch(`/api/whatsapp/gateway/twilio`),
+      ])
+      const gtJson = await gtRes.json()
+      if (gtRes.ok) setGreenTickData(gtJson)
+      const twilioJson = await twilioRes.json()
+      if (twilioRes.ok) setTwilioGateway(twilioJson)
+    } catch {}
+    finally {
+      setGreenTickLoading(false)
+    }
+  }, [])
+
+  const handleSubmitSupportTicket = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      setTicketSubmitting(true)
+      setErrorMessage(null)
+      const res = await fetch("/api/whatsapp/onboarding/support-ticket", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subject: ticketForm.subject,
+          description: ticketForm.description,
+          priority: ticketForm.priority,
+          wabaId: data?.primaryAccount?.wabaId,
+          phoneNumber: data?.primaryAccount?.phone?.phoneNumber,
+        }),
+      })
+      const json = await res.json()
+      if (res.ok) {
+        setActionMessage(json.message || "Support ticket created successfully.")
+        setShowSupportModal(false)
+        setTicketForm({ subject: "", description: "", priority: "HIGH" })
+        loadAuditLogs()
+      } else {
+        setErrorMessage(json.error || "Failed to submit ticket.")
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || "Failed to submit ticket.")
+    } finally {
+      setTicketSubmitting(false)
+    }
+  }
+
+  const handleApplyGreenTick = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const phoneId = data?.primaryAccount?.phone?.id
+    if (!phoneId) return
+    try {
+      setObaSubmitting(true)
+      setErrorMessage(null)
+      const res = await fetch(`/api/whatsapp/accounts/${phoneId}/green-tick`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          brandWebsite: obaForm.brandWebsite,
+          pressLinks: [obaForm.pressLink1, obaForm.pressLink2].filter(Boolean),
+          businessRegistrationNumber: obaForm.businessRegistrationNumber,
+          commercialSummary: obaForm.commercialSummary,
+        }),
+      })
+      const json = await res.json()
+      if (res.ok) {
+        setActionMessage(json.message || "Green Tick application submitted!")
+        loadGreenTickInfo(phoneId)
+        loadAuditLogs()
+      } else {
+        setErrorMessage(json.error || "Failed to submit Green Tick application.")
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || "Failed to submit Green Tick application.")
+    } finally {
+      setObaSubmitting(false)
+    }
+  }
+
+  const handleAssignNumberRole = async (phoneId: string, role: string) => {
+    try {
+      setBusy(true)
+      setErrorMessage(null)
+      const res = await fetch(`/api/whatsapp/accounts/${phoneId}/number-role`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role }),
+      })
+      const json = await res.json()
+      if (res.ok) {
+        setActionMessage(json.message || "Number role updated.")
+        refreshAccounts()
+      } else {
+        setErrorMessage(json.error || "Failed to assign role.")
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || "Failed to assign role.")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  useEffect(() => {
+    if (activeTab === "greentick" && data?.primaryAccount?.phone?.id) {
+      loadGreenTickInfo(data.primaryAccount.phone.id)
+    }
+  }, [activeTab, data?.primaryAccount?.phone?.id, loadGreenTickInfo])
 
   useEffect(() => {
     if (activeTab === "logs") {
@@ -535,6 +665,13 @@ export function WhatsAppOnboardingManagementModule() {
                 >
                   ⚡ Diagnostics Retry
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setShowSupportModal(true)}
+                  style={{ background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: 8, padding: "7px 12px", fontSize: 12, fontWeight: 700, color: "#334155", cursor: "pointer" }}
+                >
+                  🤝 Assisted Setup
+                </button>
               </>
             ) : (
               <button
@@ -556,6 +693,7 @@ export function WhatsAppOnboardingManagementModule() {
             <TabButton active={activeTab === "profile"} onClick={() => setActiveTab("profile")} label="📝 Business Profile" />
             <TabButton active={activeTab === "pin"} onClick={() => setActiveTab("pin")} label="🔐 Numbers & 2-Step PIN" />
             <TabButton active={activeTab === "test"} onClick={() => setActiveTab("test")} label="💬 Live Messaging Test" />
+            <TabButton active={activeTab === "greentick"} onClick={() => setActiveTab("greentick")} label="🛡️ Green Tick & Multi-Number" />
             <TabButton active={activeTab === "logs"} onClick={() => setActiveTab("logs")} label="📋 Audit Logs & Diagnostics" />
             <TabButton active={activeTab === "danger"} onClick={() => setActiveTab("danger")} label="⚙️ Account Management" />
           </div>
@@ -878,7 +1016,216 @@ export function WhatsAppOnboardingManagementModule() {
             </form>
           )}
 
-          {/* TAB 5: AUDIT LOGS & DIAGNOSTICS */}
+          {/* TAB 5: GREEN TICK & MULTI-NUMBER ROUTING */}
+          {isConnected && activeTab === "greentick" && (
+            <div style={{ display: "grid", gap: 20 }}>
+              {/* OBA HERO BANNER */}
+              <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 20 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, borderBottom: "1px solid #f1f5f9", paddingBottom: 16, marginBottom: 16 }}>
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: "#64748b", textTransform: "uppercase" }}>Meta Official Business Account (OBA)</div>
+                    <div style={{ fontFamily: "Sora, sans-serif", fontSize: 18, fontWeight: 800, color: "#0f172a", display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+                      <span>{phone?.displayName || "Your Business"}</span>
+                      {greenTickData?.isOfficialBusinessAccount ? (
+                        <span style={{ fontSize: 12, color: "#16a34a", background: "#f0fdf4", border: "1px solid #bbf7d0", padding: "3px 10px", borderRadius: 20, fontWeight: 800, display: "inline-flex", alignItems: "center", gap: 4 }}>
+                          <span style={{ fontSize: 14 }}>✓</span> Official Green Tick Verified
+                        </span>
+                      ) : greenTickData?.applicationStatus === "UNDER_REVIEW" ? (
+                        <span style={{ fontSize: 12, color: "#d97706", background: "#fffbeb", border: "1px solid #fde68a", padding: "3px 10px", borderRadius: 20, fontWeight: 800 }}>
+                          ⏳ Application Under Review by Meta
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: 12, color: "#475569", background: "#f8fafc", border: "1px solid #cbd5e1", padding: "3px 10px", borderRadius: 20, fontWeight: 700 }}>
+                          Standard WhatsApp Business Account
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 12, color: "#64748b", background: "#f8fafc", padding: "6px 12px", borderRadius: 8, border: "1px solid #e2e8f0" }}>
+                    Messaging Tier: <strong style={{ color: "#0f172a" }}>{greenTickData?.messagingLimitTier || data?.health?.messagingLimit || "TIER_10K"}</strong>
+                  </div>
+                </div>
+
+                {/* 4 ELIGIBILITY CRITERIA CARDS */}
+                <div style={{ marginBottom: 20 }}>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: "#334155", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    Official Meta Green Tick Eligibility Criteria
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: 10 }}>
+                    {greenTickData?.checklist?.map((c: any) => (
+                      <div key={c.id} style={{ background: c.passed ? "#f0fdf4" : "#f8fafc", border: `1px solid ${c.passed ? "#bbf7d0" : "#e2e8f0"}`, borderRadius: 8, padding: 12 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                          <span style={{ color: c.passed ? "#16a34a" : "#94a3b8", fontWeight: 800 }}>{c.passed ? "✓" : "○"}</span>
+                          <span style={{ fontSize: 12, fontWeight: 800, color: c.passed ? "#166534" : "#334155" }}>{c.title}</span>
+                        </div>
+                        <div style={{ fontSize: 11, color: "#64748b", lineHeight: 1.4 }}>{c.description}</div>
+                      </div>
+                    )) || (
+                      <div style={{ color: "#94a3b8", fontSize: 12 }}>Checking eligibility criteria…</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* GREEN TICK APPLICATION FORM */}
+                {!greenTickData?.isOfficialBusinessAccount && greenTickData?.applicationStatus !== "UNDER_REVIEW" && (
+                  <form onSubmit={handleApplyGreenTick} style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: 18 }}>
+                    <div style={{ fontWeight: 800, fontSize: 14, color: "#0f172a", marginBottom: 6 }}>
+                      Apply for Official Business Account (Green Tick)
+                    </div>
+                    <p style={{ fontSize: 12, color: "#64748b", margin: "0 0 14px", lineHeight: 1.5 }}>
+                      Meta reviews brand notability based on organic news mentions, website presence, and verified business registration.
+                    </p>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12, marginBottom: 12 }}>
+                      <div>
+                        <label style={formLabel}>Official Brand Website URL *</label>
+                        <input
+                          type="url"
+                          required
+                          placeholder="https://example.com"
+                          value={obaForm.brandWebsite}
+                          onChange={e => setObaForm({ ...obaForm, brandWebsite: e.target.value })}
+                          style={formInput}
+                        />
+                      </div>
+                      <div>
+                        <label style={formLabel}>Business Registration Number (CIN/GST/PAN) *</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. 33AAAAA0000A1Z5"
+                          value={obaForm.businessRegistrationNumber}
+                          onChange={e => setObaForm({ ...obaForm, businessRegistrationNumber: e.target.value })}
+                          style={formInput}
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12, marginBottom: 12 }}>
+                      <div>
+                        <label style={formLabel}>News Article / Press Link 1 *</label>
+                        <input
+                          type="url"
+                          required
+                          placeholder="https://thehindu.com/article..."
+                          value={obaForm.pressLink1}
+                          onChange={e => setObaForm({ ...obaForm, pressLink1: e.target.value })}
+                          style={formInput}
+                        />
+                      </div>
+                      <div>
+                        <label style={formLabel}>News Article / Press Link 2 *</label>
+                        <input
+                          type="url"
+                          required
+                          placeholder="https://economictimes.indiatimes.com/..."
+                          value={obaForm.pressLink2}
+                          onChange={e => setObaForm({ ...obaForm, pressLink2: e.target.value })}
+                          style={formInput}
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ marginBottom: 14 }}>
+                      <label style={formLabel}>Brand Summary &amp; Market Presence</label>
+                      <textarea
+                        rows={2}
+                        required
+                        placeholder="Brief overview of your company, products, and customer base for Meta reviewers…"
+                        value={obaForm.commercialSummary}
+                        onChange={e => setObaForm({ ...obaForm, commercialSummary: e.target.value })}
+                        style={formInput}
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={obaSubmitting}
+                      style={{ background: "#16a34a", color: "#fff", border: 0, borderRadius: 8, padding: "9px 20px", fontSize: 13, fontWeight: 800, cursor: obaSubmitting ? "not-allowed" : "pointer" }}
+                    >
+                      {obaSubmitting ? "Submitting Application…" : "Submit Green Tick Application →"}
+                    </button>
+                  </form>
+                )}
+              </div>
+
+              {/* ENTERPRISE MULTI-NUMBER ROUTING */}
+              <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 20 }}>
+                <div style={{ marginBottom: 14 }}>
+                  <h4 style={{ fontFamily: "Sora, sans-serif", fontSize: 15, fontWeight: 800, color: "#0f172a", margin: "0 0 4px" }}>
+                    Multi-Number Routing &amp; Role Allocation
+                  </h4>
+                  <p style={{ fontSize: 12, color: "#64748b", margin: 0 }}>
+                    Assign dedicated purposes to each phone number connected under your WhatsApp Business Account.
+                  </p>
+                </div>
+
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                    <thead>
+                      <tr style={{ background: "#f8fafc", textAlign: "left", color: "#64748b", borderBottom: "1px solid #e2e8f0" }}>
+                        <th style={{ padding: "10px 14px" }}>WhatsApp Number</th>
+                        <th style={{ padding: "10px 14px" }}>Display Name</th>
+                        <th style={{ padding: "10px 14px" }}>Phone ID</th>
+                        <th style={{ padding: "10px 14px" }}>Routing Role</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data?.accounts.flatMap(acc => acc.phoneNumbers).map(p => (
+                        <tr key={p.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                          <td style={{ padding: "12px 14px", fontWeight: 800, color: "#0f172a" }}>{p.phoneNumber}</td>
+                          <td style={{ padding: "12px 14px", color: "#475569" }}>{p.displayName || "Standard"}</td>
+                          <td style={{ padding: "12px 14px", color: "#64748b", fontFamily: "monospace" }}>{p.phoneNumberId}</td>
+                          <td style={{ padding: "12px 14px" }}>
+                            <select
+                              defaultValue="GENERAL"
+                              onChange={e => handleAssignNumberRole(p.id, e.target.value)}
+                              disabled={busy}
+                              style={{ border: "1px solid #cbd5e1", borderRadius: 6, padding: "5px 10px", fontSize: 12, background: "#ffffff", color: "#0f172a" }}
+                            >
+                              <option value="MARKETING_BROADCAST">📣 Marketing Broadcasts</option>
+                              <option value="TRANSACTIONAL_OTP">🔐 Transactional OTPs &amp; Alerts</option>
+                              <option value="CUSTOMER_SUPPORT">🎧 Customer Support Desk</option>
+                              <option value="GENERAL">🌐 General Purpose</option>
+                            </select>
+                          </td>
+                        </tr>
+                      )) || (
+                        <tr>
+                          <td colSpan={4} style={{ padding: 14, textAlign: "center", color: "#94a3b8" }}>No phone numbers loaded.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* TWILIO MULTI-CHANNEL GLOBAL GATEWAY CARD */}
+              <div style={{ background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 12, padding: 20 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: 16 }}>🌐</span>
+                      <h4 style={{ fontFamily: "Sora, sans-serif", fontSize: 14, fontWeight: 800, color: "#0369a1", margin: 0 }}>
+                        Twilio Global Multi-Channel Gateway (Optional Add-on)
+                      </h4>
+                      <span style={{ fontSize: 11, background: "#e0f2fe", border: "1px solid #7dd3fc", color: "#0284c7", padding: "2px 8px", borderRadius: 12, fontWeight: 700 }}>
+                        ₹999/mo Add-on
+                      </span>
+                    </div>
+                    <p style={{ fontSize: 12, color: "#0c4a6e", margin: "6px 0 0", lineHeight: 1.5 }}>
+                      Enables secondary high-deliverability SMS and WhatsApp routing fallback when Meta Direct Cloud API encounters international operator restrictions.
+                    </p>
+                  </div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: twilioGateway?.enabled ? "#16a34a" : "#64748b" }}>
+                    Status: {twilioGateway?.enabled ? "✓ Active (Auto-Failover)" : "Standard Meta Cloud Only"}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 6: AUDIT LOGS & DIAGNOSTICS */}
           {isConnected && activeTab === "logs" && (
             <div style={{ display: "grid", gap: 16 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #f1f5f9", paddingBottom: 12, flexWrap: "wrap", gap: 12 }}>
@@ -1113,6 +1460,76 @@ export function WhatsAppOnboardingManagementModule() {
                 Confirm Disconnect
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* WHITE-GLOVE ONBOARDING ASSISTANCE MODAL */}
+      {showSupportModal && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(15,23,42,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 20 }}>
+          <div style={{ background: "#ffffff", borderRadius: 14, maxWidth: 480, width: "100%", padding: 24, boxShadow: "0 20px 40px rgba(0,0,0,0.2)" }}>
+            <h3 style={{ fontFamily: "Sora, sans-serif", fontSize: 17, fontWeight: 800, color: "#0f172a", margin: "0 0 6px" }}>
+              🤝 Request Assisted Setup Support
+            </h3>
+            <p style={{ fontSize: 13, color: "#64748b", margin: "0 0 16px", lineHeight: 1.5 }}>
+              Need help connecting your Meta Business Portfolio or registering your WhatsApp number? Our Super Admin engineers will review your account diagnostics and complete the setup.
+            </p>
+
+            <form onSubmit={handleSubmitSupportTicket} style={{ display: "grid", gap: 12 }}>
+              <div>
+                <label style={formLabel}>Subject</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Assistance verifying phone OTP or WABA ID setup"
+                  value={ticketForm.subject}
+                  onChange={e => setTicketForm({ ...ticketForm, subject: e.target.value })}
+                  style={formInput}
+                />
+              </div>
+
+              <div>
+                <label style={formLabel}>Priority</label>
+                <select
+                  value={ticketForm.priority}
+                  onChange={e => setTicketForm({ ...ticketForm, priority: e.target.value as any })}
+                  style={formInput}
+                >
+                  <option value="NORMAL">Normal Priority</option>
+                  <option value="HIGH">High Priority (Within 2 Hours)</option>
+                  <option value="URGENT">Urgent Escalation (Immediate)</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={formLabel}>Describe What Happened</label>
+                <textarea
+                  rows={4}
+                  required
+                  placeholder="Tell us what step failed or what error appeared during Facebook login…"
+                  value={ticketForm.description}
+                  onChange={e => setTicketForm({ ...ticketForm, description: e.target.value })}
+                  style={formInput}
+                />
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => setShowSupportModal(false)}
+                  style={{ background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 700, color: "#334155", cursor: "pointer" }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={ticketSubmitting}
+                  style={{ background: "#2563eb", border: 0, borderRadius: 8, padding: "8px 18px", fontSize: 12, fontWeight: 800, color: "#ffffff", cursor: ticketSubmitting ? "not-allowed" : "pointer" }}
+                >
+                  {ticketSubmitting ? "Submitting Request…" : "Submit Support Request →"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -26,6 +26,8 @@ type Summary = {
 export default function AdminOnboardingPage() {
   const router = useRouter()
   const [sessions, setSessions] = useState<SessionItem[]>([])
+  const [tickets, setTickets] = useState<any[]>([])
+  const [activeConsoleTab, setActiveConsoleTab] = useState<"tenants" | "tickets">("tenants")
   const [summary, setSummary] = useState<Summary>({ total: 0, connected: 0, pending: 0, notStarted: 0 })
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
@@ -44,6 +46,14 @@ export default function AdminOnboardingPage() {
     displayName: "",
     pin: "123456",
   })
+
+  const loadTickets = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/onboarding/tickets")
+      const data = await res.json()
+      if (res.ok) setTickets(data.tickets || [])
+    } catch {}
+  }, [])
 
   const loadSessions = useCallback(async () => {
     setLoading(true)
@@ -72,7 +82,30 @@ export default function AdminOnboardingPage() {
 
   useEffect(() => {
     loadSessions()
-  }, [loadSessions])
+    loadTickets()
+  }, [loadSessions, loadTickets])
+
+  const handleResolveTicket = async (ticketId: string) => {
+    try {
+      setBusy(true)
+      const res = await fetch(`/api/admin/onboarding/tickets/${ticketId}/resolve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "RESOLVED", notes: "Assisted setup completed by Super Admin." }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setNotice(data.message || "Ticket resolved.")
+        loadTickets()
+      } else {
+        setError(data.error || "Failed to resolve ticket.")
+      }
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
 
   const handleOpenAssistModal = (item: SessionItem) => {
     setSelectedSession(item)
@@ -179,7 +212,148 @@ export default function AdminOnboardingPage() {
           </div>
         </div>
 
-        {/* SEARCH & FILTERS */}
+        {/* CONSOLE TABS */}
+        <div style={{ display: "flex", gap: 10, marginBottom: 18, borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: 10 }}>
+          <button
+            type="button"
+            onClick={() => setActiveConsoleTab("tenants")}
+            style={{
+              background: activeConsoleTab === "tenants" ? "#2563eb" : "transparent",
+              color: "#fff",
+              border: 0,
+              borderRadius: 8,
+              padding: "9px 18px",
+              fontSize: 13,
+              fontWeight: 800,
+              cursor: "pointer",
+            }}
+          >
+            🏢 Tenant Workspaces ({sessions.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveConsoleTab("tickets")}
+            style={{
+              background: activeConsoleTab === "tickets" ? "#2563eb" : "transparent",
+              color: "#fff",
+              border: 0,
+              borderRadius: 8,
+              padding: "9px 18px",
+              fontSize: 13,
+              fontWeight: 800,
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            <span>🤝 Assisted Onboarding Requests</span>
+            {tickets.filter(t => t.status === "OPEN").length > 0 && (
+              <span style={{ background: "#ef4444", color: "#fff", fontSize: 10, padding: "2px 6px", borderRadius: 10, fontWeight: 900 }}>
+                {tickets.filter(t => t.status === "OPEN").length} OPEN
+              </span>
+            )}
+          </button>
+        </div>
+
+        {activeConsoleTab === "tickets" ? (
+          /* ASSISTED ONBOARDING TICKETS VIEW */
+          <div style={{ background: "#172235", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, overflow: "hidden", marginBottom: 30 }}>
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ fontWeight: 800, fontSize: 14, color: "#fff" }}>Assisted Onboarding Tickets from Tenants</div>
+              <button onClick={loadTickets} style={{ background: "#1e293b", color: "#cbd5e1", border: "1px solid #334155", borderRadius: 6, padding: "5px 10px", fontSize: 11, cursor: "pointer" }}>↻ Refresh</button>
+            </div>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, textAlign: "left" }}>
+                <thead style={{ background: "#131c31", color: "#94a3b8" }}>
+                  <tr>
+                    <th style={{ padding: "12px 18px" }}>Ticket</th>
+                    <th style={{ padding: "12px 18px" }}>Tenant Workspace</th>
+                    <th style={{ padding: "12px 18px" }}>Priority &amp; Status</th>
+                    <th style={{ padding: "12px 18px" }}>Description</th>
+                    <th style={{ padding: "12px 18px", textAlign: "right" }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tickets.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} style={{ padding: 24, textAlign: "center", color: "#94a3b8" }}>
+                        No onboarding support tickets currently open.
+                      </td>
+                    </tr>
+                  ) : (
+                    tickets.map(ticket => (
+                      <tr key={ticket.id} style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                        <td style={{ padding: "14px 18px", fontFamily: "monospace", color: "#60a5fa" }}>
+                          {ticket.ticketCode}
+                        </td>
+                        <td style={{ padding: "14px 18px" }}>
+                          <div style={{ fontWeight: 700, color: "#fff" }}>{ticket.organizationName}</div>
+                          <div style={{ fontSize: 11, color: "#64748b" }}>ID: {ticket.organizationId}</div>
+                        </td>
+                        <td style={{ padding: "14px 18px" }}>
+                          <span style={{
+                            padding: "2px 8px",
+                            borderRadius: 12,
+                            fontSize: 10,
+                            fontWeight: 800,
+                            background: ticket.priority === "URGENT" ? "rgba(239,68,68,0.2)" : "rgba(245,158,11,0.2)",
+                            color: ticket.priority === "URGENT" ? "#fca5a5" : "#fde68a",
+                            marginRight: 6,
+                          }}>
+                            {ticket.priority}
+                          </span>
+                          <span style={{
+                            padding: "2px 8px",
+                            borderRadius: 12,
+                            fontSize: 10,
+                            fontWeight: 800,
+                            background: ticket.status === "RESOLVED" ? "rgba(16,185,129,0.2)" : "rgba(96,165,250,0.2)",
+                            color: ticket.status === "RESOLVED" ? "#86efac" : "#93c5fd",
+                          }}>
+                            {ticket.status}
+                          </span>
+                        </td>
+                        <td style={{ padding: "14px 18px", maxWidth: 380 }}>
+                          <div style={{ fontWeight: 600, color: "#f8fafc", marginBottom: 2 }}>{ticket.subject}</div>
+                          <pre style={{ margin: 0, fontSize: 11, color: "#94a3b8", whiteSpace: "pre-wrap", maxHeight: 60, overflowY: "auto", fontFamily: "inherit" }}>
+                            {ticket.description}
+                          </pre>
+                        </td>
+                        <td style={{ padding: "14px 18px", textAlign: "right" }}>
+                          <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const matching = sessions.find(s => s.organizationId === ticket.organizationId)
+                                if (matching) handleOpenAssistModal(matching)
+                              }}
+                              style={{ background: "#2563eb", color: "#fff", border: 0, borderRadius: 6, padding: "5px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}
+                            >
+                              ⚙️ Setup
+                            </button>
+                            {ticket.status !== "RESOLVED" && (
+                              <button
+                                type="button"
+                                onClick={() => handleResolveTicket(ticket.id)}
+                                disabled={busy}
+                                style={{ background: "#16a34a", color: "#fff", border: 0, borderRadius: 6, padding: "5px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}
+                              >
+                                ✓ Resolve
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* SEARCH & FILTERS */}
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 20, alignItems: "center" }}>
           <input
             type="text"
@@ -282,6 +456,8 @@ export default function AdminOnboardingPage() {
             </table>
           </div>
         </div>
+      </>
+    )}
 
         {/* MODAL FOR DELEGATED SETUP */}
         {showSetupModal && selectedSession && (
