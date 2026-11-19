@@ -17,6 +17,29 @@ type Account = {
     unlinkedPhones: { phoneNumberId: string; display: string; verifiedName: string | null }[]
   } | null
   otherWabas: { wabaId: string; name: string; status: string; phones: number }[]
+  allWabas?: {
+    id: string
+    wabaId: string
+    name: string
+    status: string
+    metaBusinessId: string | null
+    currency: string | null
+    timezone: string | null
+    isActive: boolean
+    phoneNumbersCount: number
+    missingAssets: string[]
+    addedAssets: string[]
+    phones: {
+      id: string
+      phoneNumberId: string
+      phoneNumber: string
+      displayName: string | null
+      status: string
+      verificationStatus: string | null
+      qualityRating: string | null
+      messagingLimit: string | null
+    }[]
+  }[]
   onboarding: { metaConnected: boolean; wabaCreated: boolean; phoneRegistered: boolean; completedAt: string | null }
   warnings: string[]
 }
@@ -54,6 +77,8 @@ export function MetaAccountDetails({ organizationId }: { organizationId?: string
   const [data, setData] = useState<Account | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  const [switchingId, setSwitchingId] = useState("")
+  const [actionNotice, setActionNotice] = useState("")
 
   const load = useCallback(async () => {
     setLoading(true); setError("")
@@ -66,6 +91,32 @@ export function MetaAccountDetails({ organizationId }: { organizationId?: string
     finally { setLoading(false) }
   }, [organizationId])
   useEffect(() => { load() }, [load])
+
+  const handleSwitchWaba = async (wabaId: string) => {
+    if (!data?.organization?.id) return
+    setSwitchingId(wabaId)
+    setError("")
+    setActionNotice("")
+    try {
+      const res = await fetch("/api/admin/customers", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: data.organization.id,
+          action: "switch-waba",
+          wabaId,
+        }),
+      })
+      const body = await res.json()
+      if (!res.ok) throw new Error(body.error || "Failed to switch active WABA.")
+      setActionNotice(body.message || "Active WABA account updated successfully.")
+      await load()
+    } catch (err: any) {
+      setError(err.message || "Failed to switch active WABA.")
+    } finally {
+      setSwitchingId("")
+    }
+  }
 
   if (!data) return <div style={{ fontSize: 13, color: error ? "#b91c1c" : "#64748b" }}>{error || "Loading Meta account details…"}</div>
   const c = data.connection, w = data.activeWaba
@@ -154,9 +205,168 @@ export function MetaAccountDetails({ organizationId }: { organizationId?: string
           </tbody>
         </table></div>
       </>}
-      {data.otherWabas.length > 0 && <div style={{ marginTop: 14, fontSize: 12, color: "#64748b" }}>
-        Archived records retained for history (not used for current status or sending): {data.otherWabas.map(item => `${item.name} · ${item.wabaId}`).join(", ")}
-        {manageLinks && <> · <a href="/onboarding/waba-setup" style={{ color: "#075e54", fontWeight: 700 }}>Switch account →</a></>}</div>}
+      {actionNotice && (
+        <div style={{ padding: "10px 14px", background: "#ecfdf5", border: "1px solid #a7f3d0", color: "#065f46", borderRadius: 8, fontSize: 13, fontWeight: 700, marginTop: 12 }}>
+          ✓ {actionNotice}
+        </div>
+      )}
+
+      {/* MULTI-WABA ACCOUNTS & ASSETS INSPECTOR */}
+      {data.allWabas && data.allWabas.length > 0 && (
+        <div style={{ marginTop: 24, display: "grid", gap: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+            <div>
+              <h3 style={{ fontFamily: "Sora,sans-serif", fontSize: 16, fontWeight: 700, color: "#0f172a", margin: 0 }}>
+                🏢 Multi-WABA Account Portfolio ({data.allWabas.length} Account{data.allWabas.length > 1 ? "s" : ""})
+              </h3>
+              <p style={{ fontSize: 12, color: "#64748b", margin: "2px 0 0" }}>
+                Inspect all provisioned WhatsApp Business Accounts, registered phone numbers, and asset configurations for this tenant.
+              </p>
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gap: 14 }}>
+            {data.allWabas.map(acc => {
+              const isActive = acc.status === "CONNECTED"
+              return (
+                <div
+                  key={acc.id}
+                  style={{
+                    background: "#ffffff",
+                    border: isActive ? "2px solid #10b981" : "1px solid #e2e8f0",
+                    borderRadius: 12,
+                    padding: 16,
+                    boxShadow: isActive ? "0 4px 12px rgba(16,185,129,0.08)" : "none",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 15, fontWeight: 800, color: "#0f172a" }}>{acc.name}</span>
+                        <Badge
+                          value={acc.status}
+                          good={["CONNECTED"]}
+                          bad={["DISCONNECTED", "ERROR"]}
+                        />
+                        {isActive ? (
+                          <span style={{ background: "#dcfce7", color: "#15803d", padding: "2px 8px", borderRadius: 12, fontSize: 10, fontWeight: 800 }}>
+                            ★ Active Sending Channel
+                          </span>
+                        ) : (
+                          <span style={{ background: "#f1f5f9", color: "#64748b", padding: "2px 8px", borderRadius: 12, fontSize: 10, fontWeight: 700 }}>
+                            Inactive Secondary
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 4, fontSize: 12, color: "#64748b", flexWrap: "wrap" }}>
+                        <span>WABA ID: <CopyId value={acc.wabaId} /></span>
+                        {acc.metaBusinessId && <span>Portfolio ID: <CopyId value={acc.metaBusinessId} /></span>}
+                        <span>Currency: <strong>{acc.currency || "INR"}</strong></span>
+                      </div>
+                    </div>
+
+                    {!isActive && (
+                      <button
+                        type="button"
+                        disabled={switchingId === acc.wabaId}
+                        onClick={() => handleSwitchWaba(acc.wabaId)}
+                        style={{
+                          border: 0,
+                          borderRadius: 6,
+                          padding: "7px 14px",
+                          background: "#047857",
+                          color: "#ffffff",
+                          fontSize: 12,
+                          fontWeight: 800,
+                          cursor: "pointer",
+                        }}
+                      >
+                        {switchingId === acc.wabaId ? "Activating…" : "⚡ Set as Active Connected WABA"}
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Asset Audit / Added vs Missing */}
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 10, marginTop: 14 }}>
+                    <div style={{ background: "#f8fafc", borderRadius: 8, padding: 10, border: "1px solid #f1f5f9" }}>
+                      <div style={{ fontSize: 11, fontWeight: 800, color: "#059669", textTransform: "uppercase", letterSpacing: ".04em", marginBottom: 6 }}>
+                        ✓ Configured Assets
+                      </div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                        {acc.addedAssets.map(item => (
+                          <span key={item} style={{ background: "#ecfdf5", border: "1px solid #a7f3d0", color: "#065f46", fontSize: 11, padding: "2px 8px", borderRadius: 12 }}>
+                            {item}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div style={{ background: "#f8fafc", borderRadius: 8, padding: 10, border: "1px solid #f1f5f9" }}>
+                      <div style={{ fontSize: 11, fontWeight: 800, color: acc.missingAssets.length ? "#d97706" : "#059669", textTransform: "uppercase", letterSpacing: ".04em", marginBottom: 6 }}>
+                        {acc.missingAssets.length ? "⚠️ Attention / Missing" : "✓ Account Status Clean"}
+                      </div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                        {acc.missingAssets.length ? (
+                          acc.missingAssets.map(item => (
+                            <span key={item} style={{ background: "#fffbeb", border: "1px solid #fde68a", color: "#92400e", fontSize: 11, padding: "2px 8px", borderRadius: 12 }}>
+                              {item}
+                            </span>
+                          ))
+                        ) : (
+                          <span style={{ fontSize: 11, color: "#059669" }}>All core assets verified and linked</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Numbers List */}
+                  <div style={{ marginTop: 12 }}>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: "#475569", textTransform: "uppercase", letterSpacing: ".04em", marginBottom: 6 }}>
+                      Phone Numbers ({acc.phones.length})
+                    </div>
+                    {acc.phones.length > 0 ? (
+                      <div style={{ overflowX: "auto" }}>
+                        <table style={{ width: "100%", minWidth: 540, borderCollapse: "collapse", fontSize: 12 }}>
+                          <thead style={{ background: "#f8fafc", color: "#64748b" }}>
+                            <tr>
+                              {["Phone Number", "Phone Number ID", "Display Name", "Quality", "Connection Status"].map(col => (
+                                <th key={col} style={{ padding: "6px 8px", fontSize: 10, textTransform: "uppercase", textAlign: "left" }}>
+                                  {col}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {acc.phones.map(p => (
+                              <tr key={p.id} style={{ borderTop: "1px solid #f1f5f9" }}>
+                                <td style={{ padding: "8px", fontFamily: "monospace", fontWeight: 700 }}>{p.phoneNumber}</td>
+                                <td style={{ padding: "8px" }}><CopyId value={p.phoneNumberId} /></td>
+                                <td style={{ padding: "8px" }}>{p.displayName || "—"}</td>
+                                <td style={{ padding: "8px" }}><Badge value={p.qualityRating} good={["GREEN"]} bad={["RED"]} /></td>
+                                <td style={{ padding: "8px" }}>
+                                  <Badge
+                                    value={p.status}
+                                    good={["CONNECTED"]}
+                                    bad={["DISCONNECTED", "ERROR"]}
+                                  />
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: 12, color: "#94a3b8", fontStyle: "italic", padding: "4px 0" }}>
+                        No phone numbers attached to this WABA yet.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
     </section>
     <p style={{ fontSize: 11, color: "#94a3b8", margin: 0 }}>Access tokens are stored encrypted and are never shown. All details above are read live from Meta.</p>
   </div>

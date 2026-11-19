@@ -32,7 +32,7 @@ type AdminTenant = {
   subscriptions: { id: string; status: string; plan: AdminPlan }[]
   billingExempt?: boolean
   onboarding: { currentStep: string } | null
-  wabas: { id: string; wabaId: string; name: string; status: string; phoneNumbers: { phoneNumber: string; status: string; qualityRating: string | null }[] }[]
+  wabas: { id: string; wabaId: string; name: string; status: string; metaBusinessId?: string | null; phoneNumbers: { id?: string; phoneNumber: string; phoneNumberId?: string; displayName?: string | null; status: string; qualityRating: string | null; verificationStatus?: string | null }[] }[]
 }
 type AdminPayment = {
   id: string
@@ -477,7 +477,7 @@ export default function AdminDashboard() {
             {createdLogin&&<div style={{margin:16,padding:14,background:"rgba(52,211,153,.1)",border:"1px solid rgba(52,211,153,.32)",borderRadius:7,color:"#a7f3d0",fontSize:12}}><strong>Credentials created for {createdLogin.name}</strong><div style={{marginTop:6}}>Login: <code>{createdLogin.email}</code> · Temporary password: <code>{createdLogin.password}</code></div><div style={{marginTop:5,color:"rgba(255,255,255,.55)"}}>Save and share securely after onboarding. The password is not retrievable later.</div></div>}
             <div style={{overflowX:"auto"}}><table style={{width:"100%",minWidth:900,borderCollapse:"collapse",fontSize:12,textAlign:"left"}}>
               <thead style={{color:"rgba(255,255,255,.45)",background:"rgba(255,255,255,.025)"}}><tr>
-                {[["Tenant",220],["Owner",200],["Onboarding",130],["WABA",180],["Plan",190],["Actions",200]].map(([label,width]) =>
+                {[["Tenant",200],["Owner",180],["Onboarding",120],["WABA & Numbers",280],["Plan",170],["Actions",200]].map(([label,width]) =>
                   <th key={label as string} style={{width:width as number,padding:"11px 14px",fontWeight:600}}>{label}</th>)}
               </tr></thead>
               <tbody>{tenants.map(tenant => <tr key={tenant.id} style={{borderTop:"1px solid rgba(255,255,255,.07)"}}>
@@ -485,11 +485,52 @@ export default function AdminDashboard() {
                   <div style={{color:"rgba(255,255,255,.4)",marginTop:3}}>{tenant.slug} · {tenant.status}</div></td>
                 <td style={{padding:14}}>{tenant.memberships[0]?.user.name || "-"}<div style={{color:"rgba(255,255,255,.4)",marginTop:3}}>{tenant.memberships[0]?.user.email || "No owner"}</div></td>
                 <td style={{padding:14,color:"rgba(255,255,255,.65)"}}>{tenant.onboarding?.currentStep || "NOT_STARTED"}</td>
-                <td style={{padding:14}}>{tenant.wabas.length ? tenant.wabas.map(waba => <div key={waba.id} style={{marginBottom:5}}>
-                  <span style={{color:waba.status === "CONNECTED" ? "#6ee7b7" : "#fcd34d"}}>{waba.status}</span>
-                  <div style={{color:"rgba(255,255,255,.42)",marginTop:2}}>{waba.phoneNumbers.length} phone(s)</div>
-                </div>) : <span style={{color:"rgba(255,255,255,.4)"}}>Not connected</span>}
-                  <a href={`/admin/customers/meta?org=${tenant.id}`} style={{display:"inline-block",marginTop:4,color:"#86efac",fontSize:11,fontWeight:700,textDecoration:"none"}}>Meta details →</a></td>
+                <td style={{padding:14}}>
+                  {tenant.wabas.length ? (
+                    <div style={{display:"grid",gap:8}}>
+                      {tenant.wabas.map(waba => {
+                        const isConn = waba.status === "CONNECTED"
+                        return (
+                          <div key={waba.id} style={{padding:"8px 10px",borderRadius:6,background:isConn ? "rgba(37,211,102,.08)" : "rgba(255,255,255,.03)",border:isConn ? "1px solid rgba(37,211,102,.3)" : "1px solid rgba(255,255,255,.08)"}}>
+                            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:6}}>
+                              <span style={{fontWeight:700,fontSize:12,color:"#fff"}}>{waba.name}</span>
+                              <span style={{fontSize:10,fontWeight:800,borderRadius:10,padding:"1px 6px",background:isConn ? "#065f46" : "#78350f",color:isConn ? "#6ee7b7" : "#fcd34d"}}>
+                                {waba.status}
+                              </span>
+                            </div>
+                            <div style={{fontFamily:"monospace",fontSize:10,color:"rgba(255,255,255,.45)",marginTop:2}}>
+                              WABA: {waba.wabaId}
+                            </div>
+                            {waba.phoneNumbers.length > 0 ? (
+                              <div style={{marginTop:5,display:"grid",gap:3}}>
+                                {waba.phoneNumbers.map((phone) => {
+                                  const pConn = phone.status === "CONNECTED"
+                                  return (
+                                    <div key={phone.id || phone.phoneNumber} style={{display:"flex",alignItems:"center",justifyContent:"space-between",fontSize:11,background:"rgba(0,0,0,.25)",borderRadius:4,padding:"3px 6px"}}>
+                                      <span style={{fontFamily:"monospace",fontWeight:700,color:pConn ? "#86efac" : "#fca5a5"}}>
+                                        📞 {phone.phoneNumber}
+                                      </span>
+                                      <span style={{color:pConn ? "#6ee7b7" : "#f87171",fontWeight:800,fontSize:10}}>
+                                        {phone.status}
+                                      </span>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            ) : (
+                              <div style={{fontSize:10,color:"rgba(255,255,255,.35)",fontStyle:"italic",marginTop:3}}>0 phone numbers</div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <span style={{color:"rgba(255,255,255,.4)"}}>Not connected</span>
+                  )}
+                  <a href={`/admin/customers/meta?org=${tenant.id}`} style={{display:"inline-block",marginTop:7,color:"#86efac",fontSize:11,fontWeight:700,textDecoration:"none"}}>
+                    Inspect WABA Assets ({tenant.wabas.length}) →
+                  </a>
+                </td>
                 <td style={{padding:14}}>
                   <select aria-label={`Plan for ${tenant.name}`} value={tenantPlanIds[tenant.id] || ""}
                     onChange={event => setTenantPlanIds(current => ({...current,[tenant.id]:event.target.value}))}

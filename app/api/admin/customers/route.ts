@@ -38,7 +38,23 @@ export async function GET(req: Request) {
           memberships:   { where: { role: "OWNER" }, include: { user: { select: { name:true, email:true } } }, take: 1 },
           subscriptions: { where: { status: { not: "PENDING_PAYMENT" } }, include: { plan: true }, orderBy: { createdAt: "desc" }, take: 1 },
           onboarding:    { select: { currentStep: true } },
-          wabas: { include: { phoneNumbers: { select: { phoneNumber:true, status:true, qualityRating:true } } }, take: 3 },
+          wabas: {
+            include: {
+              phoneNumbers: {
+                select: {
+                  id: true,
+                  phoneNumber: true,
+                  phoneNumberId: true,
+                  displayName: true,
+                  status: true,
+                  verificationStatus: true,
+                  qualityRating: true,
+                },
+              },
+            },
+            orderBy: { updatedAt: "desc" },
+            take: 20,
+          },
         },
         orderBy: { createdAt: "desc" },
         skip: (page - 1) * limit, take: limit,
@@ -120,12 +136,32 @@ export async function PATCH(req: Request) {
     await assertAdmin()
     const input = z.object({
       id: z.string().min(1),
-      action: z.enum(["suspend", "activate", "extend-trial", "assign-plan", "set-internal", "open-onboarding"]),
+      action: z.enum(["suspend", "activate", "extend-trial", "assign-plan", "set-internal", "open-onboarding", "switch-waba"]),
       internal: z.boolean().optional(),
       trialDays: z.number().int().min(1).max(365).optional(),
       planId: z.string().min(1).optional(),
+      wabaId: z.string().optional(),
     }).parse(await req.json())
-    const { id, action, trialDays, planId } = input
+    const { id, action, trialDays, planId, wabaId } = input
+    if (action === "switch-waba" && wabaId) {
+      const targetWaba = await prisma.waba.findFirst({
+        where: { organizationId: id, wabaId },
+        include: { phoneNumbers: true },
+      })
+      if (!targetWaba) return NextResponse.json({ error: "WABA not found for this tenant." }, { status: 404 })
+
+      await prisma.$transaction([
+        prisma.waba.update({ where: { id: targetWaba.id }, data: { status: "CONNECTED" } }),
+        prisma.phoneNumber.updateMany({ where: { wabaId: targetWaba.id }, data: { status: "CONNECTED" } }),
+        prisma.waba.updateMany({ where: { organizationId: id, id: { not: targetWaba.id } }, data: { status: "DISCONNECTED" } }),
+        prisma.onboarding.upsert({
+          where: { organizationId: id },
+          create: { organizationId: id, metaConnected: true, wabaCreated: true, phoneRegistered: targetWaba.phoneNumbers.length > 0, phoneVerified: targetWaba.phoneNumbers.length > 0, currentStep: "COMPLETED", status: "COMPLETED" },
+          update: { metaConnected: true, wabaCreated: true, phoneRegistered: targetWaba.phoneNumbers.length > 0, phoneVerified: targetWaba.phoneNumbers.length > 0, currentStep: "COMPLETED", status: "COMPLETED" },
+        }),
+      ])
+      return NextResponse.json({ ok: true, message: `Activated WABA ${targetWaba.name} (${targetWaba.wabaId}) as active sending account.` })
+    }
     if (action === "open-onboarding") {
       const admin = await assertAdmin()
       await prisma.membership.upsert({

@@ -97,6 +97,51 @@ export async function GET(request: NextRequest) {
           .map(item => ({ phoneNumberId: item.id, display: item.display_phone_number || "", verifiedName: item.verified_name || null })),
       } : null,
       otherWabas: wabas.filter(waba => waba.id !== active?.id).map(waba => ({ wabaId: waba.wabaId, name: waba.name, status: waba.status, phones: waba.phoneNumbers.length })),
+      allWabas: wabas.map(w => {
+        const isConnected = w.status === "CONNECTED"
+        const hasPhones = w.phoneNumbers.length > 0
+        const activePhone = w.phoneNumbers.find(p => p.status === "CONNECTED") || w.phoneNumbers[0] || null
+
+        const missingAssets: string[] = []
+        const addedAssets: string[] = [`WABA ID: ${w.wabaId}`, `Currency: ${w.currency || "INR"}`]
+        
+        if (w.status !== "CONNECTED") missingAssets.push("WABA is not set as active")
+        else addedAssets.push("Active sending channel")
+
+        if (!hasPhones) {
+          missingAssets.push("No phone numbers provisioned")
+        } else {
+          w.phoneNumbers.forEach(p => {
+            addedAssets.push(`Phone: ${p.phoneNumber} (${p.status})`)
+            if (p.status !== "CONNECTED") missingAssets.push(`Phone ${p.phoneNumber} is ${p.status}`)
+            if (p.verificationStatus !== "VERIFIED") missingAssets.push(`Phone ${p.phoneNumber} verification: ${p.verificationStatus}`)
+          })
+        }
+
+        return {
+          id: w.id,
+          wabaId: w.wabaId,
+          name: w.name,
+          status: w.status,
+          metaBusinessId: w.metaBusinessId,
+          currency: w.currency,
+          timezone: w.timezone,
+          isActive: isConnected,
+          phoneNumbersCount: w.phoneNumbers.length,
+          missingAssets,
+          addedAssets,
+          phones: w.phoneNumbers.map(p => ({
+            id: p.id,
+            phoneNumberId: p.phoneNumberId,
+            phoneNumber: p.phoneNumber,
+            displayName: p.displayName,
+            status: p.status,
+            verificationStatus: p.verificationStatus,
+            qualityRating: p.qualityRating,
+            messagingLimit: p.messagingLimit,
+          })),
+        }
+      }),
       onboarding: { metaConnected: Boolean(profile), wabaCreated: Boolean(active), phoneRegistered: Boolean(active?.phoneNumbers.some(phone => phone.status === "CONNECTED")),
         completedAt: onboarding?.completedAt || null },
       warnings,
