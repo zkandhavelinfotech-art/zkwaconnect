@@ -283,12 +283,12 @@
     <div class="header-container">
       <div>
         <div class="badge-bar">
-          <span class="badge blue">5-Stage Phased Release Roadmap</span>
+          <span class="badge blue">6-Stage Phased Enterprise Release Roadmap</span>
           <span class="badge emerald">Official WhatsApp Business Platform</span>
           <span class="badge purple">November 2026 Target</span>
         </div>
         <h1>ZKWAConnect — WhatsApp Onboarding Release Roadmap</h1>
-        <div class="subtitle">5-Release Implementation Blueprint: Meta Integration Foundation to Super Admin Delegated Console</div>
+        <div class="subtitle">6-Release Implementation Blueprint: Meta Integration Foundation to Green Tick &amp; Multi-Number Gateway</div>
       </div>
       <div class="nav-actions">
         <a href="/gap-analysis-report.html" class="btn btn-secondary">← View Gap Analysis Report</a>
@@ -579,14 +579,14 @@
     <div class="release-milestone">
       <div class="release-header">
         <div class="release-title">
-          <span class="del-bullet rose">5</span>
-          <span>Release 5 — Manual Setup, Super Admin Console &amp; Pricing Add-ons</span>
+          <span class="del-bullet emerald">5</span>
+          <span>Release 5 — Manual Setup, Super Admin Console &amp; Assisted Support Ticketing</span>
         </div>
-        <span class="badge rose">Enterprise Operations</span>
+        <span class="badge emerald">✅ 100% Code Complete &amp; Deployed (Commit 349f380)</span>
       </div>
       <div class="release-body">
         <p style="font-size: 13px; color: #cbd5e1;">
-          Delivers the Super Admin delegated onboarding console (allowing SaaS product owner to setup and onboard tenants on behalf of clients), manual assistance workflows, audit log viewer, and optional Twilio add-on pricing tier.
+          Delivers the Super Admin delegated onboarding console (standalone at <code>/admin/onboarding</code> and tab in <code>/admin/dashboard</code>), white-glove support ticketing workflow, audit log inspection, and 1-click manual setup on behalf of clients.
         </p>
 
         <div class="grid-2">
@@ -595,23 +595,19 @@
             <ul class="deliverable-list">
               <li class="deliverable-item">
                 <span class="del-bullet rose">✓</span>
-                <div><strong>Super Admin Delegated Console:</strong> SaaS product owner can view all tenant onboarding sessions and configure WABA assets on customer's behalf.</div>
+                <div><strong>Dual Super Admin Console:</strong> Standalone full console at <code>/admin/onboarding</code> and embedded tab in <code>/admin/dashboard</code>.</div>
               </li>
               <li class="deliverable-item">
                 <span class="del-bullet rose">✓</span>
-                <div><strong>Manual Setup Support Tickets:</strong> When <code>MANUAL_REVIEW</code> triggers, ticket auto-created with customer details &amp; error snapshot.</div>
+                <div><strong>White-Glove Support Ticketing:</strong> Clients can request assisted setup; tickets auto-populate in Super Admin with diagnostic snapshots.</div>
               </li>
               <li class="deliverable-item">
                 <span class="del-bullet rose">✓</span>
-                <div><strong>Permission &amp; Asset Validation Hub:</strong> Admin can verify Meta Business Manager partner shares without bypassing OAuth security.</div>
+                <div><strong>1-Click Delegated Provisioning:</strong> Super Admin can provision WABA ID, Phone ID, and 2-step PIN directly on client's behalf.</div>
               </li>
               <li class="deliverable-item">
                 <span class="del-bullet rose">✓</span>
-                <div><strong>Marketing &amp; Pricing Plans:</strong> Updated public marketing page showcasing Free Starter, Growth Business, Enterprise Pro, and Twilio Global Add-on.</div>
-              </li>
-              <li class="deliverable-item">
-                <span class="del-bullet rose">✓</span>
-                <div><strong>Twilio ISV Add-on Architecture:</strong> Optional gateway tier for international SMS fallback, voice OTP, and global cross-border routing.</div>
+                <div><strong>Meta Tech Provider Permissions:</strong> 1-click inspector for <code>whatsapp_business_management</code> and <code>whatsapp_business_messaging</code>.</div>
               </li>
             </ul>
           </div>
@@ -619,15 +615,74 @@
           <div>
             <h4 style="font-size: 13px; color: #fff; text-transform: uppercase; margin-bottom: 10px;">API Endpoints &amp; Test Criteria</h4>
             <div class="endpoint-tag"><span class="endpoint-method">GET</span> /api/admin/onboarding/sessions</div>
+            <div class="endpoint-tag"><span class="endpoint-method">GET</span> /api/admin/onboarding/tickets</div>
+            <div class="endpoint-tag"><span class="endpoint-method">POST</span> /api/admin/onboarding/tickets/{id}/resolve</div>
+            <div class="endpoint-tag"><span class="endpoint-method">POST</span> /api/whatsapp/onboarding/support-ticket</div>
             <div class="endpoint-tag"><span class="endpoint-method">POST</span> /api/admin/onboarding/manual-setup</div>
-            <div class="endpoint-tag"><span class="endpoint-method">GET</span> /api/admin/meta-setup</div>
 
             <div class="test-criteria">
               <h5>Verification Criteria</h5>
               <ul>
-                <li>Super admin can inspect failed tenant onboarding sessions and diagnose Meta error.</li>
-                <li>Admin cannot bypass OAuth without verified partner asset delegation.</li>
-                <li>Public marketing and pricing tables accurately display the 4 tiers including Twilio.</li>
+                <li>Super Admin can view open onboarding tickets, assign engineers, and resolve.</li>
+                <li>Tenant can submit support requests directly from client onboarding hub.</li>
+                <li>1-click manual setup provisions database and registers Cloud API PIN.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RELEASE 6 -->
+    <div class="release-milestone">
+      <div class="release-header">
+        <div class="release-title">
+          <span class="del-bullet emerald">6</span>
+          <span>Release 6 — Official Green Tick (OBA) Verification &amp; Enterprise Multi-Number Routing</span>
+        </div>
+        <span class="badge emerald">✅ 100% Code Complete &amp; Deployed (Commit 349f380)</span>
+      </div>
+      <div class="release-body">
+        <p style="font-size: 13px; color: #cbd5e1;">
+          Delivers Meta Official Business Account (OBA) Green Tick eligibility inspection, brand notability press links application submission, multi-number routing role allocation, and Twilio Global Multi-Channel Gateway failover.
+        </p>
+
+        <div class="grid-2">
+          <div>
+            <h4 style="font-size: 13px; color: #fff; text-transform: uppercase; margin-bottom: 10px;">Core Deliverables</h4>
+            <ul class="deliverable-list">
+              <li class="deliverable-item">
+                <span class="del-bullet purple">✓</span>
+                <div><strong>Green Tick (OBA) Verification Center:</strong> 4-point eligibility checklist (2FA, Meta Business Verification, Tier 2 limit, Press coverage).</div>
+              </li>
+              <li class="deliverable-item">
+                <span class="del-bullet purple">✓</span>
+                <div><strong>Brand Notability Submission:</strong> Direct application workflow collecting brand website, CIN/GST, and organic press articles.</div>
+              </li>
+              <li class="deliverable-item">
+                <span class="del-bullet purple">✓</span>
+                <div><strong>Multi-Number Role Allocation:</strong> Allocate dedicated roles per number (Marketing Broadcasts, Transactional OTPs, Support Desk).</div>
+              </li>
+              <li class="deliverable-item">
+                <span class="del-bullet purple">✓</span>
+                <div><strong>Twilio Multi-Channel Global Gateway:</strong> High-deliverability secondary routing fallback for international destinations (₹999/mo add-on).</div>
+              </li>
+            </ul>
+          </div>
+
+          <div>
+            <h4 style="font-size: 13px; color: #fff; text-transform: uppercase; margin-bottom: 10px;">API Endpoints &amp; Test Criteria</h4>
+            <div class="endpoint-tag"><span class="endpoint-method">GET / POST</span> /api/whatsapp/accounts/{id}/green-tick</div>
+            <div class="endpoint-tag"><span class="endpoint-method">POST</span> /api/whatsapp/accounts/{id}/number-role</div>
+            <div class="endpoint-tag"><span class="endpoint-method">GET / POST</span> /api/whatsapp/gateway/twilio</div>
+
+            <div class="test-criteria">
+              <h5>Verification Criteria</h5>
+              <ul>
+                <li>Official Business Account badge displays green check icon when approved.</li>
+                <li>Green Tick application enforces brand notability press URLs and registration number.</li>
+                <li>Phone number roles route messages based on intent (marketing vs OTP).</li>
+                <li>Twilio Gateway activates automated failover when secondary routing is enabled.</li>
               </ul>
             </div>
           </div>
