@@ -66,10 +66,14 @@ export default function InboxPage() {
   const [mine,setMine] = useState(false)
   const [selectedPhoneId,setSelectedPhoneId] = useState<string>("ALL")
   const [phoneNumbers,setPhoneNumbers] = useState<{id:string;phoneNumber:string;displayName:string|null;status?:string}[]>([])
+  const [availableTemplates,setAvailableTemplates] = useState<{id:string;name:string;language:string;content:string|null}[]>([])
   const [newChatOpen,setNewChatOpen] = useState(false)
   const [newChatPhone,setNewChatPhone] = useState("")
   const [newChatName,setNewChatName] = useState("")
   const [newChatPhoneId,setNewChatPhoneId] = useState("")
+  const [newChatWithTemplate,setNewChatWithTemplate] = useState(false)
+  const [newChatTemplateId,setNewChatTemplateId] = useState("")
+  const [newChatTemplateParams,setNewChatTemplateParams] = useState<string[]>([])
   const [creatingChat,setCreatingChat] = useState(false)
   const [search,setSearch] = useState("")
   const [query,setQuery] = useState("")
@@ -109,6 +113,7 @@ export default function InboxPage() {
     setCounts(body.counts||{})
     setMembers(body.members||[])
     if(body.phoneNumbers)setPhoneNumbers(body.phoneNumbers)
+    if(body.templates)setAvailableTemplates(body.templates)
   },[status,query,mine,selectedPhoneId])
 
   const loadDetail = useCallback(async(id:string)=>{
@@ -231,12 +236,17 @@ export default function InboxPage() {
     setText(item.content.replace(/\{\{\s*name\s*\}\}/gi,name));setQuickOpen(false)
   }
 
-  const template = detail?.templates.find(item=>item.id===templateId)
+  const templatesList = detail?.templates?.length ? detail.templates : availableTemplates
+  const template = templatesList.find(item=>item.id===templateId)
   const templateVars = [...new Set([...(template?.content||"").matchAll(/\{\{(\d+)\}\}/g)].map(match=>Number(match[1])))].sort((a,b)=>a-b)
 
   async function sendTemplate(){
     if(!template)return
-    if(await send({templateId,parameters:templateVars.map(number=>templateParams[number-1]||"")})){
+    const paramsToSend = templateVars.map((number, idx) => {
+      const val = templateParams[number-1] || templateParams[idx]
+      return (val && val.trim()) ? val.trim() : (detail?.conversation.contact.name || "Customer")
+    })
+    if(await send({templateId,parameters:paramsToSend})){
       setTemplateId("");setTemplateParams([]);setShowTemplates(false)
     }
   }
@@ -262,6 +272,8 @@ export default function InboxPage() {
           phone: newChatPhone.trim(),
           name: newChatName.trim() || undefined,
           phoneNumberId: newChatPhoneId || undefined,
+          templateId: (newChatWithTemplate && newChatTemplateId) ? newChatTemplateId : undefined,
+          parameters: (newChatWithTemplate && newChatTemplateId) ? newChatTemplateParams : undefined,
         }),
       })
       const body = await res.json()
@@ -269,6 +281,9 @@ export default function InboxPage() {
       setNewChatOpen(false)
       setNewChatPhone("")
       setNewChatName("")
+      setNewChatTemplateId("")
+      setNewChatTemplateParams([])
+      setNewChatWithTemplate(false)
       await loadList()
       if (body.conversationId) open(body.conversationId)
     } catch (err) {
@@ -506,8 +521,8 @@ export default function InboxPage() {
               <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:8}}>
                 <select aria-label="Template" value={templateId} onChange={event=>{setTemplateId(event.target.value);setTemplateParams([])}}
                   style={{flex:1,border:"1px solid #cbd5e1",borderRadius:8,padding:"8px 10px",fontSize:13}}>
-                  <option value="">{detail.templates.length?"Choose an approved template":"No approved templates for this number"}</option>
-                  {detail.templates.map(item=><option key={item.id} value={item.id}>{item.name} · {item.language}</option>)}
+                  <option value="">{templatesList.length?`Choose an approved template (${templatesList.length} available)`:"No approved templates for this number"}</option>
+                  {templatesList.map(item=><option key={item.id} value={item.id}>{item.name} · {item.language}</option>)}
                 </select>
                 <button onClick={()=>setShowTemplates(false)} style={{border:"1px solid #e2e8f0",borderRadius:8,background:"#fff",padding:"8px 10px",fontSize:12,cursor:"pointer"}}>Cancel</button>
               </div>
@@ -667,6 +682,76 @@ export default function InboxPage() {
                   placeholder="e.g. John Doe"
                   style={{width:"100%",boxSizing:"border-box",border:"1px solid #cbd5e1",borderRadius:8,padding:"9px 11px",fontSize:13}}
                 />
+              </div>
+
+              <div style={{marginBottom:14,background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:8,padding:10}}>
+                <label style={{display:"flex",alignItems:"center",gap:6,fontSize:12,fontWeight:700,color:"#075e54",cursor:"pointer"}}>
+                  <input
+                    type="checkbox"
+                    checked={newChatWithTemplate}
+                    onChange={e=>{
+                      const next = e.target.checked
+                      setNewChatWithTemplate(next)
+                      if(next && availableTemplates.length && !newChatTemplateId){
+                        setNewChatTemplateId(availableTemplates[0].id)
+                      }
+                    }}
+                  />
+                  <span>📋 Send Approved Template Immediately (Recommended)</span>
+                </label>
+                <div style={{fontSize:10,color:"#64748b",marginTop:3,marginLeft:20}}>
+                  WhatsApp Cloud API requires an approved template to start a chat with a new customer.
+                </div>
+
+                {newChatWithTemplate && (
+                  <div style={{marginTop:10}}>
+                    <label style={{display:"block",fontSize:11,fontWeight:700,color:"#334155",marginBottom:4}}>
+                      Select Approved Template ({availableTemplates.length} available):
+                    </label>
+                    <select
+                      value={newChatTemplateId}
+                      onChange={e=>{
+                        setNewChatTemplateId(e.target.value)
+                        setNewChatTemplateParams([])
+                      }}
+                      style={{width:"100%",boxSizing:"border-box",border:"1px solid #cbd5e1",borderRadius:6,padding:"7px 9px",fontSize:12,marginBottom:8}}
+                    >
+                      {availableTemplates.map(t=>(
+                        <option key={t.id} value={t.id}>{t.name} ({t.language})</option>
+                      ))}
+                    </select>
+
+                    {(() => {
+                      const sel = availableTemplates.find(t=>t.id===newChatTemplateId)
+                      if (!sel) return null
+                      const vars = [...new Set([...(sel.content||"").matchAll(/\{\{(\d+)\}\}/g)].map(m=>Number(m[1])))].sort((a,b)=>a-b)
+                      return (
+                        <div>
+                          {vars.length > 0 && (
+                            <div style={{display:"grid",gap:6,marginBottom:6}}>
+                              {vars.map(v => (
+                                <input
+                                  key={v}
+                                  placeholder={`Variable {{${v}}} (defaults to customer name if blank)`}
+                                  value={newChatTemplateParams[v-1] || ""}
+                                  onChange={e=>{
+                                    const next = [...newChatTemplateParams]
+                                    next[v-1] = e.target.value
+                                    setNewChatTemplateParams(next)
+                                  }}
+                                  style={{width:"100%",boxSizing:"border-box",border:"1px solid #cbd5e1",borderRadius:6,padding:"6px 8px",fontSize:11}}
+                                />
+                              ))}
+                            </div>
+                          )}
+                          <div style={{fontSize:11,color:"#475569",background:"#fff",border:"1px solid #e2e8f0",borderRadius:6,padding:"6px 8px",whiteSpace:"pre-wrap"}}>
+                            {(sel.content || sel.name).replace(/\{\{(\d+)\}\}/g, (match, number) => newChatTemplateParams[Number(number)-1] || newChatName || match)}
+                          </div>
+                        </div>
+                      )
+                    })()}
+                  </div>
+                )}
               </div>
 
               <div style={{display:"flex",gap:8}}>

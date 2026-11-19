@@ -12,8 +12,10 @@ type Account = {
   business: { id: string; name: string | null; verificationStatus: string | null } | null
   activeWaba: {
     wabaId: string; name: string; reviewStatus: string | null; currency: string | null; timezone: string | null; webhookSubscribed: boolean | null
-    phones: { phoneNumberId: string; display: string; verifiedName: string | null; status: string; registered: boolean; quality: string | null
-      nameStatus: string | null; metaStatus: string | null; messagingLimit: string | null }[]
+    phones: {
+      phoneNumberId: string; display: string; verifiedName: string | null; status: string; registered: boolean; quality: string | null
+      nameStatus: string | null; metaStatus: string | null; messagingLimit: string | null
+    }[]
     unlinkedPhones: { phoneNumberId: string; display: string; verifiedName: string | null }[]
   } | null
   otherWabas: { wabaId: string; name: string; status: string; phones: number }[]
@@ -127,8 +129,10 @@ export function MetaAccountDetails({ organizationId }: { organizationId?: string
   return <div style={{ display: "grid", gap: 16 }}>
     <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
       {[["Meta connected", data.onboarding.metaConnected], ["WhatsApp account", data.onboarding.wabaCreated], ["Number registered", data.onboarding.phoneRegistered]].map(([label, ok]) =>
-        <span key={label as string} style={{ fontSize: 12, fontWeight: 700, borderRadius: 20, padding: "5px 12px",
-          background: ok ? "#dcfce7" : "#fef2f2", color: ok ? "#15803d" : "#b91c1c" }}>{ok ? "✓" : "✕"} {label}</span>)}
+        <span key={label as string} style={{
+          fontSize: 12, fontWeight: 700, borderRadius: 20, padding: "5px 12px",
+          background: ok ? "#dcfce7" : "#fef2f2", color: ok ? "#15803d" : "#b91c1c"
+        }}>{ok ? "✓" : "✕"} {label}</span>)}
       <div style={{ flex: 1 }} />
       <button type="button" onClick={load} disabled={loading} style={{ border: "1px solid #cbd5e1", borderRadius: 8, background: "#fff", padding: "7px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
         {loading ? "Refreshing…" : "↻ Refresh from Meta"}</button>
@@ -151,8 +155,10 @@ export function MetaAccountDetails({ organizationId }: { organizationId?: string
           </tbody></table>}
         {c?.permissions && <div style={{ marginTop: 12 }}>
           <div style={keyStyle}>Permissions {missing.length ? <span style={{ color: "#b91c1c", textTransform: "none" }}>· {missing.length} missing</span> : <span style={{ color: "#15803d", textTransform: "none" }}>· all granted</span>}</div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>{c.permissions.map(item => <span key={item.scope} style={{ fontSize: 10, fontFamily: "monospace", borderRadius: 20, padding: "2px 8px",
-            background: item.granted ? "#dcfce7" : "#fee2e2", color: item.granted ? "#15803d" : "#b91c1c" }}>{item.granted ? "✓" : "✕"} {item.scope}</span>)}</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>{c.permissions.map(item => <span key={item.scope} style={{
+            fontSize: 10, fontFamily: "monospace", borderRadius: 20, padding: "2px 8px",
+            background: item.granted ? "#dcfce7" : "#fee2e2", color: item.granted ? "#15803d" : "#b91c1c"
+          }}>{item.granted ? "✓" : "✕"} {item.scope}</span>)}</div>
         </div>}
         {manageLinks && <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 14 }}>
           <a href="/onboarding" style={{ fontSize: 12, fontWeight: 700, color: "#075e54" }}>{connectedOk ? "Reconnect or switch →" : "Connect Facebook →"}</a>

@@ -5,7 +5,7 @@ import { z } from "zod"
 import { Prisma } from "@/generated/prisma/client"
 import { getSession } from "@/lib/auth/session"
 import { prisma } from "@/lib/db/prisma"
-import { getMetaAccessTokenForWaba } from "@/lib/onboarding/context"
+import { getMetaAccessToken, getMetaAccessTokenForWaba } from "@/lib/onboarding/context"
 import { sendAndRecord } from "@/lib/whatsapp/send"
 import { buildTemplateMessage } from "@/lib/whatsapp/template-media"
 import { attachmentRule, storeMedia, uploadToWhatsApp } from "@/lib/whatsapp/media"
@@ -65,11 +65,17 @@ export async function GET(request: Request) {
       if (conversation.unreadCount) await prisma.conversation.update({ where:{ id:conversation.id }, data:{ unreadCount:0 } })
       const [inboundAt, templates, quickReplies, adReferral] = await Promise.all([
         lastInboundAt(conversation.id),
-        conversation.phoneNumber ? prisma.template.findMany({ where:{ organizationId, wabaId:conversation.phoneNumber.wabaId, status:"APPROVED" },
-          select:{ id:true, name:true, language:true, content:true }, orderBy:{ name:"asc" } }) : Promise.resolve([]),
-        prisma.quickReply.findMany({ where:{ organizationId }, select:{ id:true, shortcut:true, content:true }, orderBy:{ shortcut:"asc" } }),
-        prisma.adReferral.findFirst({ where:{ conversationId:conversation.id }, orderBy:{ createdAt:"desc" },
-          select:{ sourceType:true, sourceId:true, sourceUrl:true, headline:true, body:true, createdAt:true } }),
+        prisma.template.findMany({
+          where: { organizationId, status: { in: ["APPROVED", "approved"] } },
+          select: { id: true, name: true, language: true, content: true },
+          orderBy: { name: "asc" },
+        }),
+        prisma.quickReply.findMany({ where: { organizationId }, select: { id: true, shortcut: true, content: true }, orderBy: { shortcut: "asc" } }),
+        prisma.adReferral.findFirst({
+          where: { conversationId: conversation.id },
+          orderBy: { createdAt: "desc" },
+          select: { sourceType: true, sourceId: true, sourceUrl: true, headline: true, body: true, createdAt: true },
+        }),
       ])
       const windowEndsAt = inboundAt ? new Date(inboundAt.getTime() + WINDOW_MS) : null
       // Media details only (the raw WhatsApp payload stays on the server).
@@ -101,7 +107,7 @@ export async function GET(request: Request) {
         { phone:{ contains:query.replace(/\D/g, "") || query } },
       ] } } : {}),
     }
-    const [conversations, counts, members, phoneNumbers] = await Promise.all([
+    const [conversations, counts, members, phoneNumbers, templates] = await Promise.all([
       prisma.conversation.findMany({
         where, take:100,
         orderBy:[{ lastMessageAt:{ sort:"desc", nulls:"last" } }, { updatedAt:"desc" }],
@@ -116,12 +122,18 @@ export async function GET(request: Request) {
       prisma.conversation.groupBy({ by:["status"], where:{ organizationId, ...(phoneNumberId && phoneNumberId !== "ALL" ? { phoneNumberId } : {}) }, _count:{ _all:true } }),
       prisma.membership.findMany({ where:{ organizationId, status:"ACTIVE" }, select:{ user:{ select:{ id:true, name:true } } } }),
       prisma.phoneNumber.findMany({ where:{ waba:{ organizationId } }, select:{ id:true, phoneNumber:true, displayName:true, status:true }, orderBy:{ createdAt:"asc" } }),
+      prisma.template.findMany({
+        where: { organizationId, status: { in: ["APPROVED", "approved"] } },
+        select: { id: true, name: true, language: true, content: true },
+        orderBy: { name: "asc" },
+      }),
     ])
     return NextResponse.json({
       conversations,
       counts:Object.fromEntries(counts.map(item => [item.status, item._count._all])),
       members:members.map(item => item.user),
       phoneNumbers,
+      templates,
       me:member.userId,
     })
   } catch (error) {
@@ -134,7 +146,14 @@ const sendSchema = z.union([
   z.object({ conversationId:z.string().min(1), text:z.string().trim().min(1).max(4096), forceSend:z.boolean().optional() }),
   z.object({ conversationId:z.string().min(1), templateId:z.string().min(1), parameters:z.array(z.string().trim().min(1).max(1024)).max(20).default([]) }),
   z.object({ conversationId:z.string().min(1), retryMessageId:z.string().min(1) }),
-  z.object({ newChat:z.literal(true), phone:z.string().min(8), name:z.string().optional(), phoneNumberId:z.string().optional() }),
+  z.object({
+    newChat:z.literal(true),
+    phone:z.string().min(8),
+    name:z.string().optional(),
+    phoneNumberId:z.string().optional(),
+    templateId:z.string().optional(),
+    parameters:z.array(z.string()).optional(),
+  }),
 ])
 
 export async function POST(request: Request) {
@@ -154,8 +173,8 @@ export async function POST(request: Request) {
         })
       }
       const phoneRecord = input.phoneNumberId
-        ? await prisma.phoneNumber.findFirst({ where:{ id:input.phoneNumberId, waba:{ organizationId } } })
-        : await prisma.phoneNumber.findFirst({ where:{ waba:{ organizationId }, status:"CONNECTED" } })
+        ? await prisma.phoneNumber.findFirst({ where:{ id:input.phoneNumberId, waba:{ organizationId } }, include:{ waba:true } })
+        : await prisma.phoneNumber.findFirst({ where:{ waba:{ organizationId }, status:"CONNECTED" }, include:{ waba:true } })
 
       let conversation = await prisma.conversation.findFirst({
         where:{ organizationId, contactId:contact.id, ...(phoneRecord ? { phoneNumberId:phoneRecord.id } : {}) }
@@ -168,6 +187,58 @@ export async function POST(request: Request) {
           }
         })
       }
+
+      if (input.templateId && phoneRecord) {
+        const tpl = await prisma.template.findFirst({
+          where: { id: input.templateId, organizationId, status: { in: ["APPROVED", "approved"] } },
+        })
+        if (tpl) {
+          const accessToken = (await getMetaAccessToken(organizationId)) || (await getMetaAccessTokenForWaba(organizationId, phoneRecord.waba?.wabaId || ""))
+          if (accessToken) {
+            const templateVars = [...new Set([...(tpl.content || "").matchAll(/\{\{(\d+)\}\}/g)].map(m => Number(m[1])))].sort((a,b)=>a-b)
+            const supplied = input.parameters || []
+            const resolvedParams = templateVars.map((num, idx) => {
+              const val = supplied[idx] || supplied[num - 1]
+              return (val && String(val).trim()) ? String(val).trim() : (contact.name || "Customer")
+            })
+            const preview = (tpl.content || tpl.name).replace(/\{\{(\d+)\}\}/g, (match, number) => resolvedParams[Number(number) - 1] ?? match)
+            const target = {
+              accessToken,
+              metaPhoneNumberId: phoneRecord.phoneNumberId,
+              to: contact.phone,
+              conversationId: conversation.id,
+              senderUserId: member.userId,
+            }
+            try {
+              await sendAndRecord(
+                target,
+                { type: "template", template: await buildTemplateMessage(tpl, resolvedParams, target) },
+                preview,
+                { source: "INBOX_NEW_CHAT", templateId: tpl.id, templateName: tpl.name, parameters: resolvedParams }
+              )
+            } catch (sendErr: any) {
+              await prisma.message.create({
+                data: {
+                  conversationId: conversation.id,
+                  direction: "OUTBOUND",
+                  senderUserId: member.userId,
+                  type: "TEMPLATE",
+                  content: preview,
+                  status: "FAILED",
+                  sentAt: new Date(),
+                  metadata: {
+                    source: "INBOX_NEW_CHAT",
+                    templateName: tpl.name,
+                    parameters: resolvedParams,
+                    metaError: sendErr.message || "Meta template send failed",
+                  },
+                },
+              })
+            }
+          }
+        }
+      }
+
       return NextResponse.json({ ok:true, conversationId:conversation.id }, { status:201 })
     }
 
@@ -186,11 +257,23 @@ export async function POST(request: Request) {
       await prisma.conversation.update({ where:{ id:conversation.id }, data:{ ...(conversation.assignedUserId ? {} : { assignedUserId:member.userId }) } })
       return NextResponse.json({ ok:true }, { status:201 })
     }
-    const phone = conversation.phoneNumber
-    const accessToken = await getMetaAccessTokenForWaba(organizationId, phone.waba.wabaId)
-    if (!accessToken) return NextResponse.json({ error:"Reconnect the Meta Business Portfolio that owns this WhatsApp number before sending." }, { status:409 })
-    const target = { accessToken, metaPhoneNumberId:phone.phoneNumberId, to:conversation.contact.phone,
-      conversationId:conversation.id, senderUserId:member.userId }
+    const activeOrgPhone = await prisma.phoneNumber.findFirst({
+      where: { waba: { organizationId, status: "CONNECTED" }, status: "CONNECTED" },
+      include: { waba: { select: { wabaId: true } } },
+    })
+
+    const phone = (conversation.phoneNumber && conversation.phoneNumber.status === "CONNECTED")
+      ? conversation.phoneNumber
+      : (activeOrgPhone || conversation.phoneNumber)
+
+    if (!phone) {
+      return NextResponse.json({ error: "No active WhatsApp phone number found for this workspace." }, { status: 400 })
+    }
+
+    const accessToken = (await getMetaAccessToken(organizationId)) || (await getMetaAccessTokenForWaba(organizationId, phone.waba?.wabaId || ""))
+    if (!accessToken) return NextResponse.json({ error: "Reconnect your Meta Business Portfolio before sending." }, { status: 409 })
+    const target = { accessToken, metaPhoneNumberId: phone.phoneNumberId, to: conversation.contact.phone,
+      conversationId: conversation.id, senderUserId: member.userId }
 
     // 1. Retry failed outbound message
     if ("retryMessageId" in input) {
@@ -199,8 +282,70 @@ export async function POST(request: Request) {
       })
       if (!msg) return NextResponse.json({ error: "Message not found." }, { status: 404 })
 
+      // Check if original message was a template
+      const templateName = (msg.metadata as any)?.templateName
+      if (templateName || msg.type === "TEMPLATE") {
+        const tpl = await prisma.template.findFirst({
+          where: { organizationId, name: templateName || "", status: { in: ["APPROVED", "approved"] } },
+        })
+        if (tpl) {
+          try {
+            const templateVars = [...new Set([...(tpl.content || "").matchAll(/\{\{(\d+)\}\}/g)].map(m => Number(m[1])))].sort((a,b)=>a-b)
+            const savedParams = Array.isArray((msg.metadata as any)?.parameters) ? (msg.metadata as any).parameters : []
+            const resolvedParams = templateVars.map((num, idx) => {
+              const val = savedParams[idx] || savedParams[num - 1]
+              return (val && String(val).trim()) ? String(val).trim() : (conversation.contact.name || "Customer")
+            })
+            await sendAndRecord(
+              target,
+              { type: "template", template: await buildTemplateMessage(tpl, resolvedParams, target) },
+              msg.content || `[Template: ${templateName}]`,
+              { source: "INBOX_RETRY", templateId: tpl.id, templateName: tpl.name, parameters: resolvedParams }
+            )
+            await prisma.message.update({
+              where: { id: msg.id },
+              data: {
+                status: "SENT",
+                sentAt: new Date(),
+                metadata: {
+                  ...(typeof msg.metadata === "object" && msg.metadata ? (msg.metadata as any) : {}),
+                  retriedAt: new Date().toISOString(),
+                  retriedBy: member.userId,
+                  metaError: null,
+                },
+              },
+            })
+            return NextResponse.json({ ok: true, messageId: msg.id, status: "SENT" })
+          } catch (tErr: any) {
+            const tErrMsg = tErr.message || "Template retry delivery failed."
+            await prisma.message.update({
+              where: { id: msg.id },
+              data: {
+                status: "FAILED",
+                metadata: {
+                  ...(typeof msg.metadata === "object" && msg.metadata ? (msg.metadata as any) : {}),
+                  retriedAt: new Date().toISOString(),
+                  retriedBy: member.userId,
+                  metaError: tErrMsg,
+                },
+              },
+            })
+            return NextResponse.json({ error: `Retry failed: ${tErrMsg}`, resolution: resolveMetaError(tErr) }, { status: 400 })
+          }
+        }
+      }
+
       const textToSend = msg.content || ""
       if (!textToSend) return NextResponse.json({ error: "Message has no text content to retry." }, { status: 400 })
+
+      const inboundAt = await lastInboundAt(conversation.id)
+      const windowExpired = !inboundAt || Date.now() - inboundAt.getTime() > WINDOW_MS
+      if (windowExpired) {
+        return NextResponse.json({
+          error: "The 24-hour customer reply window is closed. Meta requires sending an approved template to re-engage with this contact.",
+          windowClosed: true,
+        }, { status: 409 })
+      }
 
       try {
         const metaRes = await metaGraph<{ messages?: { id: string }[] }>(
@@ -286,16 +431,17 @@ export async function POST(request: Request) {
         throw sendErr
       }
     } else {
-      const template = await prisma.template.findFirst({ where:{ id:input.templateId, organizationId, status:"APPROVED",
-        wabaId:phone.wabaId } })
-      if (!template) return NextResponse.json({ error:"Choose an approved template for this WhatsApp number." }, { status:400 })
+      const template = await prisma.template.findFirst({
+        where: { id: input.templateId, organizationId, status: { in: ["APPROVED", "approved"] } },
+      })
+      if (!template) return NextResponse.json({ error: "Choose an approved template for this WhatsApp number." }, { status: 400 })
       const needed = new Set([...(template.content || "").matchAll(/\{\{(\d+)\}\}/g)].map(match => match[1])).size
       if (input.parameters.length < needed)
         return NextResponse.json({ error:`Fill all ${needed} template variable(s).` }, { status:400 })
       const parameters = input.parameters.slice(0, needed)
       const preview = (template.content || template.name).replace(/\{\{(\d+)\}\}/g, (match, number) => parameters[Number(number) - 1] ?? match)
       await sendAndRecord(target, { type:"template", template:await buildTemplateMessage(template, parameters, target) },
-        preview, { source:"INBOX", templateId:template.id })
+        preview, { source:"INBOX", templateId:template.id, templateName:template.name, parameters })
     }
     // A person replied, so stop any chatbot flow waiting on this customer.
     await prisma.conversation.update({ where:{ id:conversation.id }, data:{ flowState:Prisma.JsonNull,

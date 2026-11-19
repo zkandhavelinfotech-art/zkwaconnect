@@ -1342,6 +1342,18 @@ export async function POST(request: NextRequest) {
       const isTemplateMode = Boolean(useTemplate || templateName)
       const selectedTplName = templateName || "optout_confirmation"
 
+      const dbTpl = await prisma.template.findFirst({
+        where: { organizationId, name: selectedTplName, status: { in: ["APPROVED", "approved"] } },
+      })
+      const neededVars = dbTpl
+        ? [...new Set([...(dbTpl.content || "").matchAll(/\{\{(\d+)\}\}/g)].map(m => Number(m[1])))].sort((a,b)=>a-b)
+        : [1]
+      const tplParams = (neededVars.length ? neededVars : [1]).map((num, i) => {
+        if (i === 0) return contactName || "Candidate"
+        if (i === 1) return "Recruitment Program"
+        return "https://recruitmenttrainingacademy.com"
+      })
+
       const payload = isTemplateMode
         ? {
             messaging_product: "whatsapp",
@@ -1351,11 +1363,12 @@ export async function POST(request: NextRequest) {
             template: {
               name: selectedTplName,
               language: { code: languageCode || "en" },
-              ...(selectedTplName === "optout_confirmation"
-                ? { components: [{ type: "body", parameters: [{ type: "text", text: contactName || "Candidate" }] }] }
-                : selectedTplName === "t04_rta_first_job_entry"
-                ? { components: [{ type: "body", parameters: [{ type: "text", text: contactName || "Candidate" }] }] }
-                : {})
+              components: [
+                {
+                  type: "body",
+                  parameters: tplParams.map(text => ({ type: "text", text })),
+                },
+              ],
             },
           }
         : {
@@ -1456,7 +1469,7 @@ export async function POST(request: NextRequest) {
           ok: false,
           recordedInInbox: true,
           conversationId: conversation.id,
-          inboxUrl: `/app/inbox?conversationId=${conversation.id}`,
+          inboxUrl: `/app/inbox?c=${conversation.id}`,
           contactName,
           recipient: cleanPhone,
           error: `Meta Cloud API send response: ${metaError}. Message has been logged in your Live Chat Inbox.`,

@@ -41,6 +41,13 @@ export function resolveMetaError(error: unknown): MetaResolution {
     code: graph?.code ?? null, subcode: graph?.subcode ?? null, title: "Meta is rate limiting requests", message,
     action: "Wait a few minutes and retry. Do not repeatedly reconnect the account.", retryable: true,
   }
+  if (graph?.code === 1 || lower.includes("unknown error")) return {
+    code: 1, subcode: graph?.subcode ?? null,
+    title: "Meta Cloud API Gateway Notice",
+    message: "Meta Cloud API returned Code 1 (Unknown Error). This happens when: (1) The phone number is linked to AiSensy or a previous BSP requiring partner release, (2) The 24-hour reply window expired (send an approved template instead of free-form text), or (3) The Meta App requires a live payment method or credit line in WhatsApp Manager.",
+    action: "Send an approved template message, or complete the 1-click AiSensy release request under Settings > Meta Account.",
+    retryable: false,
+  }
   return {
     code: graph?.code ?? null, subcode: graph?.subcode ?? null, title: graph?.userTitle || "Meta request failed", message,
     action: "Refresh the access check for the exact failing step. If it remains failed, use the manual instructions shown for that step.",
