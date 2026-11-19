@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useEffect, useCallback } from "react"
+import { VERTICALS, type Vertical } from "@/lib/meta/profile"
 
 declare global {
   interface Window {
@@ -30,6 +31,19 @@ type OnboardingState = {
       qualityRating: string | null
     } | null
   } | null
+  accounts: {
+    id: string
+    wabaId: string
+    name: string
+    status: string
+    phoneNumbers: {
+      id: string
+      phoneNumberId: string
+      phoneNumber: string
+      displayName: string | null
+      status: string
+    }[]
+  }[]
   health: {
     apiConnection: string
     webhook: string
@@ -41,8 +55,11 @@ type OnboardingState = {
   }
 }
 
+type HubTab = "overview" | "profile" | "pin" | "test" | "danger"
+
 export function WhatsAppOnboardingManagementModule() {
   const [data, setData] = useState<OnboardingState | null>(null)
+  const [activeTab, setActiveTab] = useState<HubTab>("overview")
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [actionMessage, setActionMessage] = useState<string | null>(null)
@@ -51,6 +68,25 @@ export function WhatsAppOnboardingManagementModule() {
   const [showDisconnectModal, setShowDisconnectModal] = useState(false)
   const [readiness, setReadiness] = useState<any>(null)
   const [metaConfig, setMetaConfig] = useState<any>(null)
+
+  // Profile Form state
+  const [profileForm, setProfileForm] = useState({
+    about: "",
+    address: "",
+    description: "",
+    email: "",
+    website1: "",
+    website2: "",
+    vertical: "OTHER" as Vertical,
+  })
+
+  // PIN Form state
+  const [pinInput, setPinInput] = useState("123456")
+
+  // Live Outbound Test state
+  const [testRecipient, setTestRecipient] = useState("")
+  const [testText, setTestText] = useState("Hello from ZKWAConnect! Your WhatsApp Business API connection is verified and active. 🚀")
+  const [testResult, setTestResult] = useState<any>(null)
 
   // 1. Fetch current WhatsApp connection & health
   const refreshAccounts = useCallback(async () => {
@@ -74,7 +110,33 @@ export function WhatsAppOnboardingManagementModule() {
     refreshAccounts()
   }, [refreshAccounts])
 
-  // 2. Load Meta SDK & Config
+  // 2. Fetch Business Profile when tab opens
+  const loadProfile = useCallback(async (phoneId: string) => {
+    try {
+      const res = await fetch(`/api/whatsapp/accounts/${phoneId}/profile`)
+      const json = await res.json()
+      if (res.ok && json.profile) {
+        const p = json.profile
+        setProfileForm({
+          about: p.about || "",
+          address: p.address || "",
+          description: p.description || "",
+          email: p.email || "",
+          website1: p.websites?.[0] || "",
+          website2: p.websites?.[1] || "",
+          vertical: (p.vertical in VERTICALS ? p.vertical : "OTHER") as Vertical,
+        })
+      }
+    } catch {}
+  }, [])
+
+  useEffect(() => {
+    if (activeTab === "profile" && data?.primaryAccount?.phone?.id) {
+      loadProfile(data.primaryAccount.phone.id)
+    }
+  }, [activeTab, data?.primaryAccount?.phone?.id, loadProfile])
+
+  // 3. Load Meta SDK & Config
   useEffect(() => {
     fetch("/api/whatsapp/onboarding/config")
       .then(res => res.json())
@@ -100,7 +162,7 @@ export function WhatsAppOnboardingManagementModule() {
       .catch(() => {})
   }, [])
 
-  // 3. Initiate Onboarding Pre-Flight
+  // 4. Initiate Onboarding Pre-Flight
   const handleStartOnboarding = async () => {
     setBusy(true)
     setErrorMessage(null)
@@ -121,7 +183,7 @@ export function WhatsAppOnboardingManagementModule() {
     }
   }
 
-  // 4. Launch Meta Embedded Signup v4 Modal with Real-Time Session Event Capture
+  // 5. Launch Meta Embedded Signup v4 Modal with Real-Time Session Event Capture
   const launchMetaEmbeddedSignup = () => {
     setShowPreflight(false)
     setBusy(true)
@@ -210,7 +272,7 @@ export function WhatsAppOnboardingManagementModule() {
     )
   }
 
-  // 5. 1-Click Status Refresh
+  // 6. 1-Click Status Refresh
   const handleRefreshStatus = async () => {
     if (!data?.primaryAccount?.id) return
     setBusy(true)
@@ -231,7 +293,7 @@ export function WhatsAppOnboardingManagementModule() {
     }
   }
 
-  // 6. 1-Click Automated Retry
+  // 7. 1-Click Automated Diagnostics Retry
   const handleRetry = async () => {
     if (!data?.primaryAccount?.id) return
     setBusy(true)
@@ -252,7 +314,96 @@ export function WhatsAppOnboardingManagementModule() {
     }
   }
 
-  // 7. Safe Disconnect
+  // 8. Save Business Profile
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!data?.primaryAccount?.phone?.id) return
+    setBusy(true)
+    setErrorMessage(null)
+    setActionMessage(null)
+    try {
+      const res = await fetch(`/api/whatsapp/accounts/${data.primaryAccount.phone.id}/profile`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          about: profileForm.about,
+          address: profileForm.address,
+          description: profileForm.description,
+          email: profileForm.email,
+          websites: [profileForm.website1, profileForm.website2].filter(Boolean),
+          vertical: profileForm.vertical,
+        }),
+      })
+      const json = await res.json()
+      if (res.ok) {
+        setActionMessage(json.message || "✓ Business Profile saved directly to Meta!")
+      } else {
+        setErrorMessage(json.error || "Could not save profile.")
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // 9. Update Two-Step PIN
+  const handleUpdatePin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!data?.primaryAccount?.phone?.id) return
+    setBusy(true)
+    setErrorMessage(null)
+    setActionMessage(null)
+    try {
+      const res = await fetch(`/api/whatsapp/accounts/${data.primaryAccount.phone.id}/pin`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin: pinInput }),
+      })
+      const json = await res.json()
+      if (res.ok) {
+        setActionMessage(json.message || "✓ Two-Step PIN updated successfully!")
+      } else {
+        setErrorMessage(json.error || "Could not update PIN.")
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // 10. Send Live Test Message
+  const handleSendTestMessage = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!data?.primaryAccount?.phone?.id) return
+    setBusy(true)
+    setTestResult(null)
+    setErrorMessage(null)
+    try {
+      const res = await fetch(`/api/whatsapp/accounts/${data.primaryAccount.phone.id}/test-message`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recipientPhone: testRecipient,
+          messageText: testText,
+        }),
+      })
+      const json = await res.json()
+      if (res.ok) {
+        setTestResult(json)
+        setActionMessage(`✓ Test message sent to ${json.recipient}! Message ID: ${json.messageId}`)
+      } else {
+        setErrorMessage(json.error || "Failed to send test message.")
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // 11. Safe Disconnect
   const handleDisconnect = async () => {
     if (!data?.primaryAccount?.id) return
     setBusy(true)
@@ -261,7 +412,7 @@ export function WhatsAppOnboardingManagementModule() {
       const res = await fetch(`/api/whatsapp/accounts/${data.primaryAccount.id}/disconnect`, { method: "POST" })
       const json = await res.json()
       if (res.ok) {
-        setActionMessage("✓ WhatsApp account disconnected. Past message logs and templates are preserved.")
+        setActionMessage("✓ WhatsApp account disconnected safely. Conversation history & templates are preserved.")
         refreshAccounts()
       } else {
         setErrorMessage(json.error || "Could not disconnect account.")
@@ -277,8 +428,8 @@ export function WhatsAppOnboardingManagementModule() {
   const phone = data?.primaryAccount?.phone
 
   return (
-    <div style={{ display: "grid", gap: 20 }}>
-      {/* ACTION & ERROR NOTICES */}
+    <div style={{ display: "grid", gap: 16 }}>
+      {/* NOTICES */}
       {actionMessage && (
         <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 10, padding: "12px 16px", color: "#166534", fontSize: 13, fontWeight: 600, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span>{actionMessage}</span>
@@ -293,21 +444,22 @@ export function WhatsAppOnboardingManagementModule() {
         </div>
       )}
 
-      {/* SECTION A: CONNECTION OVERVIEW HERO */}
-      <div style={{ background: isConnected ? "linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%)" : "#ffffff", border: isConnected ? "1.5px solid #86efac" : "1px solid #e2e8f0", borderRadius: 14, padding: 24, boxShadow: "0 4px 20px rgba(0,0,0,0.04)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 14, marginBottom: 20 }}>
+      {/* ENTERPRISE MANAGEMENT HUB CONTAINER */}
+      <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 14, overflow: "hidden", boxShadow: "0 4px 20px rgba(0,0,0,0.03)" }}>
+        {/* HERO TITLE & CONTROLS */}
+        <div style={{ padding: "20px 24px", background: isConnected ? "linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%)" : "#ffffff", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 14 }}>
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-              <span style={{ fontSize: 18 }}>📱</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+              <span style={{ fontSize: 20 }}>📱</span>
               <h2 style={{ fontFamily: "Sora, sans-serif", fontSize: 18, fontWeight: 800, color: "#0f172a", margin: 0 }}>
-                WhatsApp Business API
+                WhatsApp Business API Hub
               </h2>
-              <span style={{ background: isConnected ? "#dcfce7" : "#fef9c3", color: isConnected ? "#15803d" : "#a16207", padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 800, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+              <span style={{ background: isConnected ? "#dcfce7" : "#fef9c3", color: isConnected ? "#15803d" : "#a16207", padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>
                 {isConnected ? "● Connected" : "○ Setup Required"}
               </span>
             </div>
-            <p style={{ fontSize: 13, color: "#64748b", margin: 0 }}>
-              Official Meta Cloud API integration with automated WABA provisioning &amp; live number routing.
+            <p style={{ fontSize: 12, color: "#64748b", margin: 0 }}>
+              Official Meta Cloud API Management &amp; Self-Service Operations
             </p>
           </div>
 
@@ -318,17 +470,17 @@ export function WhatsAppOnboardingManagementModule() {
                   type="button"
                   onClick={handleRefreshStatus}
                   disabled={busy}
-                  style={{ background: "#ffffff", border: "1px solid #cbd5e1", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 700, color: "#334155", cursor: busy ? "not-allowed" : "pointer" }}
+                  style={{ background: "#ffffff", border: "1px solid #cbd5e1", borderRadius: 8, padding: "7px 12px", fontSize: 12, fontWeight: 700, color: "#334155", cursor: busy ? "not-allowed" : "pointer" }}
                 >
                   🔄 Refresh Status
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowDisconnectModal(true)}
+                  onClick={handleRetry}
                   disabled={busy}
-                  style={{ background: "#fff", border: "1px solid #fca5a5", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 700, color: "#b91c1c", cursor: busy ? "not-allowed" : "pointer" }}
+                  style={{ background: "#f8fafc", border: "1px solid #cbd5e1", borderRadius: 8, padding: "7px 12px", fontSize: 12, fontWeight: 700, color: "#0f172a", cursor: busy ? "not-allowed" : "pointer" }}
                 >
-                  Disconnect
+                  ⚡ Diagnostics Retry
                 </button>
               </>
             ) : (
@@ -336,7 +488,7 @@ export function WhatsAppOnboardingManagementModule() {
                 type="button"
                 onClick={handleStartOnboarding}
                 disabled={busy}
-                style={{ background: "#16a34a", color: "#ffffff", border: 0, borderRadius: 8, padding: "10px 20px", fontSize: 13, fontWeight: 800, cursor: busy ? "not-allowed" : "pointer", boxShadow: "0 4px 14px rgba(22,163,74,0.3)" }}
+                style={{ background: "#16a34a", color: "#ffffff", border: 0, borderRadius: 8, padding: "9px 18px", fontSize: 13, fontWeight: 800, cursor: busy ? "not-allowed" : "pointer", boxShadow: "0 4px 14px rgba(22,163,74,0.3)" }}
               >
                 {busy ? "Connecting…" : "🚀 Connect WhatsApp Number"}
               </button>
@@ -344,109 +496,363 @@ export function WhatsAppOnboardingManagementModule() {
           </div>
         </div>
 
-        {/* HERO NUMBER & IDENTIFIERS */}
-        {isConnected && phone ? (
-          <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 20, marginBottom: 20 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16, borderBottom: "1px solid #f1f5f9", paddingBottom: 16, marginBottom: 16 }}>
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>
-                  Connected WhatsApp Business Number
-                </div>
-                <div style={{ fontFamily: "Sora, sans-serif", fontSize: 24, fontWeight: 900, color: "#0f172a", display: "flex", alignItems: "center", gap: 10 }}>
-                  <span>{phone.phoneNumber}</span>
-                  <span style={{ fontSize: 14, color: "#16a34a", background: "#f0fdf4", border: "1px solid #bbf7d0", padding: "2px 8px", borderRadius: 6, fontWeight: 700 }}>
-                    ✓ Verified
-                  </span>
-                </div>
-                <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>
-                  Display Name: <strong>{phone.displayName || data?.primaryAccount?.name}</strong>
-                </div>
-              </div>
-
-              <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 14px", minWidth: 160 }}>
-                  <div style={{ fontSize: 10, fontWeight: 800, color: "#64748b", textTransform: "uppercase" }}>WABA ID</div>
-                  <code style={{ fontSize: 12, fontWeight: 800, color: "#0f172a" }}>{data?.primaryAccount?.wabaId}</code>
-                </div>
-                <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 14px", minWidth: 160 }}>
-                  <div style={{ fontSize: 10, fontWeight: 800, color: "#64748b", textTransform: "uppercase" }}>Phone Number ID</div>
-                  <code style={{ fontSize: 12, fontWeight: 800, color: "#0f172a" }}>{phone.phoneNumberId}</code>
-                </div>
-              </div>
-            </div>
-
-            {/* TRI-PARTITE HEALTH MONITOR */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
-              <div style={{ padding: 12, borderRadius: 8, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
-                <div style={{ fontSize: 11, color: "#64748b" }}>API Connection</div>
-                <div style={{ fontSize: 14, fontWeight: 800, color: "#16a34a", marginTop: 2 }}>
-                  ● {data?.health.apiConnection || "Active"}
-                </div>
-              </div>
-
-              <div style={{ padding: 12, borderRadius: 8, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
-                <div style={{ fontSize: 11, color: "#64748b" }}>Webhook Status</div>
-                <div style={{ fontSize: 14, fontWeight: 800, color: "#16a34a", marginTop: 2 }}>
-                  ● {data?.health.webhook || "Active"}
-                </div>
-              </div>
-
-              <div style={{ padding: 12, borderRadius: 8, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
-                <div style={{ fontSize: 11, color: "#64748b" }}>Number Registration</div>
-                <div style={{ fontSize: 14, fontWeight: 800, color: "#16a34a", marginTop: 2 }}>
-                  ✓ {data?.health.numberRegistration || "Complete"}
-                </div>
-              </div>
-
-              <div style={{ padding: 12, borderRadius: 8, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
-                <div style={{ fontSize: 11, color: "#64748b" }}>Quality Rating</div>
-                <div style={{ fontSize: 14, fontWeight: 800, color: "#334155", marginTop: 2 }}>
-                  {phone.qualityRating || "PENDING"}
-                </div>
-              </div>
-
-              <div style={{ padding: 12, borderRadius: 8, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
-                <div style={{ fontSize: 11, color: "#64748b" }}>Messaging Tier</div>
-                <div style={{ fontSize: 14, fontWeight: 800, color: "#334155", marginTop: 2 }}>
-                  {data?.health.messagingLimit || "TIER_250"}
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : (
-          /* SECTION B: CONNECT CTA CALLOUT */
-          <div style={{ background: "#f8fafc", border: "1.5px dashed #cbd5e1", borderRadius: 12, padding: 24, textAlign: "center" }}>
-            <div style={{ fontSize: 32, marginBottom: 10 }}>⚡</div>
-            <h3 style={{ fontFamily: "Sora, sans-serif", fontSize: 16, fontWeight: 800, color: "#0f172a", margin: "0 0 6px" }}>
-              Connect your WhatsApp Business Account with Meta
-            </h3>
-            <p style={{ fontSize: 13, color: "#64748b", maxWidth: 540, margin: "0 auto 18px", lineHeight: 1.6 }}>
-              Connect an existing account or create a brand new WhatsApp Business Account in minutes through official Meta Embedded Signup v4.
-            </p>
-            <button
-              type="button"
-              onClick={handleStartOnboarding}
-              disabled={busy}
-              style={{ background: "#1877f2", color: "#ffffff", border: 0, borderRadius: 8, padding: "12px 24px", fontSize: 14, fontWeight: 800, cursor: busy ? "not-allowed" : "pointer", display: "inline-flex", alignItems: "center", gap: 10, boxShadow: "0 4px 14px rgba(24,119,242,0.3)" }}
-            >
-              <span>f</span> Continue with Facebook (Meta Login)
-            </button>
+        {/* NAVIGATION TABS */}
+        {isConnected && (
+          <div style={{ display: "flex", background: "#f8fafc", borderBottom: "1px solid #e2e8f0", padding: "0 18px", overflowX: "auto" }}>
+            <TabButton active={activeTab === "overview"} onClick={() => setActiveTab("overview")} label="📊 Connection & Health" />
+            <TabButton active={activeTab === "profile"} onClick={() => setActiveTab("profile")} label="📝 Business Profile" />
+            <TabButton active={activeTab === "pin"} onClick={() => setActiveTab("pin")} label="🔐 Numbers & 2-Step PIN" />
+            <TabButton active={activeTab === "test"} onClick={() => setActiveTab("test")} label="💬 Live Messaging Test" />
+            <TabButton active={activeTab === "danger"} onClick={() => setActiveTab("danger")} label="⚙️ Account Management" />
           </div>
         )}
 
-        {/* SECTION C: 6-STAGE ONBOARDING PROGRESS STEPPER */}
-        <div style={{ marginTop: 24, borderTop: "1px solid #e2e8f0", paddingTop: 20 }}>
-          <div style={{ fontSize: 12, fontWeight: 800, color: "#334155", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 14 }}>
-            Onboarding Verification Stepper
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10 }}>
-            <StepItem completed={Boolean(data?.primaryAccount)} title="Meta Authorization" subtitle="OAuth v25.0" />
-            <StepItem completed={Boolean(data?.primaryAccount?.businessId)} title="Business Portfolio" subtitle="Asset selected" />
-            <StepItem completed={Boolean(data?.primaryAccount?.wabaId)} title="WABA Created" subtitle="WABA ID verified" />
-            <StepItem completed={Boolean(phone?.verificationStatus)} title="Phone Verified" subtitle="SMS / Voice OTP" />
-            <StepItem completed={Boolean(phone?.status === "CONNECTED")} title="Number Registered" subtitle="PIN provisioned" />
-            <StepItem completed={isConnected} title="API Connected" subtitle="Broadcast ready" />
-          </div>
+        {/* TAB CONTENTS */}
+        <div style={{ padding: 24 }}>
+          {/* NOT CONNECTED CTA */}
+          {!isConnected && (
+            <div style={{ background: "#f8fafc", border: "1.5px dashed #cbd5e1", borderRadius: 12, padding: 32, textAlign: "center" }}>
+              <div style={{ fontSize: 36, marginBottom: 10 }}>⚡</div>
+              <h3 style={{ fontFamily: "Sora, sans-serif", fontSize: 17, fontWeight: 800, color: "#0f172a", margin: "0 0 6px" }}>
+                Connect your WhatsApp Business Account with Meta
+              </h3>
+              <p style={{ fontSize: 13, color: "#64748b", maxWidth: 540, margin: "0 auto 20px", lineHeight: 1.6 }}>
+                Connect an existing corporate account or create a brand new WABA in minutes through official Meta Embedded Signup v4.
+              </p>
+              <button
+                type="button"
+                onClick={handleStartOnboarding}
+                disabled={busy}
+                style={{ background: "#1877f2", color: "#ffffff", border: 0, borderRadius: 8, padding: "12px 24px", fontSize: 14, fontWeight: 800, cursor: busy ? "not-allowed" : "pointer", display: "inline-flex", alignItems: "center", gap: 10, boxShadow: "0 4px 14px rgba(24,119,242,0.3)" }}
+              >
+                <span>f</span> Continue with Facebook (Meta Login)
+              </button>
+            </div>
+          )}
+
+          {/* TAB 1: OVERVIEW & HEALTH */}
+          {isConnected && activeTab === "overview" && (
+            <div style={{ display: "grid", gap: 20 }}>
+              {/* HERO NUMBER & IDENTIFIERS */}
+              <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 20 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16, borderBottom: "1px solid #f1f5f9", paddingBottom: 16, marginBottom: 16 }}>
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>
+                      Connected WhatsApp Business Number
+                    </div>
+                    <div style={{ fontFamily: "Sora, sans-serif", fontSize: 24, fontWeight: 900, color: "#0f172a", display: "flex", alignItems: "center", gap: 10 }}>
+                      <span>{phone?.phoneNumber}</span>
+                      <span style={{ fontSize: 13, color: "#16a34a", background: "#f0fdf4", border: "1px solid #bbf7d0", padding: "2px 8px", borderRadius: 6, fontWeight: 700 }}>
+                        ✓ Verified
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>
+                      Display Name: <strong>{phone?.displayName || data?.primaryAccount?.name}</strong>
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                    <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 14px", minWidth: 160 }}>
+                      <div style={{ fontSize: 10, fontWeight: 800, color: "#64748b", textTransform: "uppercase" }}>WABA ID</div>
+                      <code style={{ fontSize: 12, fontWeight: 800, color: "#0f172a" }}>{data?.primaryAccount?.wabaId}</code>
+                    </div>
+                    <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 14px", minWidth: 160 }}>
+                      <div style={{ fontSize: 10, fontWeight: 800, color: "#64748b", textTransform: "uppercase" }}>Phone Number ID</div>
+                      <code style={{ fontSize: 12, fontWeight: 800, color: "#0f172a" }}>{phone?.phoneNumberId}</code>
+                    </div>
+                  </div>
+                </div>
+
+                {/* TRI-PARTITE HEALTH MONITOR */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 12 }}>
+                  <HealthBox label="API Connection" value={`● ${data?.health.apiConnection || "Active"}`} good />
+                  <HealthBox label="Webhook Status" value={`● ${data?.health.webhook || "Active"}`} good />
+                  <HealthBox label="Number Registration" value={`✓ ${data?.health.numberRegistration || "Complete"}`} good />
+                  <HealthBox label="Quality Rating" value={phone?.qualityRating || "GREEN"} />
+                  <HealthBox label="Messaging Tier" value={data?.health.messagingLimit || "TIER_250"} />
+                </div>
+              </div>
+
+              {/* 6-STAGE STEPPER */}
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 800, color: "#334155", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>
+                  6-Stage Onboarding Stepper Status
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10 }}>
+                  <StepItem completed={Boolean(data?.primaryAccount)} title="Meta Authorization" subtitle="OAuth v25.0" />
+                  <StepItem completed={Boolean(data?.primaryAccount?.businessId)} title="Business Portfolio" subtitle="Asset selected" />
+                  <StepItem completed={Boolean(data?.primaryAccount?.wabaId)} title="WABA Created" subtitle="WABA ID verified" />
+                  <StepItem completed={Boolean(phone?.verificationStatus)} title="Phone Verified" subtitle="SMS / Voice OTP" />
+                  <StepItem completed={Boolean(phone?.status === "CONNECTED")} title="Number Registered" subtitle="PIN provisioned" />
+                  <StepItem completed={isConnected} title="API Connected" subtitle="Broadcast ready" />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 2: BUSINESS PROFILE */}
+          {isConnected && activeTab === "profile" && (
+            <form onSubmit={handleSaveProfile} style={{ display: "grid", gap: 16 }}>
+              <div style={{ borderBottom: "1px solid #f1f5f9", paddingBottom: 12 }}>
+                <h3 style={{ fontFamily: "Sora, sans-serif", fontSize: 15, fontWeight: 800, margin: "0 0 4px", color: "#0f172a" }}>
+                  Official WhatsApp Business Profile
+                </h3>
+                <p style={{ fontSize: 12, color: "#64748b", margin: 0 }}>
+                  What your customers see when they view your profile on WhatsApp. Saved directly to Meta Cloud API.
+                </p>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 }}>
+                <div>
+                  <label style={formLabel}>About (Status text, max 139 chars)</label>
+                  <input
+                    type="text"
+                    maxLength={139}
+                    value={profileForm.about}
+                    onChange={e => setProfileForm({ ...profileForm, about: e.target.value })}
+                    placeholder="e.g. Official WhatsApp for Support & Updates"
+                    style={formInput}
+                  />
+                </div>
+
+                <div>
+                  <label style={formLabel}>Business Category / Vertical</label>
+                  <select
+                    value={profileForm.vertical}
+                    onChange={e => setProfileForm({ ...profileForm, vertical: e.target.value as Vertical })}
+                    style={formInput}
+                  >
+                    {Object.entries(VERTICALS).map(([key, label]) => (
+                      <option key={key} value={key}>{label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label style={formLabel}>Business Description (Max 512 chars)</label>
+                <textarea
+                  rows={3}
+                  maxLength={512}
+                  value={profileForm.description}
+                  onChange={e => setProfileForm({ ...profileForm, description: e.target.value })}
+                  placeholder="Describe your company, products, or working hours…"
+                  style={formInput}
+                />
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 }}>
+                <div>
+                  <label style={formLabel}>Support Email Address</label>
+                  <input
+                    type="email"
+                    value={profileForm.email}
+                    onChange={e => setProfileForm({ ...profileForm, email: e.target.value })}
+                    placeholder="support@company.com"
+                    style={formInput}
+                  />
+                </div>
+
+                <div>
+                  <label style={formLabel}>Physical Business Address</label>
+                  <input
+                    type="text"
+                    value={profileForm.address}
+                    onChange={e => setProfileForm({ ...profileForm, address: e.target.value })}
+                    placeholder="Corporate office address"
+                    style={formInput}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 }}>
+                <div>
+                  <label style={formLabel}>Website URL 1</label>
+                  <input
+                    type="url"
+                    value={profileForm.website1}
+                    onChange={e => setProfileForm({ ...profileForm, website1: e.target.value })}
+                    placeholder="https://company.com"
+                    style={formInput}
+                  />
+                </div>
+
+                <div>
+                  <label style={formLabel}>Website URL 2 (Optional)</label>
+                  <input
+                    type="url"
+                    value={profileForm.website2}
+                    onChange={e => setProfileForm({ ...profileForm, website2: e.target.value })}
+                    placeholder="https://support.company.com"
+                    style={formInput}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10 }}>
+                <button
+                  type="submit"
+                  disabled={busy}
+                  style={{ background: "#16a34a", color: "#fff", border: 0, borderRadius: 8, padding: "10px 20px", fontSize: 13, fontWeight: 800, cursor: busy ? "not-allowed" : "pointer" }}
+                >
+                  {busy ? "Saving to Meta…" : "Save Profile to Meta"}
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* TAB 3: NUMBERS & 2-STEP PIN */}
+          {isConnected && activeTab === "pin" && (
+            <div style={{ display: "grid", gap: 20 }}>
+              <div>
+                <h3 style={{ fontFamily: "Sora, sans-serif", fontSize: 15, fontWeight: 800, margin: "0 0 4px", color: "#0f172a" }}>
+                  Connected Phone Numbers
+                </h3>
+                <p style={{ fontSize: 12, color: "#64748b", margin: "0 0 14px" }}>
+                  Active phone numbers provisioned on the Meta Cloud API under this workspace.
+                </p>
+
+                <div style={{ border: "1px solid #e2e8f0", borderRadius: 8, overflow: "hidden" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, textAlign: "left" }}>
+                    <thead style={{ background: "#f8fafc", color: "#64748b" }}>
+                      <tr>
+                        <th style={{ padding: "10px 14px" }}>Phone Number</th>
+                        <th style={{ padding: "10px 14px" }}>Phone Number ID</th>
+                        <th style={{ padding: "10px 14px" }}>Display Name</th>
+                        <th style={{ padding: "10px 14px" }}>Status</th>
+                        <th style={{ padding: "10px 14px" }}>Quality</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data?.accounts.flatMap(a => a.phoneNumbers).map(p => (
+                        <tr key={p.id} style={{ borderTop: "1px solid #f1f5f9" }}>
+                          <td style={{ padding: "12px 14px", fontWeight: 700, color: "#0f172a" }}>{p.phoneNumber}</td>
+                          <td style={{ padding: "12px 14px" }}><code>{p.phoneNumberId}</code></td>
+                          <td style={{ padding: "12px 14px" }}>{p.displayName || "—"}</td>
+                          <td style={{ padding: "12px 14px" }}>
+                            <span style={{ background: "#dcfce7", color: "#15803d", padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 800 }}>
+                              {p.status}
+                            </span>
+                          </td>
+                          <td style={{ padding: "12px 14px" }}>{data.health.qualityRating || "GREEN"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* TWO-STEP PIN FORM */}
+              <form onSubmit={handleUpdatePin} style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: 18 }}>
+                <h4 style={{ fontFamily: "Sora, sans-serif", fontSize: 14, fontWeight: 800, margin: "0 0 4px", color: "#0f172a" }}>
+                  Two-Step Verification 6-Digit PIN
+                </h4>
+                <p style={{ fontSize: 12, color: "#64748b", margin: "0 0 14px" }}>
+                  Meta Cloud API requires a 6-digit PIN to secure the phone number against hijacking.
+                </p>
+
+                <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+                  <input
+                    type="password"
+                    maxLength={6}
+                    value={pinInput}
+                    onChange={e => setPinInput(e.target.value.replace(/\D/g, ""))}
+                    placeholder="123456"
+                    style={{ ...formInput, width: 140, letterSpacing: "0.2em", fontSize: 16, textAlign: "center", fontWeight: 800 }}
+                  />
+                  <button
+                    type="submit"
+                    disabled={busy || pinInput.length !== 6}
+                    style={{ background: "#0f172a", color: "#fff", border: 0, borderRadius: 8, padding: "9px 16px", fontSize: 12, fontWeight: 800, cursor: busy ? "not-allowed" : "pointer" }}
+                  >
+                    {busy ? "Updating…" : "Update PIN on Meta"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {/* TAB 4: LIVE MESSAGING TEST */}
+          {isConnected && activeTab === "test" && (
+            <form onSubmit={handleSendTestMessage} style={{ display: "grid", gap: 16 }}>
+              <div style={{ borderBottom: "1px solid #f1f5f9", paddingBottom: 12 }}>
+                <h3 style={{ fontFamily: "Sora, sans-serif", fontSize: 15, fontWeight: 800, margin: "0 0 4px", color: "#0f172a" }}>
+                  Live Outbound Test Messenger
+                </h3>
+                <p style={{ fontSize: 12, color: "#64748b", margin: 0 }}>
+                  Send a live test message from your connected WhatsApp number ({phone?.phoneNumber}) to any recipient to verify connectivity.
+                </p>
+              </div>
+
+              <div>
+                <label style={formLabel}>Recipient WhatsApp Number (with country code)</label>
+                <input
+                  type="text"
+                  required
+                  value={testRecipient}
+                  onChange={e => setTestRecipient(e.target.value)}
+                  placeholder="e.g. +91 98765 43210"
+                  style={formInput}
+                />
+              </div>
+
+              <div>
+                <label style={formLabel}>Message Text</label>
+                <textarea
+                  rows={3}
+                  value={testText}
+                  onChange={e => setTestText(e.target.value)}
+                  style={formInput}
+                />
+              </div>
+
+              {testResult && (
+                <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: 12, fontSize: 12, color: "#166534" }}>
+                  <strong>✓ Meta Message Dispatched:</strong> ID <code>{testResult.messageId}</code> to {testResult.recipient}. Check recipient WhatsApp!
+                </div>
+              )}
+
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <button
+                  type="submit"
+                  disabled={busy || !testRecipient}
+                  style={{ background: "#25D366", color: "#052e2b", border: 0, borderRadius: 8, padding: "10px 20px", fontSize: 13, fontWeight: 850, cursor: busy ? "not-allowed" : "pointer" }}
+                >
+                  {busy ? "Sending…" : "🚀 Send Live Test Message"}
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* TAB 5: DANGER ZONE & ACCOUNT MANAGEMENT */}
+          {isConnected && activeTab === "danger" && (
+            <div style={{ display: "grid", gap: 16 }}>
+              <div style={{ borderBottom: "1px solid #f1f5f9", paddingBottom: 12 }}>
+                <h3 style={{ fontFamily: "Sora, sans-serif", fontSize: 15, fontWeight: 800, margin: "0 0 4px", color: "#991b1b" }}>
+                  Account Management &amp; Disconnect Safety
+                </h3>
+                <p style={{ fontSize: 12, color: "#64748b", margin: 0 }}>
+                  Control your Meta Business Account linking and active phone routing.
+                </p>
+              </div>
+
+              <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, padding: 20 }}>
+                <h4 style={{ fontSize: 14, fontWeight: 800, color: "#991b1b", margin: "0 0 6px" }}>
+                  Disconnect WhatsApp Account
+                </h4>
+                <p style={{ fontSize: 12, color: "#7f1d1d", margin: "0 0 16px", lineHeight: 1.6 }}>
+                  Disconnecting parks the WhatsApp connection. Your historic conversations, contact tags, campaigns, templates, and analytics will remain securely preserved in your workspace.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowDisconnectModal(true)}
+                  style={{ background: "#dc2626", color: "#fff", border: 0, borderRadius: 8, padding: "9px 18px", fontSize: 12, fontWeight: 800, cursor: "pointer" }}
+                >
+                  Disconnect WABA from Workspace
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -457,7 +863,7 @@ export function WhatsAppOnboardingManagementModule() {
             <h3 style={{ fontFamily: "Sora, sans-serif", fontSize: 17, fontWeight: 800, color: "#0f172a", margin: "0 0 8px" }}>
               📋 WhatsApp Onboarding Readiness Check
             </h3>
-            <p style="margin: 0 0 16px; font-size: 13px; color: #64748b;">
+            <p style={{ margin: "0 0 16px", fontSize: 13, color: "#64748b" }}>
               Ensure your business meets these requirements before opening the Meta Embedded Signup dialog:
             </p>
 
@@ -526,6 +932,40 @@ export function WhatsAppOnboardingManagementModule() {
   )
 }
 
+function TabButton({ active, onClick, label }: { active: boolean; onClick: () => void; label: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        border: 0,
+        background: "transparent",
+        borderBottom: active ? "2.5px solid #16a34a" : "2.5px solid transparent",
+        color: active ? "#0f172a" : "#64748b",
+        fontWeight: active ? 800 : 600,
+        fontSize: 12,
+        padding: "12px 16px",
+        cursor: "pointer",
+        whiteSpace: "nowrap",
+        transition: "all 0.15s ease",
+      }}
+    >
+      {label}
+    </button>
+  )
+}
+
+function HealthBox({ label, value, good }: { label: string; value: string; good?: boolean }) {
+  return (
+    <div style={{ padding: 12, borderRadius: 8, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
+      <div style={{ fontSize: 11, color: "#64748b" }}>{label}</div>
+      <div style={{ fontSize: 13, fontWeight: 800, color: good ? "#16a34a" : "#334155", marginTop: 2 }}>
+        {value}
+      </div>
+    </div>
+  )
+}
+
 function StepItem({ completed, title, subtitle }: { completed: boolean; title: string; subtitle: string }) {
   return (
     <div style={{ background: completed ? "#f0fdf4" : "#f8fafc", border: completed ? "1px solid #bbf7d0" : "1px solid #e2e8f0", borderRadius: 8, padding: "10px 12px" }}>
@@ -538,4 +978,26 @@ function StepItem({ completed, title, subtitle }: { completed: boolean; title: s
       <div style={{ fontSize: 10, color: "#64748b", paddingLeft: 16 }}>{subtitle}</div>
     </div>
   )
+}
+
+const formLabel: React.CSSProperties = {
+  display: "block",
+  fontSize: 11,
+  fontWeight: 800,
+  color: "#64748b",
+  textTransform: "uppercase",
+  letterSpacing: "0.05em",
+  marginBottom: 6,
+}
+
+const formInput: React.CSSProperties = {
+  width: "100%",
+  boxSizing: "border-box",
+  border: "1.5px solid #e2e8f0",
+  borderRadius: 8,
+  padding: "9px 12px",
+  fontSize: 13,
+  color: "#0f172a",
+  fontFamily: "inherit",
+  background: "#ffffff",
 }
