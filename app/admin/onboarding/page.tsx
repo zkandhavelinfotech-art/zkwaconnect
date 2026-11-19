@@ -52,7 +52,7 @@ export default function AdminOnboardingPage() {
       const res = await fetch("/api/admin/onboarding/tickets")
       const data = await res.json()
       if (res.ok) setTickets(data.tickets || [])
-    } catch {}
+    } catch { }
   }, [])
 
   const loadSessions = useCallback(async () => {
@@ -354,110 +354,110 @@ export default function AdminOnboardingPage() {
         ) : (
           <>
             {/* SEARCH & FILTERS */}
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 20, alignItems: "center" }}>
-          <input
-            type="text"
-            placeholder="Search tenant name, phone or WABA ID…"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            style={{ flex: 1, minWidth: 260, background: "#172235", border: "1px solid #334155", borderRadius: 8, padding: "10px 14px", color: "#fff", fontSize: 13 }}
-          />
-          <div style={{ display: "flex", gap: 6 }}>
-            <button onClick={() => setFilter("")} style={{ background: filter === "" ? "#2563eb" : "#1e293b", color: "#fff", border: 0, borderRadius: 6, padding: "6px 12px", fontSize: 12, cursor: "pointer", fontWeight: 700 }}>All</button>
-            <button onClick={() => setFilter("CONNECTED")} style={{ background: filter === "CONNECTED" ? "#16a34a" : "#1e293b", color: "#fff", border: 0, borderRadius: 6, padding: "6px 12px", fontSize: 12, cursor: "pointer", fontWeight: 700 }}>Connected</button>
-            <button onClick={() => setFilter("REGISTRATION_PENDING")} style={{ background: filter === "REGISTRATION_PENDING" ? "#d97706" : "#1e293b", color: "#fff", border: 0, borderRadius: 6, padding: "6px 12px", fontSize: 12, cursor: "pointer", fontWeight: 700 }}>Pending</button>
-            <button onClick={() => setFilter("NOT_STARTED")} style={{ background: filter === "NOT_STARTED" ? "#475569" : "#1e293b", color: "#fff", border: 0, borderRadius: 6, padding: "6px 12px", fontSize: 12, cursor: "pointer", fontWeight: 700 }}>Not Started</button>
-          </div>
-        </div>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 20, alignItems: "center" }}>
+              <input
+                type="text"
+                placeholder="Search tenant name, phone or WABA ID…"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                style={{ flex: 1, minWidth: 260, background: "#172235", border: "1px solid #334155", borderRadius: 8, padding: "10px 14px", color: "#fff", fontSize: 13 }}
+              />
+              <div style={{ display: "flex", gap: 6 }}>
+                <button onClick={() => setFilter("")} style={{ background: filter === "" ? "#2563eb" : "#1e293b", color: "#fff", border: 0, borderRadius: 6, padding: "6px 12px", fontSize: 12, cursor: "pointer", fontWeight: 700 }}>All</button>
+                <button onClick={() => setFilter("CONNECTED")} style={{ background: filter === "CONNECTED" ? "#16a34a" : "#1e293b", color: "#fff", border: 0, borderRadius: 6, padding: "6px 12px", fontSize: 12, cursor: "pointer", fontWeight: 700 }}>Connected</button>
+                <button onClick={() => setFilter("REGISTRATION_PENDING")} style={{ background: filter === "REGISTRATION_PENDING" ? "#d97706" : "#1e293b", color: "#fff", border: 0, borderRadius: 6, padding: "6px 12px", fontSize: 12, cursor: "pointer", fontWeight: 700 }}>Pending</button>
+                <button onClick={() => setFilter("NOT_STARTED")} style={{ background: filter === "NOT_STARTED" ? "#475569" : "#1e293b", color: "#fff", border: 0, borderRadius: 6, padding: "6px 12px", fontSize: 12, cursor: "pointer", fontWeight: 700 }}>Not Started</button>
+              </div>
+            </div>
 
-        {/* TENANTS TABLE */}
-        <div style={{ background: "#172235", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, overflow: "hidden" }}>
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, textAlign: "left" }}>
-              <thead style={{ background: "#131c31", color: "#94a3b8" }}>
-                <tr>
-                  <th style={{ padding: "14px 18px" }}>Tenant Workspace</th>
-                  <th style={{ padding: "14px 18px" }}>Onboarding Status</th>
-                  <th style={{ padding: "14px 18px" }}>WABA ID</th>
-                  <th style={{ padding: "14px 18px" }}>Phone Number</th>
-                  <th style={{ padding: "14px 18px", textAlign: "right" }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={5} style={{ padding: 24, textAlign: "center", color: "#94a3b8" }}>Loading tenant onboarding records…</td>
-                  </tr>
-                ) : sessions.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} style={{ padding: 24, textAlign: "center", color: "#94a3b8" }}>No tenant workspaces found matching search criteria.</td>
-                  </tr>
-                ) : (
-                  sessions.map(item => (
-                    <tr key={item.organizationId} style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-                      <td style={{ padding: "14px 18px" }}>
-                        <div style={{ fontWeight: 700, color: "#fff" }}>{item.organizationName}</div>
-                        <div style={{ fontSize: 11, color: "#64748b" }}>Slug: {item.slug}</div>
-                      </td>
-                      <td style={{ padding: "14px 18px" }}>
-                        <span style={{
-                          padding: "3px 10px",
-                          borderRadius: 20,
-                          fontSize: 11,
-                          fontWeight: 800,
-                          background: item.status === "CONNECTED" ? "rgba(16,185,129,0.15)" : item.status === "NOT_STARTED" ? "rgba(148,163,184,0.15)" : "rgba(245,158,11,0.15)",
-                          color: item.status === "CONNECTED" ? "#86efac" : item.status === "NOT_STARTED" ? "#cbd5e1" : "#fde68a"
-                        }}>
-                          {item.status.replace(/_/g, " ")}
-                        </span>
-                      </td>
-                      <td style={{ padding: "14px 18px" }}>
-                        {item.waba?.wabaId ? (
-                          <div>
-                            <code style={{ fontSize: 12, color: "#38bdf8" }}>{item.waba.wabaId}</code>
-                            <div style={{ fontSize: 11, color: "#64748b" }}>{item.waba.name}</div>
-                          </div>
-                        ) : (
-                          <span style={{ color: "#64748b" }}>Not created</span>
-                        )}
-                      </td>
-                      <td style={{ padding: "14px 18px" }}>
-                        {item.phone?.phoneNumber ? (
-                          <div>
-                            <span style={{ fontWeight: 700, color: "#fff" }}>{item.phone.phoneNumber}</span>
-                            <div style={{ fontSize: 11, color: "#64748b" }}>ID: {item.phone.phoneNumberId}</div>
-                          </div>
-                        ) : (
-                          <span style={{ color: "#64748b" }}>Not registered</span>
-                        )}
-                      </td>
-                      <td style={{ padding: "14px 18px", textAlign: "right" }}>
-                        <button
-                          type="button"
-                          onClick={() => handleOpenAssistModal(item)}
-                          style={{
-                            background: "#2563eb",
-                            color: "#fff",
-                            border: 0,
-                            borderRadius: 6,
-                            padding: "6px 12px",
-                            fontSize: 11,
-                            fontWeight: 700,
-                            cursor: "pointer",
-                          }}
-                        >
-                          ⚙️ Assist Setup
-                        </button>
-                      </td>
+            {/* TENANTS TABLE */}
+            <div style={{ background: "#172235", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, overflow: "hidden" }}>
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, textAlign: "left" }}>
+                  <thead style={{ background: "#131c31", color: "#94a3b8" }}>
+                    <tr>
+                      <th style={{ padding: "14px 18px" }}>Tenant Workspace</th>
+                      <th style={{ padding: "14px 18px" }}>Onboarding Status</th>
+                      <th style={{ padding: "14px 18px" }}>WABA ID</th>
+                      <th style={{ padding: "14px 18px" }}>Phone Number</th>
+                      <th style={{ padding: "14px 18px", textAlign: "right" }}>Actions</th>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </>
-    )}
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                      <tr>
+                        <td colSpan={5} style={{ padding: 24, textAlign: "center", color: "#94a3b8" }}>Loading tenant onboarding records…</td>
+                      </tr>
+                    ) : sessions.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} style={{ padding: 24, textAlign: "center", color: "#94a3b8" }}>No tenant workspaces found matching search criteria.</td>
+                      </tr>
+                    ) : (
+                      sessions.map(item => (
+                        <tr key={item.organizationId} style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                          <td style={{ padding: "14px 18px" }}>
+                            <div style={{ fontWeight: 700, color: "#fff" }}>{item.organizationName}</div>
+                            <div style={{ fontSize: 11, color: "#64748b" }}>Slug: {item.slug}</div>
+                          </td>
+                          <td style={{ padding: "14px 18px" }}>
+                            <span style={{
+                              padding: "3px 10px",
+                              borderRadius: 20,
+                              fontSize: 11,
+                              fontWeight: 800,
+                              background: item.status === "CONNECTED" ? "rgba(16,185,129,0.15)" : item.status === "NOT_STARTED" ? "rgba(148,163,184,0.15)" : "rgba(245,158,11,0.15)",
+                              color: item.status === "CONNECTED" ? "#86efac" : item.status === "NOT_STARTED" ? "#cbd5e1" : "#fde68a"
+                            }}>
+                              {item.status.replace(/_/g, " ")}
+                            </span>
+                          </td>
+                          <td style={{ padding: "14px 18px" }}>
+                            {item.waba?.wabaId ? (
+                              <div>
+                                <code style={{ fontSize: 12, color: "#38bdf8" }}>{item.waba.wabaId}</code>
+                                <div style={{ fontSize: 11, color: "#64748b" }}>{item.waba.name}</div>
+                              </div>
+                            ) : (
+                              <span style={{ color: "#64748b" }}>Not created</span>
+                            )}
+                          </td>
+                          <td style={{ padding: "14px 18px" }}>
+                            {item.phone?.phoneNumber ? (
+                              <div>
+                                <span style={{ fontWeight: 700, color: "#fff" }}>{item.phone.phoneNumber}</span>
+                                <div style={{ fontSize: 11, color: "#64748b" }}>ID: {item.phone.phoneNumberId}</div>
+                              </div>
+                            ) : (
+                              <span style={{ color: "#64748b" }}>Not registered</span>
+                            )}
+                          </td>
+                          <td style={{ padding: "14px 18px", textAlign: "right" }}>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenAssistModal(item)}
+                              style={{
+                                background: "#2563eb",
+                                color: "#fff",
+                                border: 0,
+                                borderRadius: 6,
+                                padding: "6px 12px",
+                                fontSize: 11,
+                                fontWeight: 700,
+                                cursor: "pointer",
+                              }}
+                            >
+                              ⚙️ Assist Setup
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
 
         {/* MODAL FOR DELEGATED SETUP */}
         {showSetupModal && selectedSession && (

@@ -373,8 +373,10 @@ export function WhatsAppOnboardingManagementModule() {
     setActionMessage("Opening Meta Embedded Signup v4 dialog…")
 
     if (!window.FB) {
-      setErrorMessage("Facebook SDK not ready. Please refresh the page.")
       setBusy(false)
+      setErrorMessage(
+        "Facebook SDK is not loaded. If you have an ad-blocker or browser shield enabled, please temporarily allow connect.facebook.net or click '🤝 Assisted Setup' above for guided setup."
+      )
       return
     }
 
@@ -745,11 +747,39 @@ export function WhatsAppOnboardingManagementModule() {
 
                   <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
                     <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 14px", minWidth: 160 }}>
-                      <div style={{ fontSize: 10, fontWeight: 800, color: "#64748b", textTransform: "uppercase" }}>WABA ID</div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div style={{ fontSize: 10, fontWeight: 800, color: "#64748b", textTransform: "uppercase" }}>WABA ID</div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (data?.primaryAccount?.wabaId) {
+                              navigator.clipboard.writeText(data.primaryAccount.wabaId)
+                              setActionMessage("WABA ID copied to clipboard!")
+                            }
+                          }}
+                          style={{ border: 0, background: "transparent", color: "#2563eb", fontSize: 10, cursor: "pointer", fontWeight: 700 }}
+                        >
+                          Copy
+                        </button>
+                      </div>
                       <code style={{ fontSize: 12, fontWeight: 800, color: "#0f172a" }}>{data?.primaryAccount?.wabaId}</code>
                     </div>
                     <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 14px", minWidth: 160 }}>
-                      <div style={{ fontSize: 10, fontWeight: 800, color: "#64748b", textTransform: "uppercase" }}>Phone Number ID</div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div style={{ fontSize: 10, fontWeight: 800, color: "#64748b", textTransform: "uppercase" }}>Phone Number ID</div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (phone?.phoneNumberId) {
+                              navigator.clipboard.writeText(phone.phoneNumberId)
+                              setActionMessage("Phone Number ID copied to clipboard!")
+                            }
+                          }}
+                          style={{ border: 0, background: "transparent", color: "#2563eb", fontSize: 10, cursor: "pointer", fontWeight: 700 }}
+                        >
+                          Copy
+                        </button>
+                      </div>
                       <code style={{ fontSize: 12, fontWeight: 800, color: "#0f172a" }}>{phone?.phoneNumberId}</code>
                     </div>
                   </div>
