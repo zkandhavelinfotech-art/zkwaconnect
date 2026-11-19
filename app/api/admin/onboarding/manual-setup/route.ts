@@ -5,6 +5,7 @@ import { getAdminSession } from "@/lib/auth/admin"
 import { metaGraph } from "@/lib/meta/graph"
 import { subscribeWaba } from "@/lib/meta/waba"
 import { recordLifecycleLog } from "@/lib/whatsapp/lifecycle"
+import { getMetaAccessToken } from "@/lib/onboarding/context"
 
 export const runtime = "nodejs"
 
@@ -31,7 +32,12 @@ export async function POST(request: Request) {
 
     const org = await prisma.organization.findUnique({
       where: { id: input.organizationId },
-      include: { metaConnection: true },
+      include: {
+        metaConnections: {
+          orderBy: { updatedAt: "desc" },
+          take: 1,
+        },
+      },
     })
 
     if (!org) {
@@ -100,11 +106,12 @@ export async function POST(request: Request) {
 
     // Attempt registration & webhook subscription if token available
     let registrationMessage = "Assets saved in database."
-    if (org.metaConnection?.accessToken) {
+    const metaAccessToken = await getMetaAccessToken(org.id)
+    if (metaAccessToken) {
       try {
         await metaGraph<{ success?: boolean }>(
           `${phone.phoneNumberId}/register`,
-          org.metaConnection.accessToken,
+          metaAccessToken,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -121,7 +128,7 @@ export async function POST(request: Request) {
 
       // Auto-subscribe webhooks
       try {
-        await subscribeWaba(waba.wabaId, org.metaConnection.accessToken)
+        await subscribeWaba(waba.wabaId, metaAccessToken)
       } catch {}
     }
 

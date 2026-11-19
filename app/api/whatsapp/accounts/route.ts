@@ -24,7 +24,10 @@ export async function GET() {
           },
           orderBy: { createdAt: "desc" },
         },
-        metaConnection: true,
+        metaConnections: {
+          orderBy: { updatedAt: "desc" },
+          take: 1,
+        },
         onboarding: true,
       },
     })
@@ -33,6 +36,7 @@ export async function GET() {
       return NextResponse.json({ error: "Workspace organization not found." }, { status: 404 })
     }
 
+    const latestMetaConn = org.metaConnections?.[0] || null
     const activeWaba = org.wabas.find(w => w.status === "CONNECTED") || org.wabas[0] || null
     const activePhone = activeWaba?.phoneNumbers.find(p => p.status === "CONNECTED") || activeWaba?.phoneNumbers[0] || null
 
@@ -45,7 +49,7 @@ export async function GET() {
       qualityRating: activePhone?.qualityRating || "UNKNOWN",
       messagingLimit: activePhone?.messagingLimit || "TIER_250",
       callingEnabled: Boolean(activePhone?.callingEnabled),
-      lastSyncedAt: org.metaConnection?.lastSyncedAt || activeWaba?.updatedAt || null,
+      lastSyncedAt: latestMetaConn?.lastSyncedAt || activeWaba?.updatedAt || null,
     }
 
     return NextResponse.json({

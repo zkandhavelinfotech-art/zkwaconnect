@@ -24,7 +24,10 @@ export async function GET(request: Request) {
             phoneNumbers: true,
           },
         },
-        metaConnection: true,
+        metaConnections: {
+          orderBy: { updatedAt: "desc" },
+          take: 1,
+        },
         onboarding: true,
       },
       orderBy: { createdAt: "desc" },
@@ -33,6 +36,7 @@ export async function GET(request: Request) {
     const sessions = organizations.map(org => {
       const activeWaba = org.wabas.find(w => w.status === "CONNECTED") || org.wabas[0] || null
       const activePhone = activeWaba?.phoneNumbers.find(p => p.status === "CONNECTED") || activeWaba?.phoneNumbers[0] || null
+      const metaConn = org.metaConnections?.[0] || null
 
       let computedStatus = "NOT_STARTED"
       if (activeWaba && activePhone?.status === "CONNECTED") {
@@ -41,7 +45,7 @@ export async function GET(request: Request) {
         computedStatus = "REGISTRATION_PENDING"
       } else if (activeWaba) {
         computedStatus = "PHONE_NUMBER_PENDING"
-      } else if (org.metaConnection?.status === "CONNECTED") {
+      } else if (metaConn?.status === "CONNECTED") {
         computedStatus = "WABA_CREATION_PENDING"
       }
 
@@ -51,7 +55,7 @@ export async function GET(request: Request) {
         slug: org.slug,
         status: computedStatus,
         onboardingStep: org.onboarding?.currentStep || "NOT_STARTED",
-        metaConnected: Boolean(org.metaConnection?.status === "CONNECTED"),
+        metaConnected: Boolean(metaConn?.status === "CONNECTED"),
         waba: activeWaba
           ? {
               id: activeWaba.id,
@@ -71,7 +75,7 @@ export async function GET(request: Request) {
             }
           : null,
         createdAt: org.createdAt,
-        lastSyncedAt: org.metaConnection?.lastSyncedAt || org.updatedAt,
+        lastSyncedAt: metaConn?.lastSyncedAt || org.updatedAt,
       }
     })
 

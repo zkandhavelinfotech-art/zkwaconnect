@@ -27,7 +27,7 @@ export async function GET(request: Request) {
             id: true,
             name: true,
             slug: true,
-            metaConnection: { select: { status: true } },
+            metaConnections: { select: { status: true }, orderBy: { updatedAt: "desc" }, take: 1 },
             wabas: {
               select: {
                 id: true,
@@ -62,7 +62,7 @@ export async function GET(request: Request) {
       closedAt: t.closedAt,
       organizationId: t.organizationId,
       organizationName: t.organization.name,
-      metaConnected: Boolean(t.organization.metaConnection?.status === "CONNECTED"),
+      metaConnected: Boolean(t.organization.metaConnections?.[0]?.status === "CONNECTED"),
       waba: t.organization.wabas[0] || null,
       phone: t.organization.wabas[0]?.phoneNumbers[0] || null,
     }))

@@ -39,7 +39,10 @@ export async function getOnboardingLifecycle(organizationId: string): Promise<Li
         include: { phoneNumbers: true },
         orderBy: { createdAt: "desc" },
       },
-      metaConnection: true,
+      metaConnections: {
+        orderBy: { updatedAt: "desc" },
+        take: 1,
+      },
       onboarding: true,
     },
   })
@@ -61,7 +64,7 @@ export async function getOnboardingLifecycle(organizationId: string): Promise<Li
 
   const activeWaba = org.wabas.find(w => w.status === "CONNECTED") || org.wabas[0] || null
   const activePhone = activeWaba?.phoneNumbers.find(p => p.status === "CONNECTED") || activeWaba?.phoneNumbers[0] || null
-  const metaConn = org.metaConnection
+  const metaConn = org.metaConnections?.[0] || null
 
   // 1. Fully Connected
   if (activeWaba?.status === "CONNECTED" && activePhone?.status === "CONNECTED") {
