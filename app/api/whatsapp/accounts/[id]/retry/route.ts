@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/db/prisma"
-import { getOnboardingOrganizationId } from "@/lib/onboarding/context"
+import { getMetaAccessToken, getOnboardingOrganizationId } from "@/lib/onboarding/context"
 import { metaGraph } from "@/lib/meta/graph"
 import { subscribeWaba } from "@/lib/meta/waba"
 import { sanitizeMetaError } from "@/lib/whatsapp/error-sanitizer"
@@ -36,12 +36,9 @@ export async function POST(
       return NextResponse.json({ error: "WABA not found." }, { status: 404 })
     }
 
-    const conn = await prisma.metaConnection.findFirst({
-      where: { organizationId, status: "CONNECTED" },
-      orderBy: { updatedAt: "desc" },
-    })
+    const accessToken = await getMetaAccessToken(organizationId)
 
-    if (!conn?.accessToken) {
+    if (!accessToken) {
       const sanitized = sanitizeMetaError({ code: 190, message: "No active token" })
       await recordLifecycleLog({
         organizationId,
@@ -62,7 +59,7 @@ export async function POST(
 
     // Step 1: Token Validity Check
     try {
-      await metaGraph<any>(`debug_token?input_token=${encodeURIComponent(conn.accessToken)}`, conn.accessToken)
+      await metaGraph<any>(`debug_token?input_token=${encodeURIComponent(accessToken)}`, accessToken)
       diagnostics.push({ step: "Token Verification", success: true, detail: "Meta OAuth token is active and valid." })
     } catch (err: any) {
       isFullyResolved = false
@@ -72,7 +69,7 @@ export async function POST(
 
     // Step 2: Webhook Subscription
     try {
-      await subscribeWaba(waba.wabaId, conn.accessToken)
+      await subscribeWaba(waba.wabaId, accessToken)
       diagnostics.push({ step: "Webhook Subscription", success: true, detail: "Subscribed to messages and account updates." })
     } catch (err: any) {
       diagnostics.push({ step: "Webhook Subscription", success: false, detail: `Subscription warning: ${err.message}` })
@@ -84,7 +81,7 @@ export async function POST(
       try {
         await metaGraph<{ success?: boolean }>(
           `${primaryPhone.phoneNumberId}/register`,
-          conn.accessToken,
+          accessToken,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -113,7 +110,7 @@ export async function POST(
       try {
         await metaGraph<{ success?: boolean }>(
           `${clientBizId}/agencies`,
-          conn.accessToken,
+          accessToken,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },

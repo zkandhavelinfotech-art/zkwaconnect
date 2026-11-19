@@ -44,7 +44,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       ok: true,
-      tokenType: token.tokenType || "bearer",
+      tokenType: "bearer",
       expiresIn: token.expiresIn || 5184000,
       grantedScopes,
       status: "BUSINESS_SELECTION",

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/lib/db/prisma"
-import { getOnboardingOrganizationId } from "@/lib/onboarding/context"
+import { getMetaAccessToken, getOnboardingOrganizationId } from "@/lib/onboarding/context"
 import { metaGraph } from "@/lib/meta/graph"
 
 export const runtime = "nodejs"
@@ -39,12 +39,8 @@ export async function POST(
       return NextResponse.json({ error: "Phone number not found in this workspace." }, { status: 404 })
     }
 
-    const conn = await prisma.metaConnection.findFirst({
-      where: { organizationId, status: "CONNECTED" },
-      orderBy: { updatedAt: "desc" },
-    })
-
-    if (!conn?.accessToken) {
+    const accessToken = await getMetaAccessToken(organizationId)
+    if (!accessToken) {
       return NextResponse.json(
         { error: "No active Meta authorization token found. Please reconnect Meta." },
         { status: 400 }
@@ -54,7 +50,7 @@ export async function POST(
     // Call Meta Cloud API 2-step registration endpoint
     const res = await metaGraph<{ success?: boolean }>(
       `${phone.phoneNumberId}/register`,
-      conn.accessToken,
+      accessToken,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

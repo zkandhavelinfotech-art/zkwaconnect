@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/lib/db/prisma"
-import { getOnboardingOrganizationId } from "@/lib/onboarding/context"
+import { getMetaAccessToken, getOnboardingOrganizationId } from "@/lib/onboarding/context"
 import { metaGraph } from "@/lib/meta/graph"
 import { metaLoginConfig } from "@/lib/meta/config"
 import { exchangeCode, saveMetaConnection } from "@/lib/meta/connection"
@@ -63,12 +63,7 @@ export async function POST(request: Request) {
         sanitizedMessage: "Facebook OAuth token exchanged and encrypted.",
       })
     } else {
-      // Find active meta connection
-      const conn = await prisma.metaConnection.findFirst({
-        where: { organizationId, status: "CONNECTED" },
-        orderBy: { updatedAt: "desc" },
-      })
-      accessToken = conn?.accessToken || null
+      accessToken = await getMetaAccessToken(organizationId)
     }
 
     if (!accessToken) {

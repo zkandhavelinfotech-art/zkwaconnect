@@ -3,12 +3,6 @@
 import React, { useState, useEffect, useCallback } from "react"
 import { VERTICALS, type Vertical } from "@/lib/meta/profile"
 
-declare global {
-  interface Window {
-    FB?: any
-    fbAsyncInit?: () => void
-  }
-}
 
 type OnboardingState = {
   ok: boolean

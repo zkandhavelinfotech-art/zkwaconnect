@@ -76,12 +76,12 @@ export async function POST(request: Request) {
 
             if (messageId && statusStr) {
               await prisma.message.updateMany({
-                where: { externalId: messageId },
+                where: { externalMessageId: messageId },
                 data: {
                   status: statusStr === "READ" ? "READ" : statusStr === "DELIVERED" ? "DELIVERED" : statusStr === "FAILED" ? "FAILED" : "SENT",
                   ...(statusStr === "DELIVERED" ? { deliveredAt: new Date() } : {}),
                   ...(statusStr === "READ" ? { readAt: new Date() } : {}),
-                  ...(error ? { errorDetail: `Meta Error ${error.code}: ${error.title || error.message}` } : {}),
+                  ...(error ? { metadata: { metaError: `Meta Error ${error.code}: ${error.title || error.message}` } } : {}),
                 },
               })
             }
@@ -104,14 +104,14 @@ export async function POST(request: Request) {
                 // Upsert Contact
                 const contact = await prisma.contact.upsert({
                   where: {
-                    organizationId_phoneNumber: {
+                    organizationId_phone: {
                       organizationId: phone.waba.organizationId,
-                      phoneNumber: senderPhone,
+                      phone: senderPhone,
                     },
                   },
                   create: {
                     organizationId: phone.waba.organizationId,
-                    phoneNumber: senderPhone,
+                    phone: senderPhone,
                     name: value.contacts?.[0]?.profile?.name || senderPhone,
                   },
                   update: {
@@ -143,10 +143,10 @@ export async function POST(request: Request) {
                 await prisma.message.create({
                   data: {
                     conversationId: conversation.id,
-                    externalId: msg.id,
+                    externalMessageId: msg.id,
                     direction: "INBOUND",
                     type: msgType.toUpperCase(),
-                    body: textBody,
+                    content: textBody,
                     status: "DELIVERED",
                     createdAt: new Date(Number(msg.timestamp) * 1000 || Date.now()),
                   },

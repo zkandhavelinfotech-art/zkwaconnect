@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/lib/db/prisma"
-import { getOnboardingOrganizationId } from "@/lib/onboarding/context"
+import { getMetaAccessToken, getOnboardingOrganizationId } from "@/lib/onboarding/context"
 import { metaGraph } from "@/lib/meta/graph"
 import { VERTICAL_KEYS } from "@/lib/meta/profile"
 
@@ -41,18 +41,14 @@ export async function GET(
       return NextResponse.json({ error: "Phone number not found." }, { status: 404 })
     }
 
-    const conn = await prisma.metaConnection.findFirst({
-      where: { organizationId, status: "CONNECTED" },
-      orderBy: { updatedAt: "desc" },
-    })
-
-    if (!conn?.accessToken) {
+    const accessToken = await getMetaAccessToken(organizationId)
+    if (!accessToken) {
       return NextResponse.json({ error: "No active Meta authorization token." }, { status: 400 })
     }
 
     const res = await metaGraph<{ data?: any[] }>(
       `${phone.phoneNumberId}/whatsapp_business_profile?fields=about,address,description,email,profile_picture_url,websites,vertical`,
-      conn.accessToken
+      accessToken
     )
 
     const profile = res?.data?.[0] || {}
@@ -104,12 +100,8 @@ export async function POST(
       return NextResponse.json({ error: "Phone number not found." }, { status: 404 })
     }
 
-    const conn = await prisma.metaConnection.findFirst({
-      where: { organizationId, status: "CONNECTED" },
-      orderBy: { updatedAt: "desc" },
-    })
-
-    if (!conn?.accessToken) {
+    const accessToken = await getMetaAccessToken(organizationId)
+    if (!accessToken) {
       return NextResponse.json({ error: "No active Meta token found." }, { status: 400 })
     }
 
@@ -125,7 +117,7 @@ export async function POST(
 
     await metaGraph<{ success?: boolean }>(
       `${phone.phoneNumberId}/whatsapp_business_profile`,
-      conn.accessToken,
+      accessToken,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

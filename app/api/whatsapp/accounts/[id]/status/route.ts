@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/db/prisma"
-import { getOnboardingOrganizationId } from "@/lib/onboarding/context"
+import { getMetaAccessToken, getOnboardingOrganizationId } from "@/lib/onboarding/context"
 import { metaGraph } from "@/lib/meta/graph"
 
 export const runtime = "nodejs"
@@ -33,20 +33,17 @@ export async function GET(
       return NextResponse.json({ error: "WhatsApp Account not found." }, { status: 404 })
     }
 
-    const conn = await prisma.metaConnection.findFirst({
-      where: { organizationId, status: "CONNECTED" },
-      orderBy: { updatedAt: "desc" },
-    })
+    const accessToken = await getMetaAccessToken(organizationId)
 
     let liveMetaStatus: any = null
     const primaryPhone = waba.phoneNumbers[0] || null
 
-    if (conn?.accessToken) {
+    if (accessToken) {
       try {
         if (primaryPhone) {
           liveMetaStatus = await metaGraph<any>(
             `${primaryPhone.phoneNumberId}?fields=id,display_phone_number,verified_name,code_verification_status,quality_rating`,
-            conn.accessToken
+            accessToken
           )
 
           if (liveMetaStatus?.quality_rating && liveMetaStatus.quality_rating !== primaryPhone.qualityRating) {

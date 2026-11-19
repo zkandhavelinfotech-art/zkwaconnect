@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/lib/db/prisma"
-import { getOnboardingOrganizationId } from "@/lib/onboarding/context"
+import { getMetaAccessToken, getOnboardingOrganizationId } from "@/lib/onboarding/context"
 import { activateWaba } from "@/lib/onboarding/activate-waba"
 import { metaGraph } from "@/lib/meta/graph"
 
@@ -26,12 +26,9 @@ export async function POST(request: Request) {
     const body = await request.json()
     const input = schema.parse(body)
 
-    const conn = await prisma.metaConnection.findFirst({
-      where: { organizationId, status: "CONNECTED" },
-      orderBy: { updatedAt: "desc" },
-    })
+    const accessToken = await getMetaAccessToken(organizationId)
 
-    if (!conn?.accessToken) {
+    if (!accessToken) {
       return NextResponse.json(
         { error: "No active Meta authorization token found for this workspace.", status: "ACTION_REQUIRED" },
         { status: 400 }
@@ -41,7 +38,7 @@ export async function POST(request: Request) {
     // Inspect WABA via Meta Graph API
     const waba = await metaGraph<{ id: string; name: string; currency?: string; timezone_id?: string; owner_business_info?: { id?: string } }>(
       `${input.wabaId}?fields=id,name,currency,timezone_id,owner_business_info`,
-      conn.accessToken
+      accessToken
     )
 
     const result = await activateWaba({

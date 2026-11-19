@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/lib/db/prisma"
-import { getOnboardingOrganizationId } from "@/lib/onboarding/context"
+import { getMetaAccessToken, getOnboardingOrganizationId } from "@/lib/onboarding/context"
 import { metaGraph } from "@/lib/meta/graph"
 
 export const runtime = "nodejs"
@@ -40,12 +40,8 @@ export async function POST(
       return NextResponse.json({ error: "Connected WhatsApp number not found." }, { status: 404 })
     }
 
-    const conn = await prisma.metaConnection.findFirst({
-      where: { organizationId, status: "CONNECTED" },
-      orderBy: { updatedAt: "desc" },
-    })
-
-    if (!conn?.accessToken) {
+    const accessToken = await getMetaAccessToken(organizationId)
+    if (!accessToken) {
       return NextResponse.json({ error: "No active Meta authorization token found." }, { status: 400 })
     }
 
@@ -55,7 +51,7 @@ export async function POST(
     // Send test text message via Meta Cloud API
     const response = await metaGraph<{ messages?: { id: string }[] }>(
       `${phone.phoneNumberId}/messages`,
-      conn.accessToken,
+      accessToken,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

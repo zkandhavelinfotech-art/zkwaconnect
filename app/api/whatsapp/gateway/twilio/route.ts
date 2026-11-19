@@ -28,7 +28,7 @@ export async function GET() {
       })
     }
 
-    const parsed = JSON.parse(gatewaySetting.value)
+    const parsed = typeof gatewaySetting.value === "string" ? JSON.parse(gatewaySetting.value) : (gatewaySetting.value as any) || {}
 
     return NextResponse.json({
       configured: true,

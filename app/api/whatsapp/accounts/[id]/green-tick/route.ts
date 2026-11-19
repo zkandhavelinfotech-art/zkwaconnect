@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/lib/db/prisma"
-import { getOnboardingOrganizationId } from "@/lib/onboarding/context"
+import { getMetaAccessToken, getOnboardingOrganizationId } from "@/lib/onboarding/context"
 import { metaGraph } from "@/lib/meta/graph"
 import { recordLifecycleLog } from "@/lib/whatsapp/lifecycle"
 
@@ -35,10 +35,7 @@ export async function GET(
       return NextResponse.json({ error: "Phone number not found." }, { status: 404 })
     }
 
-    const conn = await prisma.metaConnection.findFirst({
-      where: { organizationId, status: "CONNECTED" },
-      orderBy: { updatedAt: "desc" },
-    })
+    const accessToken = await getMetaAccessToken(organizationId)
 
     // Fetch live WhatsApp Business Phone metadata from Meta Graph API
     let metaPhone: any = null
@@ -46,11 +43,11 @@ export async function GET(
     let messagingLimitTier = "TIER_10K"
     let isOBA = false
 
-    if (conn?.accessToken) {
+    if (accessToken) {
       try {
         metaPhone = await metaGraph<any>(
           `${phone.phoneNumberId}?fields=id,display_phone_number,verified_name,code_verification_status,quality_rating,messaging_limit_tier,is_official_business_account`,
-          conn.accessToken
+          accessToken
         )
         if (metaPhone?.is_official_business_account) {
           isOBA = true
