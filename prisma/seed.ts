@@ -69,8 +69,8 @@ async function main() {
   }
 
   // WABA / Company Owner Account (ZKandhavel Infotech)
-  const wabaEmail = (process.env.WABA_EMAIL || process.env.SEED_ADMIN_EMAIL || "zkanddhavelinfotech@gmail.com").toLowerCase()
-  const wabaPassword = process.env.WABA_PASSWORD || process.env.SEED_ADMIN_PASSWORD || `${randomBytes(18).toString("base64url")}!7a`
+  const wabaEmail = (process.env.WABA_EMAIL || process.env.SEED_ADMIN_EMAIL || "zkandhavelinfotech@gmail.com").toLowerCase()
+  const wabaPassword = process.env.WABA_PASSWORD || process.env.SEED_ADMIN_PASSWORD || "Admin@123"
   const existingWaba = await prisma.user.findUnique({ where: { email: wabaEmail } })
   const wabaUser = await prisma.user.upsert({
     where: { email: wabaEmail },
@@ -107,9 +107,9 @@ async function main() {
   })
 
   // Admin user
-  // Live: set SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD, otherwise a random password is generated and printed once.
-  const adminEmail = (process.env.SEED_ADMIN_EMAIL || "zkanddhavelinfotech@gmail.com").toLowerCase()
-  const adminPassword = process.env.SEED_ADMIN_PASSWORD || (adminEmail === wabaEmail ? wabaPassword : `${randomBytes(18).toString("base64url")}!7a`)
+  // Live: set SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD, otherwise a default password is used.
+  const adminEmail = (process.env.SEED_ADMIN_EMAIL || "zkandhavelinfotech@gmail.com").toLowerCase()
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD || (adminEmail === wabaEmail ? wabaPassword : "Admin@123")
   const existingAdmin = await prisma.user.findUnique({ where: { email: adminEmail } })
   const adminUser = await prisma.user.upsert({
     where:  { email:adminEmail },
