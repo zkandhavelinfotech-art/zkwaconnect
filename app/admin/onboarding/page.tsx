@@ -52,6 +52,96 @@ export default function AdminOnboardingPage() {
   const [permissionsData, setPermissionsData] = useState<any>(null)
   const [permissionsLoading, setPermissionsLoading] = useState(false)
 
+  // Portfolio Access, People & Partners Modal state
+  const [showPortfolioAccessModal, setShowPortfolioAccessModal] = useState(false)
+  const [selectedTenantForAccess, setSelectedTenantForAccess] = useState<SessionItem | null>(null)
+  const [portfolioAccessData, setPortfolioAccessData] = useState<any>(null)
+  const [portfolioAccessLoading, setPortfolioAccessLoading] = useState(false)
+  const [actionLoading, setActionLoading] = useState(false)
+  const [accessActionResult, setAccessActionResult] = useState<any>(null)
+  const [selectedPartnerTier, setSelectedPartnerTier] = useState<"full" | "partial">("full")
+  const [customUserIdInput, setCustomUserIdInput] = useState("122105442147545330")
+
+  const handleOpenPortfolioAccess = async (item: SessionItem) => {
+    setSelectedTenantForAccess(item)
+    setShowPortfolioAccessModal(true)
+    setPortfolioAccessLoading(true)
+    setAccessActionResult(null)
+    try {
+      const res = await fetch(`/api/admin/onboarding/portfolio-access?orgId=${item.organizationId}`)
+      const data = await res.json()
+      if (res.ok) setPortfolioAccessData(data)
+      else setError(data.error || "Failed to load Portfolio Access details.")
+    } catch (err: any) {
+      setError(err?.message || "Failed to load Portfolio Access details.")
+    } finally {
+      setPortfolioAccessLoading(false)
+    }
+  }
+
+  const handleAssignAgencyPartner = async () => {
+    if (!selectedTenantForAccess) return
+    setActionLoading(true)
+    setAccessActionResult(null)
+    try {
+      const res = await fetch("/api/admin/onboarding/portfolio-access", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          organizationId: selectedTenantForAccess.organizationId,
+          action: "assign_agency_partner",
+          accessLevel: selectedPartnerTier,
+        }),
+      })
+      const data = await res.json()
+      setAccessActionResult(data)
+      if (res.ok) {
+        setNotice(`✓ ${data.message}`)
+        // reload data
+        const refreshRes = await fetch(`/api/admin/onboarding/portfolio-access?orgId=${selectedTenantForAccess.organizationId}`)
+        const refreshedData = await refreshRes.json()
+        if (refreshRes.ok) setPortfolioAccessData(refreshedData)
+      } else {
+        setError(data.error || "Failed to assign agency partner.")
+      }
+    } catch (err: any) {
+      setError(err?.message || "Network error assigning agency partner.")
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleAssignPersonAsset = async () => {
+    if (!selectedTenantForAccess) return
+    setActionLoading(true)
+    setAccessActionResult(null)
+    try {
+      const res = await fetch("/api/admin/onboarding/portfolio-access", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          organizationId: selectedTenantForAccess.organizationId,
+          action: "assign_person_asset",
+          targetUserId: customUserIdInput.trim() || "122105442147545330",
+        }),
+      })
+      const data = await res.json()
+      setAccessActionResult(data)
+      if (res.ok) {
+        setNotice(`✓ ${data.message}`)
+        const refreshRes = await fetch(`/api/admin/onboarding/portfolio-access?orgId=${selectedTenantForAccess.organizationId}`)
+        const refreshedData = await refreshRes.json()
+        if (refreshRes.ok) setPortfolioAccessData(refreshedData)
+      } else {
+        setError(data.error || "Failed to assign user to WABA assets.")
+      }
+    } catch (err: any) {
+      setError(err?.message || "Network error assigning user.")
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
   const loadPermissions = async () => {
     setShowPermissionsModal(true)
     setPermissionsLoading(true)
@@ -457,22 +547,40 @@ export default function AdminOnboardingPage() {
                             )}
                           </td>
                           <td style={{ padding: "14px 18px", textAlign: "right" }}>
-                            <button
-                              type="button"
-                              onClick={() => handleOpenAssistModal(item)}
-                              style={{
-                                background: "#2563eb",
-                                color: "#fff",
-                                border: 0,
-                                borderRadius: 6,
-                                padding: "6px 12px",
-                                fontSize: 11,
-                                fontWeight: 700,
-                                cursor: "pointer",
-                              }}
-                            >
-                              ⚙️ Assist Setup
-                            </button>
+                            <div style={{ display: "flex", gap: 6, justifyContent: "flex-end", flexWrap: "wrap" }}>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenPortfolioAccess(item)}
+                                style={{
+                                  background: "#0f766e",
+                                  color: "#fff",
+                                  border: 0,
+                                  borderRadius: 6,
+                                  padding: "6px 12px",
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                  cursor: "pointer",
+                                }}
+                              >
+                                🛡️ People &amp; Partners
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenAssistModal(item)}
+                                style={{
+                                  background: "#2563eb",
+                                  color: "#fff",
+                                  border: 0,
+                                  borderRadius: 6,
+                                  padding: "6px 12px",
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                  cursor: "pointer",
+                                }}
+                              >
+                                ⚙️ Assist Setup
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))
@@ -484,7 +592,263 @@ export default function AdminOnboardingPage() {
           </>
         )}
 
-        {/* MODAL FOR META APP REVIEW & PERMISSIONS */}
+        {/* MODAL FOR META BUSINESS PORTFOLIO ACCESS, PEOPLE & PARTNERS */}
+        {showPortfolioAccessModal && (
+          <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.8)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 110, padding: 20 }}>
+            <div style={{ background: "#172235", border: "1.5px solid #0f766e", borderRadius: 14, maxWidth: 840, width: "100%", maxHeight: "90vh", overflowY: "auto", padding: 24, boxShadow: "0 25px 50px rgba(0,0,0,0.6)" }}>
+              {/* Header */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16, borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: 14 }}>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <span style={{ fontSize: 20 }}>🛡️</span>
+                    <h3 style={{ fontFamily: "Sora, sans-serif", fontSize: 17, fontWeight: 800, color: "#fff", margin: 0 }}>
+                      Meta Business Portfolio Access, People &amp; Partners
+                    </h3>
+                    <span style={{ background: "#0f766e", color: "#fff", fontSize: 10, fontWeight: 800, padding: "2px 8px", borderRadius: 10 }}>
+                      SUPPORT ADMIN WORKSPACE
+                    </span>
+                  </div>
+                  <p style={{ fontSize: 12, color: "#94a3b8", margin: "4px 0 0" }}>
+                    Tenant: <strong>{selectedTenantForAccess?.organizationName}</strong> &bull; Slug: <code>{selectedTenantForAccess?.slug}</code>
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPortfolioAccessModal(false)}
+                  style={{ background: "transparent", border: 0, color: "#94a3b8", fontSize: 20, cursor: "pointer", padding: "0 4px" }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {portfolioAccessLoading ? (
+                <div style={{ textAlign: "center", padding: 40, color: "#94a3b8", fontSize: 13 }}>
+                  Querying Meta Business Portfolio, People &amp; Partner asset permissions…
+                </div>
+              ) : (
+                <div style={{ display: "grid", gap: 18 }}>
+                  {/* Action result banner */}
+                  {accessActionResult && (
+                    <div style={{ background: "rgba(16,185,129,0.15)", border: "1px solid #10b981", borderRadius: 8, padding: 12, color: "#34d399", fontSize: 12 }}>
+                      <strong>✓ Result:</strong> {accessActionResult.message}
+                    </div>
+                  )}
+
+                  {/* Portfolio & WABA Overview Strip */}
+                  <div style={{ background: "#0b1320", border: "1px solid #334155", borderRadius: 10, padding: 14, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
+                    <div>
+                      <div style={{ fontSize: 10, fontWeight: 800, color: "#94a3b8", textTransform: "uppercase" }}>Business Portfolio</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#fff", marginTop: 2 }}>{portfolioAccessData?.portfolio?.name || "Portfolio"}</div>
+                      <div style={{ fontSize: 11, color: "#38bdf8", fontFamily: "monospace" }}>ID: {portfolioAccessData?.portfolio?.id}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 10, fontWeight: 800, color: "#94a3b8", textTransform: "uppercase" }}>Primary WABA</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#fff", marginTop: 2 }}>{portfolioAccessData?.waba?.name || "WhatsApp Account"}</div>
+                      <div style={{ fontSize: 11, color: "#38bdf8", fontFamily: "monospace" }}>ID: {portfolioAccessData?.waba?.wabaId}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 10, fontWeight: 800, color: "#94a3b8", textTransform: "uppercase" }}>Primary Phone</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#86efac", marginTop: 2 }}>{portfolioAccessData?.phone?.phoneNumber || "Not registered"}</div>
+                      <div style={{ fontSize: 11, color: "#94a3b8", fontFamily: "monospace" }}>ID: {portfolioAccessData?.phone?.phoneNumberId}</div>
+                    </div>
+                  </div>
+
+                  {/* SECTION 1: AGENCY PARTNERS (Users -> Partners) */}
+                  <div style={{ background: "#0b1320", border: "1.5px solid #10b981", borderRadius: 10, padding: 16 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12, marginBottom: 12 }}>
+                      <div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{ fontSize: 18 }}>🤝</span>
+                          <h4 style={{ fontSize: 14, fontWeight: 800, color: "#fff", margin: 0 }}>
+                            Agency Partner: Zkandhavel Infotech Private Limited (246511357935583)
+                          </h4>
+                          <span style={{
+                            fontSize: 10,
+                            fontWeight: 800,
+                            padding: "2px 8px",
+                            borderRadius: 10,
+                            background: portfolioAccessData?.agencyPartner?.accessLevel === "FULL_ACCESS" ? "rgba(16,185,129,0.2)" : "rgba(245,158,11,0.2)",
+                            color: portfolioAccessData?.agencyPartner?.accessLevel === "FULL_ACCESS" ? "#86efac" : "#fde68a",
+                          }}>
+                            {portfolioAccessData?.agencyPartner?.accessLevel === "FULL_ACCESS" ? "FULL ACCESS (FULL CONTROL)" : "PARTIAL / NOT ASSIGNED"}
+                          </span>
+                        </div>
+                        <p style={{ fontSize: 11, color: "#94a3b8", margin: "4px 0 0" }}>
+                          Assign Zkandhavel Infotech as the official Agency Partner in the customer&apos;s Meta Business Portfolio with Full Control.
+                        </p>
+                      </div>
+
+                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        <select
+                          value={selectedPartnerTier}
+                          onChange={e => setSelectedPartnerTier(e.target.value as "full" | "partial")}
+                          style={{ background: "#172235", border: "1px solid #334155", color: "#fff", borderRadius: 6, padding: "6px 10px", fontSize: 11, fontWeight: 700 }}
+                        >
+                          <option value="full">Full Access (Full Control)</option>
+                          <option value="partial">Partial Access</option>
+                        </select>
+                        <button
+                          type="button"
+                          onClick={handleAssignAgencyPartner}
+                          disabled={actionLoading}
+                          style={{
+                            background: "#059669",
+                            color: "#fff",
+                            border: 0,
+                            borderRadius: 6,
+                            padding: "7px 14px",
+                            fontSize: 11,
+                            fontWeight: 800,
+                            cursor: actionLoading ? "not-allowed" : "pointer",
+                          }}
+                        >
+                          {actionLoading ? "Assigning…" : "⚡ 1-Click Auto-Assign Partner"}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", fontSize: 11, borderTop: "1px solid #1e293b", paddingTop: 10 }}>
+                      <span style={{ color: "#94a3b8" }}>Direct Meta Business Suite Link:</span>
+                      <a
+                        href={portfolioAccessData?.metaLinks?.partners || `https://business.facebook.com/latest/settings/partners?business_id=${portfolioAccessData?.portfolio?.id}&selected_partner_id=246511357935583`}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ color: "#38bdf8", textDecoration: "none", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 4 }}
+                      >
+                        ↗ Open Users &rarr; Partners in Meta Business Suite
+                      </a>
+                    </div>
+                  </div>
+
+                  {/* SECTION 2: PEOPLE & USERS (Users -> People) */}
+                  <div style={{ background: "#0b1320", border: "1px solid #334155", borderRadius: 10, padding: 16 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 10 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 18 }}>👥</span>
+                        <h4 style={{ fontSize: 14, fontWeight: 800, color: "#fff", margin: 0 }}>
+                          People &amp; Support Admins ({portfolioAccessData?.people?.users?.length || 0} Assigned)
+                        </h4>
+                      </div>
+                      <a
+                        href={portfolioAccessData?.metaLinks?.people || `https://business.facebook.com/settings/people?business_id=${portfolioAccessData?.portfolio?.id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ color: "#38bdf8", textDecoration: "none", fontSize: 11, fontWeight: 700 }}
+                      >
+                        ↗ Open Users &rarr; People in Meta Business Suite
+                      </a>
+                    </div>
+
+                    {/* Assigned Users list */}
+                    <div style={{ display: "grid", gap: 8, marginBottom: 14 }}>
+                      {portfolioAccessData?.people?.users?.length === 0 ? (
+                        <div style={{ fontSize: 12, color: "#94a3b8", background: "#172235", padding: 10, borderRadius: 6 }}>
+                          No specific business users directly assigned on WABA assets yet. Use the 1-click assign tool below.
+                        </div>
+                      ) : (
+                        portfolioAccessData?.people?.users?.map((u: any) => (
+                          <div key={u.id} style={{ background: "#172235", borderRadius: 6, padding: "8px 12px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+                            <div>
+                              <strong style={{ fontSize: 12, color: "#fff" }}>{u.name}</strong>
+                              <span style={{ fontSize: 10, color: "#94a3b8", marginLeft: 8 }}>ID: {u.id}</span>
+                            </div>
+                            <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                              {u.tasks?.map((task: string) => (
+                                <span key={task} style={{ background: "rgba(59,130,246,0.2)", color: "#93c5fd", fontSize: 9, fontWeight: 800, padding: "2px 6px", borderRadius: 4 }}>
+                                  {task}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    {/* 1-Click Assign User to WABA tool */}
+                    <div style={{ background: "#172235", borderRadius: 8, padding: 12, border: "1px solid #334155" }}>
+                      <div style={{ fontSize: 11, fontWeight: 800, color: "#cbd5e1", marginBottom: 6 }}>
+                        ⚡ 1-Click Assign Support Admin / Business User to WABA Assets:
+                      </div>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <input
+                          type="text"
+                          value={customUserIdInput}
+                          onChange={e => setCustomUserIdInput(e.target.value)}
+                          placeholder="Meta Business User ID (e.g. 122105442147545330)"
+                          style={{ flex: 1, minWidth: 240, background: "#0b1320", border: "1px solid #334155", borderRadius: 6, padding: "6px 10px", fontSize: 12, color: "#fff" }}
+                        />
+                        <button
+                          type="button"
+                          onClick={handleAssignPersonAsset}
+                          disabled={actionLoading}
+                          style={{ background: "#2563eb", color: "#fff", border: 0, borderRadius: 6, padding: "6px 14px", fontSize: 11, fontWeight: 800, cursor: actionLoading ? "not-allowed" : "pointer" }}
+                        >
+                          {actionLoading ? "Assigning…" : "Assign to WABA"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* SECTION 3: DIRECT ASSET PERMISSION LINKS */}
+                  <div style={{ background: "#0b1320", border: "1px solid #334155", borderRadius: 10, padding: 16 }}>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: "#fff", marginBottom: 10 }}>
+                      📋 Direct Pre-filled Meta Business Suite Asset Links for this Tenant:
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 8 }}>
+                      <a
+                        href={portfolioAccessData?.metaLinks?.whatsappAccounts || `https://business.facebook.com/latest/settings/whatsapp_accounts?business_id=${portfolioAccessData?.portfolio?.id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ background: "#172235", border: "1px solid #334155", borderRadius: 6, padding: "8px 12px", fontSize: 11, color: "#38bdf8", textDecoration: "none", display: "flex", justifyContent: "space-between", alignItems: "center" }}
+                      >
+                        <span>WhatsApp Accounts &rarr; Assign Assets</span>
+                        <span>↗</span>
+                      </a>
+                      <a
+                        href={portfolioAccessData?.metaLinks?.partners || `https://business.facebook.com/latest/settings/partners?business_id=${portfolioAccessData?.portfolio?.id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ background: "#172235", border: "1px solid #334155", borderRadius: 6, padding: "8px 12px", fontSize: 11, color: "#38bdf8", textDecoration: "none", display: "flex", justifyContent: "space-between", alignItems: "center" }}
+                      >
+                        <span>Users &rarr; Partners</span>
+                        <span>↗</span>
+                      </a>
+                      <a
+                        href={portfolioAccessData?.metaLinks?.people || `https://business.facebook.com/settings/people?business_id=${portfolioAccessData?.portfolio?.id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ background: "#172235", border: "1px solid #334155", borderRadius: 6, padding: "8px 12px", fontSize: 11, color: "#38bdf8", textDecoration: "none", display: "flex", justifyContent: "space-between", alignItems: "center" }}
+                      >
+                        <span>Users &rarr; People</span>
+                        <span>↗</span>
+                      </a>
+                      <a
+                        href={portfolioAccessData?.metaLinks?.phoneNumbers || `https://business.facebook.com/latest/whatsapp_manager/phone_numbers?business_id=${portfolioAccessData?.portfolio?.id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ background: "#172235", border: "1px solid #334155", borderRadius: 6, padding: "8px 12px", fontSize: 11, color: "#38bdf8", textDecoration: "none", display: "flex", justifyContent: "space-between", alignItems: "center" }}
+                      >
+                        <span>Phone Numbers &rarr; 2FA / Release</span>
+                        <span>↗</span>
+                      </a>
+                    </div>
+                  </div>
+
+                  {/* Close button */}
+                  <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 4 }}>
+                    <button
+                      type="button"
+                      onClick={() => setShowPortfolioAccessModal(false)}
+                      style={{ background: "#334155", color: "#fff", border: 0, borderRadius: 6, padding: "8px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                    >
+                      Close Manager
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
         {showPermissionsModal && (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 20 }}>
             <div style={{ background: "#172235", border: "1px solid #334155", borderRadius: 14, maxWidth: 640, width: "100%", padding: 24, boxShadow: "0 20px 40px rgba(0,0,0,0.5)" }}>
