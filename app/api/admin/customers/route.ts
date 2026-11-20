@@ -37,7 +37,7 @@ export async function GET(req: Request) {
         include: {
           memberships:   { where: { role: "OWNER" }, include: { user: { select: { name:true, email:true } } }, take: 1 },
           subscriptions: { where: { status: { not: "PENDING_PAYMENT" } }, include: { plan: true }, orderBy: { createdAt: "desc" }, take: 1 },
-          onboarding:    { select: { currentStep: true } },
+          onboarding:    { select: { currentStep: true, phoneVerified: true } },
           wabas: {
             include: {
               phoneNumbers: {
@@ -55,6 +55,7 @@ export async function GET(req: Request) {
             orderBy: { updatedAt: "desc" },
             take: 20,
           },
+          metaConnections: { select: { id:true, status:true, businessManagerId:true, updatedAt:true }, take: 1 },
         },
         orderBy: { createdAt: "desc" },
         skip: (page - 1) * limit, take: limit,
@@ -136,7 +137,7 @@ export async function PATCH(req: Request) {
     await assertAdmin()
     const input = z.object({
       id: z.string().min(1),
-      action: z.enum(["suspend", "activate", "extend-trial", "assign-plan", "set-internal", "open-onboarding", "switch-waba"]),
+      action: z.enum(["suspend", "activate", "extend-trial", "assign-plan", "set-internal", "open-onboarding", "switch-waba", "switch-workspace"]),
       internal: z.boolean().optional(),
       trialDays: z.number().int().min(1).max(365).optional(),
       planId: z.string().min(1).optional(),
@@ -162,7 +163,7 @@ export async function PATCH(req: Request) {
       ])
       return NextResponse.json({ ok: true, message: `Activated WABA ${targetWaba.name} (${targetWaba.wabaId}) as active sending account.` })
     }
-    if (action === "open-onboarding") {
+    if (action === "open-onboarding" || action === "switch-workspace") {
       const admin = await assertAdmin()
       await prisma.membership.upsert({
         where: { organizationId_userId: { organizationId: id, userId: admin.id } },
@@ -170,7 +171,7 @@ export async function PATCH(req: Request) {
         update: { role: "ADMIN", status: "ACTIVE" },
       })
       await setActiveWorkspace(id)
-      return NextResponse.json({ ok: true, redirect: "/onboarding" })
+      return NextResponse.json({ ok: true, redirect: action === "open-onboarding" ? "/onboarding" : "/app/settings" })
     }
     if (action === "set-internal") {
       const updated = await prisma.organization.update({ where: { id }, data: { billingExempt: Boolean(input.internal), ...(input.internal ? { status: "ACTIVE" } : {}) } })
@@ -178,24 +179,32 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ ok: true, tenant: updated, message: input.internal ? "Marked internal: all features, no limits, no charges." : "Back on normal plans and limits." })
     }
     const org = await prisma.organization.findUnique({ where: { id } })
-    if (!org) return NextResponse.json({ error: "Not found" }, { status: 404 })
+    if (!org) return NextResponse.json({ error: "Organization not found" }, { status: 404 })
 
-    if (action === "suspend")
-      return NextResponse.json({ org: await prisma.organization.update({ where:{id}, data:{status:"SUSPENDED"} }) })
-    if (action === "activate")
-      return NextResponse.json({ org: await prisma.organization.update({ where:{id}, data:{status:"ACTIVE"} }) })
-    if (action === "extend-trial" && trialDays) {
-      // The latest trial, even one that already lapsed; extends from its end or from today, whichever is later.
-      const sub = await prisma.subscription.findFirst({ where: { organizationId: id, trialEndsAt: { not: null }, status: { in: ["TRIAL", "EXPIRED"] } }, orderBy: { createdAt: "desc" } })
-      if (sub) {
-        const end = sub.currentPeriodEnd || sub.trialEndsAt!
-        const d = new Date(Math.max(end.getTime(), Date.now()))
-        d.setDate(d.getDate() + trialDays)
-        await prisma.subscription.update({ where: { id: sub.id }, data: { status: "TRIAL", trialEndsAt: d, currentPeriodEnd: d } })
-        forgetPlanCache(id)
-      }
-      return NextResponse.json({ ok: true })
+    if (action === "suspend") {
+      const updated = await prisma.organization.update({ where: { id }, data: { status: "SUSPENDED" } })
+      return NextResponse.json({ ok: true, tenant: updated, message: `${org.name} suspended.` })
     }
+
+    if (action === "activate") {
+      const updated = await prisma.organization.update({ where: { id }, data: { status: "ACTIVE" } })
+      return NextResponse.json({ ok: true, tenant: updated, message: `${org.name} activated.` })
+    }
+
+    if (action === "extend-trial") {
+      const days = trialDays || 14
+      const sub = await prisma.subscription.findFirst({ where: { organizationId: id }, orderBy: { createdAt: "desc" } })
+      if (!sub) return NextResponse.json({ error: "No subscription to extend." }, { status: 400 })
+      const currentEnd = sub.trialEndsAt ? new Date(sub.trialEndsAt) : new Date()
+      const newEnd = new Date(Math.max(currentEnd.getTime(), Date.now()) + days * 86_400_000)
+      const updated = await prisma.subscription.update({
+        where: { id: sub.id },
+        data: { status: "TRIAL", trialEndsAt: newEnd, currentPeriodEnd: newEnd },
+      })
+      forgetPlanCache(id)
+      return NextResponse.json({ ok: true, subscription: updated, message: `Trial extended by ${days} days until ${newEnd.toLocaleDateString()}.` })
+    }
+
     if (action === "assign-plan" && planId) {
       if (!org.billingAddress || !org.billingCity || !org.state || !org.billingPostalCode)
         return NextResponse.json({ error: "Tenant needs a complete billing profile before plan assignment." }, { status: 400 })
@@ -220,8 +229,9 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ok:true,subscriptionId:result.subscription.id,
         invoice:{id:result.invoice.id,invoiceNumber:result.invoice.invoiceNumber,total:result.invoice.total}}, {status:201})
     }
+
     return NextResponse.json({ error: "Unknown action" }, { status: 400 })
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : "Failed" }, { status: 400 })
+    return NextResponse.json({ error: e instanceof Error ? e.message : "Failed to update tenant" }, { status: 400 })
   }
 }
