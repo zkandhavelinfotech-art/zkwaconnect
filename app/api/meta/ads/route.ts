@@ -18,6 +18,9 @@ type AdCampaign = {
   status?: string
   effective_status?: string
   objective?: string
+  created_time?: string
+  start_time?: string
+  stop_time?: string
   updated_time?: string
 }
 type AdSet = {
@@ -110,7 +113,7 @@ export async function GET(request: Request) {
     if (adAccount) {
       const accountPath = adAccount.id
       const [campaignResult, adSetResult, adResult, insightResult, pixelResult] = await Promise.all([
-        metaGraph<Edge<AdCampaign>>(`${accountPath}/campaigns?fields=id,name,status,effective_status,objective,updated_time&limit=100`, accessToken),
+        metaGraph<Edge<AdCampaign>>(`${accountPath}/campaigns?fields=id,name,status,effective_status,objective,created_time,start_time,stop_time,updated_time&limit=100`, accessToken),
         metaGraph<Edge<AdSet>>(`${accountPath}/adsets?fields=campaign_id,destination_type,promoted_object&limit=200`, accessToken),
         metaGraph<Edge<Ad>>(`${accountPath}/ads?fields=campaign_id,effective_status,creative{link_url,object_url,object_story_spec}&limit=300`, accessToken)
           .catch(() => ({ data: [] })),

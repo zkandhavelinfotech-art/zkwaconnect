@@ -8,6 +8,10 @@ type Campaign = {
   status?: string
   effective_status?: string
   objective?: string
+  created_time?: string
+  start_time?: string
+  stop_time?: string
+  updated_time?: string
   campaignType: "CTWA" | "WEBSITE" | "OTHER"
   websiteUrls: string[]
   deliveryStatus: string
@@ -25,6 +29,42 @@ type AdsData = {
   leadFormWarnings: string[]
   selectedFormId: string
   leads: MetaLead[]
+}
+
+function formatDate(value?: string | null) {
+  if (!value) return "—"
+  try {
+    const d = new Date(value)
+    if (isNaN(d.getTime())) return "—"
+    return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+  } catch {
+    return "—"
+  }
+}
+
+function formatRunSchedule(start?: string | null, stop?: string | null) {
+  if (!start) return <span style={{ color: "#98a4a1" }}>Not started</span>
+  const s = formatDate(start)
+  if (!stop) {
+    return (
+      <div>
+        <div style={{ color: "#166534", fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
+          <span style={{ fontSize: 9 }}>🟢</span> Started {s}
+        </div>
+        <div style={{ fontSize: 10, color: "#64748b" }}>Ongoing (No end date)</div>
+      </div>
+    )
+  }
+  const e = formatDate(stop)
+  const isPast = new Date(stop).getTime() < Date.now()
+  return (
+    <div>
+      <div style={{ fontWeight: 600, color: isPast ? "#64748b" : "#183633" }}>{s} &rarr; {e}</div>
+      <div style={{ fontSize: 10, color: isPast ? "#94a3b8" : "#0284c7" }}>
+        {isPast ? "Finished run" : "Scheduled window"}
+      </div>
+    </div>
+  )
 }
 
 const selectStyle: React.CSSProperties = {
@@ -154,9 +194,9 @@ export default function MetaAdsPage() {
               </button>)}
             </div>
           </div>
-          {campaigns.length ? <div style={{overflowX:"auto"}}><table style={{width:"100%",minWidth:820,borderCollapse:"collapse",fontSize:12,textAlign:"left"}}>
+          {campaigns.length ? <div style={{overflowX:"auto"}}><table style={{width:"100%",minWidth:980,borderCollapse:"collapse",fontSize:12,textAlign:"left"}}>
             <thead style={{background:"#f7faf9",color:"#647b77"}}><tr>
-              {[["Campaign",230],["Type",105],["Delivery",120],["Impressions",110],["Clicks",85],["Spend",100],["Website",200]].map(([label,width]) =>
+              {[["Campaign",220],["Type",90],["Delivery",105],["Created Date",120],["Run Schedule",160],["Impressions",100],["Clicks",80],["Spend",95],["Website",160]].map(([label,width]) =>
                 <th key={label as string} style={{width:width as number,padding:"11px 12px",fontWeight:600}}>{label}</th>)}
             </tr></thead>
             <tbody>{campaigns.map(campaign => <tr key={campaign.id} style={{borderTop:"1px solid #edf1f0"}}>
@@ -165,6 +205,15 @@ export default function MetaAdsPage() {
               <td style={{padding:12}}><span style={{padding:"4px 7px",borderRadius:4,background:campaign.campaignType === "CTWA" ? "#eaf8f1" : "#f1f5f9",
                 color:campaign.campaignType === "CTWA" ? "#176b4b" : "#536663",fontSize:10,fontWeight:700}}>{campaign.campaignType}</span></td>
               <td style={{padding:12,color:["ACTIVE","IN_PROCESS"].includes(campaign.deliveryStatus) ? "#168253" : "#647b77"}}>{campaign.deliveryStatus}</td>
+              <td style={{padding:12}}>
+                <div style={{fontWeight:600,color:"#183633"}}>{formatDate(campaign.created_time)}</div>
+                <div style={{fontSize:10,color:"#879491",marginTop:2}}>
+                  {campaign.created_time ? new Date(campaign.created_time).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"}) : ""}
+                </div>
+              </td>
+              <td style={{padding:12}}>
+                {formatRunSchedule(campaign.start_time, campaign.stop_time)}
+              </td>
               <td style={{padding:12}}>{campaign.metrics.impressions.toLocaleString()}</td>
               <td style={{padding:12}}>{campaign.metrics.clicks.toLocaleString()}</td>
               <td style={{padding:12}}>{data.adAccounts.find(account => account.id === accountId)?.currency || ""} {Number(campaign.metrics.spend).toLocaleString("en-IN",{minimumFractionDigits:2})}</td>

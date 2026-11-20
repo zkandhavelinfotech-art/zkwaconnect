@@ -106,8 +106,8 @@ export function RtaConnectorHub() {
   // Stepper active step (1: WABA Account, 2: WhatsApp Number & Migration, 3: Verification & Test)
   const [activeStep, setActiveStep] = useState<1 | 2 | 3>(1)
 
-  // Two Options Switcher: "automated" = AiSensy-style Graph API, "manual" = Direct Meta Suite
-  const [wabaMode, setWabaMode] = useState<"automated" | "manual">("automated")
+  // Multi-Mode Switcher: "automated" = 3-Step Wizard, "agency" = Automated Agency Partner UI, "manual" = Direct Meta Suite
+  const [wabaMode, setWabaMode] = useState<"automated" | "agency" | "manual">("automated")
 
   // Sync state
   const [syncing, setSyncing] = useState(false)
@@ -1275,65 +1275,85 @@ export function RtaConnectorHub() {
       )}
 
       {/* ============================================================== */}
-      {/* TWO OPTIONS SWITCHER: 1 = AUTOMATED API, 2 = MANUAL META SUITE  */}
+      {/* MODE SELECTOR: 1 = AUTOMATED 3-STEP, 2 = AGENCY PARTNER UI, 3 = MANUAL META SUITE */}
       {/* ============================================================== */}
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 10 }}>
         <button
           type="button"
           onClick={() => setWabaMode("automated")}
           style={{
-            flex: 1,
-            minWidth: 260,
-            padding: "12px 16px",
+            padding: "12px 14px",
             borderRadius: 10,
             border: wabaMode === "automated" ? "2px solid #059669" : "1.5px solid #cbd5e1",
             background: wabaMode === "automated" ? "#ecfdf5" : "#fff",
             color: wabaMode === "automated" ? "#065f46" : "#475569",
             fontWeight: 800,
-            fontSize: 13,
+            fontSize: 12,
             cursor: "pointer",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            gap: 8,
+            gap: 6,
             boxShadow: wabaMode === "automated" ? "0 2px 6px rgba(5, 150, 105, 0.15)" : "none",
           }}
         >
-          <span>⚡ Option 1: Automated Mode (AiSensy Style Graph API &bull; Recommended)</span>
+          <span>⚡ Option 1: Automated 3-Step Wizard</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setWabaMode("agency")}
+          style={{
+            padding: "12px 14px",
+            borderRadius: 10,
+            border: wabaMode === "agency" ? "2px solid #10b981" : "1.5px solid #cbd5e1",
+            background: wabaMode === "agency" ? "#f0fdf4" : "#fff",
+            color: wabaMode === "agency" ? "#065f46" : "#475569",
+            fontWeight: 800,
+            fontSize: 12,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 6,
+            boxShadow: wabaMode === "agency" ? "0 2px 6px rgba(16, 185, 129, 0.2)" : "none",
+          }}
+        >
+          <span>🤝 Option 2: Assign Agency Partner (Automated UI)</span>
         </button>
 
         <button
           type="button"
           onClick={() => setWabaMode("manual")}
           style={{
-            flex: 1,
-            minWidth: 260,
-            padding: "12px 16px",
+            padding: "12px 14px",
             borderRadius: 10,
             border: wabaMode === "manual" ? "2px solid #1877F2" : "1.5px solid #cbd5e1",
             background: wabaMode === "manual" ? "#eff6ff" : "#fff",
             color: wabaMode === "manual" ? "#1e40af" : "#475569",
             fontWeight: 800,
-            fontSize: 13,
+            fontSize: 12,
             cursor: "pointer",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            gap: 8,
+            gap: 6,
             boxShadow: wabaMode === "manual" ? "0 2px 6px rgba(24, 119, 242, 0.15)" : "none",
           }}
         >
-          <span>🛠️ Option 2: Manual Mode (Direct Meta Business Suite)</span>
+          <span>🛠️ Option 3: Manual Mode (Meta Suite)</span>
         </button>
       </div>
 
       {/* ============================================================== */}
-      {/* 3-STEP GUIDED ONBOARDING STEPPER (PROGRESSIVE DISCLOSURE)       */}
+      {/* OPTION 1: 3-STEP GUIDED ONBOARDING STEPPER & FLOW              */}
       {/* ============================================================== */}
-      {(() => {
-        const isStep1Done = Boolean(data?.permissionDiagnostic?.wabaId || data?.waba?.primaryWaba?.id)
-        const isStep2Done = Boolean(isVerifiedLive || data?.permissionDiagnostic?.phoneId || (data?.waba?.livePhones?.length ?? 0) > 0)
-        const isStep3Done = Boolean(isStep2Done && (testResult?.ok || isVerifiedLive))
+      {wabaMode === "automated" && (
+        <>
+          {(() => {
+            const isStep1Done = Boolean(data?.permissionDiagnostic?.wabaId || data?.waba?.primaryWaba?.id)
+            const isStep2Done = Boolean(isVerifiedLive || data?.permissionDiagnostic?.phoneId || (data?.waba?.livePhones?.length ?? 0) > 0)
+            const isStep3Done = Boolean(isStep2Done && (testResult?.ok || isVerifiedLive))
 
         return (
           <div
@@ -1523,6 +1543,89 @@ export function RtaConnectorHub() {
           </div>
         )
       })()}
+
+      {/* Quick Agency Partner Pill inside Option 1 */}
+      <div
+        style={{
+          background: "#f0fdf4",
+          border: "1.5px solid #86efac",
+          borderRadius: 12,
+          padding: "12px 18px",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 12,
+          boxShadow: "0 1px 3px rgba(16, 185, 129, 0.08)",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ fontSize: 20 }}>🤝</span>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 800, color: "#166534", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <span>Agency Partner: <strong>Zkandhavel Infotech Private Limited</strong> (<code>246511357935583</code>)</span>
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 800,
+                  background: partnerAccessLevel === "full" ? "#dcfce7" : "#fef3c7",
+                  color: partnerAccessLevel === "full" ? "#15803d" : "#b45309",
+                  padding: "2px 8px",
+                  borderRadius: 10,
+                  border: `1px solid ${partnerAccessLevel === "full" ? "#86efac" : "#fde68a"}`,
+                }}
+              >
+                {partnerAccessLevel === "full" ? "FULL ACCESS" : "PARTIAL ACCESS"}
+              </span>
+              <span style={{ fontSize: 10, fontWeight: 800, background: "#10b981", color: "#fff", padding: "2px 7px", borderRadius: 10 }}>
+                ⚡ AUTOMATED API READY
+              </span>
+            </div>
+            <div style={{ fontSize: 11, color: "#15803d", marginTop: 2 }}>
+              Automated 1-Click Meta Cloud API assignment — manage numbers, templates, campaigns, and diagnostics without opening Meta Business Suite.
+            </div>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <button
+            type="button"
+            onClick={handleAutoAssignAgencyPartner}
+            disabled={assigningPartner}
+            style={{
+              background: "#059669",
+              color: "#fff",
+              border: 0,
+              borderRadius: 6,
+              padding: "7px 14px",
+              fontSize: 11,
+              fontWeight: 800,
+              cursor: assigningPartner ? "not-allowed" : "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+            }}
+          >
+            <span>{assigningPartner ? "⏳" : "⚡"}</span>
+            {assigningPartner ? "Assigning…" : "⚡ 1-Click Auto-Assign"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setWabaMode("agency")}
+            style={{
+              background: "#fff",
+              color: "#065f46",
+              border: "1px solid #86efac",
+              borderRadius: 6,
+              padding: "7px 12px",
+              fontSize: 11,
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            Open Automated Agency UI &rarr;
+          </button>
+        </div>
+      </div>
 
       {/* ============================================================== */}
       {/* STEP 1: WABA ACCOUNT MANAGEMENT                                */}
@@ -2848,9 +2951,380 @@ export function RtaConnectorHub() {
           </div>
         </div>
       )}
+        </>
+      )}
 
       {/* ============================================================== */}
-      {/* OPTION 2: MANUAL MODE DRAWER (WHEN MANUAL MODE IS SELECTED)     */}
+      {/* OPTION 2: AUTOMATED AGENCY PARTNER UI (WHEN AGENCY IS ACTIVE)  */}
+      {/* ============================================================== */}
+      {wabaMode === "agency" && (
+        <div
+          style={{
+            background: "#fff",
+            border: "2px solid #10b981",
+            borderRadius: 14,
+            padding: "22px 24px",
+            boxShadow: "0 4px 12px rgba(16, 185, 129, 0.12)",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 14, marginBottom: 16 }}>
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 24 }}>🤝</span>
+                <h3 style={{ fontSize: 17, fontWeight: 800, color: "#0f172a", margin: 0, fontFamily: "Sora, sans-serif" }}>
+                  Option 2: Assign Agency Partner (Automated UI Mode)
+                </h3>
+                <span
+                  style={{
+                    background: partnerAccessLevel === "full" ? "#dcfce7" : "#fef3c7",
+                    color: partnerAccessLevel === "full" ? "#15803d" : "#b45309",
+                    fontSize: 11,
+                    fontWeight: 800,
+                    padding: "3px 9px",
+                    borderRadius: 10,
+                    border: `1px solid ${partnerAccessLevel === "full" ? "#86efac" : "#fde68a"}`,
+                  }}
+                >
+                  {partnerAccessLevel === "full" ? "FULL ACCESS (FULL CONTROL)" : "PARTIAL ACCESS"}
+                </span>
+                <span style={{ background: "#10b981", color: "#fff", fontSize: 10, fontWeight: 800, padding: "3px 8px", borderRadius: 10 }}>
+                  ⚡ 1-CLICK AUTOMATED API
+                </span>
+              </div>
+              <p style={{ fontSize: 12, color: "#475569", margin: "6px 0 0", lineHeight: 1.5 }}>
+                Directly assign <strong>Zkandhavel Infotech Private Limited</strong> (Partner ID: <code>246511357935583</code>) as your Agency Partner using Meta Cloud API. No manual navigation through Meta Business Suite is required.
+              </p>
+            </div>
+
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <button
+                type="button"
+                onClick={handleAutoAssignAgencyPartner}
+                disabled={assigningPartner}
+                style={{
+                  background: "#047857",
+                  color: "#fff",
+                  border: 0,
+                  borderRadius: 8,
+                  padding: "10px 18px",
+                  fontSize: 13,
+                  fontWeight: 800,
+                  cursor: assigningPartner ? "not-allowed" : "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  boxShadow: "0 2px 8px rgba(4, 120, 87, 0.3)",
+                }}
+              >
+                <span>{assigningPartner ? "⏳" : "⚡"}</span>
+                {assigningPartner ? "Updating Partner…" : partnerAccessLevel === "full" ? "Auto-Assign Full Access (1-Click)" : "Auto-Assign Partial Access (1-Click)"}
+              </button>
+            </div>
+          </div>
+
+          {/* Toggles: Access Level & Target Portfolio */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+              gap: 14,
+              background: "#f8fafc",
+              border: "1px solid #e2e8f0",
+              borderRadius: 10,
+              padding: "14px 18px",
+              marginBottom: 16,
+            }}
+          >
+            {/* Access Level Selector */}
+            <div>
+              <label style={{ display: "block", fontSize: 11, fontWeight: 800, color: "#334155", textTransform: "uppercase", marginBottom: 6 }}>
+                Permission Tier:
+              </label>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <label
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    background: partnerAccessLevel === "full" ? "#dcfce7" : "#fff",
+                    color: partnerAccessLevel === "full" ? "#166534" : "#475569",
+                    padding: "6px 12px",
+                    borderRadius: 6,
+                    border: `1px solid ${partnerAccessLevel === "full" ? "#86efac" : "#cbd5e1"}`,
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="partnerAccessLevel_main"
+                    checked={partnerAccessLevel === "full"}
+                    onChange={() => setPartnerAccessLevel("full")}
+                  />
+                  <span>🌟 Full Access (Full Control)</span>
+                </label>
+
+                <label
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    background: partnerAccessLevel === "partial" ? "#fef3c7" : "#fff",
+                    color: partnerAccessLevel === "partial" ? "#92400e" : "#475569",
+                    padding: "6px 12px",
+                    borderRadius: 6,
+                    border: `1px solid ${partnerAccessLevel === "partial" ? "#fde68a" : "#cbd5e1"}`,
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="partnerAccessLevel_main"
+                    checked={partnerAccessLevel === "partial"}
+                    onChange={() => setPartnerAccessLevel("partial")}
+                  />
+                  <span>🔹 Partial Access</span>
+                </label>
+              </div>
+              <p style={{ margin: "5px 0 0", fontSize: 11, color: "#64748b", lineHeight: 1.4 }}>
+                {partnerAccessLevel === "full"
+                  ? "Full Control: Manage WhatsApp account, phone numbers, templates, ads, messages, and insights."
+                  : "Partial Access: Limited to message replies, content publishing, and analytics."}
+              </p>
+            </div>
+
+            {/* Portfolio Target Selector */}
+            <div>
+              <label style={{ display: "block", fontSize: 11, fontWeight: 800, color: "#334155", textTransform: "uppercase", marginBottom: 6 }}>
+                Target Business Portfolio:
+              </label>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <label
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    background: partnerTargetPortfolio === "all" ? "#f0fdf4" : "#fff",
+                    color: partnerTargetPortfolio === "all" ? "#166534" : "#475569",
+                    padding: "6px 10px",
+                    borderRadius: 6,
+                    border: `1px solid ${partnerTargetPortfolio === "all" ? "#86efac" : "#cbd5e1"}`,
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="partnerTargetPortfolio_main"
+                    checked={partnerTargetPortfolio === "all"}
+                    onChange={() => setPartnerTargetPortfolio("all")}
+                  />
+                  <span>Both Portfolios (Recommended)</span>
+                </label>
+
+                <label
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    background: partnerTargetPortfolio === "1185206983626614" ? "#f0fdf4" : "#fff",
+                    color: partnerTargetPortfolio === "1185206983626614" ? "#166534" : "#475569",
+                    padding: "6px 10px",
+                    borderRadius: 6,
+                    border: `1px solid ${partnerTargetPortfolio === "1185206983626614" ? "#86efac" : "#cbd5e1"}`,
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="partnerTargetPortfolio_main"
+                    checked={partnerTargetPortfolio === "1185206983626614"}
+                    onChange={() => setPartnerTargetPortfolio("1185206983626614")}
+                  />
+                  <span>WABA (1185206983626614)</span>
+                </label>
+
+                <label
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    background: partnerTargetPortfolio === "1707214344108990" ? "#f0fdf4" : "#fff",
+                    color: partnerTargetPortfolio === "1707214344108990" ? "#166534" : "#475569",
+                    padding: "6px 10px",
+                    borderRadius: 6,
+                    border: `1px solid ${partnerTargetPortfolio === "1707214344108990" ? "#86efac" : "#cbd5e1"}`,
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="partnerTargetPortfolio_main"
+                    checked={partnerTargetPortfolio === "1707214344108990"}
+                    onChange={() => setPartnerTargetPortfolio("1707214344108990")}
+                  />
+                  <span>App / Page (1707214344108990)</span>
+                </label>
+              </div>
+              <p style={{ margin: "5px 0 0", fontSize: 11, color: "#64748b", lineHeight: 1.4 }}>
+                Portfolio 1185206983626614 holds WABA 1290742346350527. Portfolio 1707214344108990 holds Facebook Page &amp; Meta App.
+              </p>
+            </div>
+          </div>
+
+          {partnerAssignResult && (
+            <div style={{ marginBottom: 16, background: "#f0fdf4", border: "1.5px solid #86efac", borderRadius: 10, padding: "12px 16px", fontSize: 12, color: "#166534" }}>
+              <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
+                <span>✓</span> Meta Graph API Execution Result:
+              </div>
+              <div>{partnerAssignResult.message}</div>
+              {partnerAssignResult.directPartnerUrl && (
+                <div style={{ marginTop: 8 }}>
+                  <a
+                    href={partnerAssignResult.directPartnerUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      background: "#059669",
+                      color: "#fff",
+                      textDecoration: "none",
+                      padding: "6px 12px",
+                      borderRadius: 6,
+                      fontSize: 11,
+                      fontWeight: 800,
+                      display: "inline-block",
+                    }}
+                  >
+                    Open Assigned Partner in Meta Business Suite ↗
+                  </a>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Meta Business Suite Manual Verification / Fallback Links */}
+          <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: "14px 18px", marginBottom: 16 }}>
+            <div style={{ fontSize: 12, fontWeight: 800, color: "#0f172a", marginBottom: 8 }}>
+              📋 Direct Verification Links in Meta Business Suite:
+            </div>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+              <a
+                href="https://business.facebook.com/latest/settings/partners?business_id=1185206983626614&selected_partner_id=246511357935583"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  background: "#047857",
+                  color: "#fff",
+                  textDecoration: "none",
+                  padding: "8px 14px",
+                  borderRadius: 6,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                <span>↗</span> Open Partner in Portfolio 1185206983626614 (WABA Assets)
+              </a>
+
+              <a
+                href="https://business.facebook.com/latest/settings/partners?business_id=1707214344108990&selected_partner_id=246511357935583"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  background: "#1877F2",
+                  color: "#fff",
+                  textDecoration: "none",
+                  padding: "8px 14px",
+                  borderRadius: 6,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                <span>↗</span> Open Partner in Portfolio 1707214344108990 (Page Assets)
+              </a>
+            </div>
+          </div>
+
+          {/* Step-by-Step Meta Suite Guide */}
+          <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "12px 16px", marginBottom: 16 }}>
+            <div style={{ fontSize: 12, fontWeight: 800, color: "#0f172a", marginBottom: 6 }}>
+              🔍 Manual Verification in Meta Business Suite:
+            </div>
+            <ol style={{ margin: 0, paddingLeft: 20, fontSize: 12, color: "#475569", lineHeight: 1.6 }}>
+              <li>
+                Open Meta Business Suite for Portfolio <strong>1185206983626614</strong> (WhatsApp Accounts) or <strong>1707214344108990</strong> (Pages).
+              </li>
+              <li>
+                In the left sidebar under <strong>Users</strong>, click <strong>Partners</strong> &gt; Select <strong>Zkandhavel Infotech Private Limited</strong> (<code>246511357935583</code>).
+              </li>
+              <li>
+                Click the blue <strong>Assign assets</strong> button (or inspect existing assigned assets).
+              </li>
+              <li>
+                Select <strong>WhatsApp accounts</strong> &gt; Check <code>recruitmenttrainingacademy</code> (WABA: 1290742346350527).
+              </li>
+              <li>
+                Under Permissions on the right column: toggle <strong>Full control (Manage WhatsApp account)</strong> to <strong>ON</strong>.
+              </li>
+              <li>
+                Click <strong>Save changes</strong>.
+              </li>
+            </ol>
+          </div>
+
+          {/* Mode Switch Navigation */}
+          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", flexWrap: "wrap" }}>
+            <button
+              type="button"
+              onClick={() => setWabaMode("automated")}
+              style={{
+                background: "#f1f5f9",
+                color: "#0f172a",
+                border: "1px solid #cbd5e1",
+                borderRadius: 6,
+                padding: "8px 14px",
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              ← Back to Option 1: 3-Step Wizard
+            </button>
+            <button
+              type="button"
+              onClick={() => setWabaMode("manual")}
+              style={{
+                background: "#f1f5f9",
+                color: "#1e40af",
+                border: "1px solid #bfdbfe",
+                borderRadius: 6,
+                padding: "8px 14px",
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              Switch to Option 3: Manual Mode →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* OPTION 3: MANUAL MODE DRAWER (WHEN MANUAL MODE IS SELECTED)     */}
       {/* ============================================================== */}
       {wabaMode === "manual" && (
         <div style={{ background: "#f8fafc", border: "1.5px solid #93c5fd", borderRadius: 14, padding: 20 }}>
@@ -2930,6 +3404,59 @@ export function RtaConnectorHub() {
               <span>🤝 Step 3: Assign Agency Partner (Zkandhavel Infotech: 246511357935583 &bull; Pre-filled)</span>
               <span>↗</span>
             </a>
+
+            {/* Automated UI Callout inside Step 3 */}
+            <div style={{ background: "#ecfdf5", border: "1.5px solid #10b981", borderRadius: 8, padding: "12px 14px", marginTop: 4 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: 13, color: "#065f46", display: "flex", alignItems: "center", gap: 6 }}>
+                    <span>⚡</span> Automated UI Mode Available
+                  </div>
+                  <div style={{ fontSize: 11, color: "#047857", marginTop: 2 }}>
+                    Prefer 1-click automatic assignment via Meta Graph API instead of navigating Meta Business Suite manually?
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <button
+                    type="button"
+                    onClick={handleAutoAssignAgencyPartner}
+                    disabled={assigningPartner}
+                    style={{
+                      background: "#059669",
+                      color: "#fff",
+                      border: 0,
+                      borderRadius: 6,
+                      padding: "7px 14px",
+                      fontSize: 11,
+                      fontWeight: 800,
+                      cursor: assigningPartner ? "not-allowed" : "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 4,
+                    }}
+                  >
+                    <span>{assigningPartner ? "⏳" : "⚡"}</span>
+                    {assigningPartner ? "Assigning…" : "1-Click Auto-Assign Partner"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setWabaMode("agency")}
+                    style={{
+                      background: "#fff",
+                      color: "#065f46",
+                      border: "1px solid #059669",
+                      borderRadius: 6,
+                      padding: "7px 12px",
+                      fontSize: 11,
+                      fontWeight: 800,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Open Full Automated UI →
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
 
           <form onSubmit={handleConnectOfficialWaba} style={{ background: "#fff", border: "1px solid #cbd5e1", borderRadius: 8, padding: 14, display: "grid", gap: 10 }}>
@@ -2978,17 +3505,18 @@ export function RtaConnectorHub() {
       )}
 
       {/* ============================================================== */}
-      {/* QUICK ASSIGN AGENCY PARTNER BAR                                */}
+      {/* QUICK ASSIGN AGENCY PARTNER BAR (SUMMARY IN OTHER MODES)       */}
       {/* ============================================================== */}
-      <div
-        style={{
-          background: "#fff",
-          border: "1.5px solid #10b981",
-          borderRadius: 14,
-          padding: "18px 22px",
-          boxShadow: "0 2px 8px rgba(16, 185, 129, 0.08)",
-        }}
-      >
+      {wabaMode !== "agency" && (
+        <div
+          style={{
+            background: "#fff",
+            border: "1.5px solid #10b981",
+            borderRadius: 14,
+            padding: "18px 22px",
+            boxShadow: "0 2px 8px rgba(16, 185, 129, 0.08)",
+          }}
+        >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 14, marginBottom: 14 }}>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -3275,6 +3803,7 @@ export function RtaConnectorHub() {
           </div>
         )}
       </div>
+      )}
     </div>
   )
 }
