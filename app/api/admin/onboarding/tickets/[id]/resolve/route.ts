@@ -40,13 +40,32 @@ export async function POST(
       },
     })
 
-    if (status === "RESOLVED") {
+    if (status === "RESOLVED" || status === "CLOSED") {
       await recordLifecycleLog({
         organizationId: ticket.organizationId,
         eventType: "SUPPORT_TICKET_RESOLVED",
         statusTo: "CONNECTED",
         sanitizedMessage: `Assisted onboarding ticket #${id.slice(-6).toUpperCase()} was marked resolved by support admin.`,
       })
+
+      // Dispatch in-app notification to the tenant workspace
+      try {
+        await prisma.notification.create({
+          data: {
+            organizationId: ticket.organizationId,
+            type: "SUPPORT_TICKET_RESOLVED",
+            title: `Onboarding Support Ticket #${id.slice(-6).toUpperCase()} Resolved`,
+            message: `Your assisted WhatsApp onboarding ticket was resolved by support admin: ${resolutionNotes}`,
+            metadata: {
+              ticketId: id,
+              status,
+              resolvedAt: new Date().toISOString(),
+            },
+          },
+        })
+      } catch (notifErr: any) {
+        console.warn("[TICKET_RESOLVE_NOTIFICATION_NOTE]", notifErr?.message)
+      }
     }
 
     return NextResponse.json({

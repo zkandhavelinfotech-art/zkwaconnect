@@ -19,10 +19,10 @@ export async function GET() {
         wabas: {
           include: {
             phoneNumbers: {
-              orderBy: { createdAt: "desc" },
+              orderBy: { updatedAt: "desc" },
             },
           },
-          orderBy: { createdAt: "desc" },
+          orderBy: { updatedAt: "desc" },
         },
         metaConnections: {
           orderBy: { updatedAt: "desc" },
@@ -42,9 +42,33 @@ export async function GET() {
 
     const isConnected = Boolean(activeWaba && activePhone?.status === "CONNECTED")
 
+    // Retrieve latest WebhookEvent to evaluate heartbeat health
+    const latestWebhook = await prisma.webhookEvent.findFirst({
+      where: { organizationId },
+      orderBy: { createdAt: "desc" },
+      select: { createdAt: true, eventType: true },
+    })
+
+    const now = Date.now()
+    const lastEventTime = latestWebhook ? new Date(latestWebhook.createdAt).getTime() : 0
+    const hoursSinceLastEvent = lastEventTime ? (now - lastEventTime) / (1000 * 60 * 60) : null
+
+    let webhookHealth = "Inactive"
+    if (isConnected) {
+      if (latestWebhook && hoursSinceLastEvent !== null && hoursSinceLastEvent < 24) {
+        webhookHealth = "Active (Live Heartbeat < 24h)"
+      } else if (latestWebhook) {
+        webhookHealth = "Dormant (Subscribed, Idle)"
+      } else {
+        webhookHealth = "Subscribed (Listening)"
+      }
+    }
+
     const health = {
       apiConnection: isConnected ? "Active" : activeWaba ? "Partial" : "Inactive",
-      webhook: isConnected ? "Active" : "Pending",
+      webhook: webhookHealth,
+      lastWebhookEventAt: latestWebhook?.createdAt || null,
+      lastWebhookEventType: latestWebhook?.eventType || null,
       numberRegistration: activePhone?.status === "CONNECTED" ? "Complete" : "Pending",
       qualityRating: activePhone?.qualityRating || "UNKNOWN",
       messagingLimit: activePhone?.messagingLimit || "TIER_250",
@@ -73,6 +97,7 @@ export async function GET() {
                   status: activePhone.status,
                   verificationStatus: activePhone.verificationStatus,
                   qualityRating: activePhone.qualityRating,
+                  isDefault: true,
                 }
               : null,
           }
@@ -88,6 +113,7 @@ export async function GET() {
           phoneNumber: p.phoneNumber,
           displayName: p.displayName,
           status: p.status,
+          isDefault: activePhone?.id === p.id,
         })),
       })),
       health,

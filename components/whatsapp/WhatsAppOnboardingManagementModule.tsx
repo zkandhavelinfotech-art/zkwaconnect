@@ -23,6 +23,7 @@ type OnboardingState = {
       status: string
       verificationStatus: string | null
       qualityRating: string | null
+      isDefault?: boolean
     } | null
   } | null
   accounts: {
@@ -36,6 +37,7 @@ type OnboardingState = {
       phoneNumber: string
       displayName: string | null
       status: string
+      isDefault?: boolean
     }[]
   }[]
   health: {
@@ -46,6 +48,8 @@ type OnboardingState = {
     messagingLimit: string
     callingEnabled: boolean
     lastSyncedAt: string | null
+    lastWebhookEventAt?: string | null
+    lastWebhookEventType?: string | null
   }
 }
 
@@ -62,6 +66,7 @@ export function WhatsAppOnboardingManagementModule() {
   const [showDisconnectModal, setShowDisconnectModal] = useState(false)
   const [readiness, setReadiness] = useState<any>(null)
   const [metaConfig, setMetaConfig] = useState<any>(null)
+  const [settingDefault, setSettingDefault] = useState<string | null>(null)
 
   // Profile Form state
   const [profileForm, setProfileForm] = useState({
@@ -126,6 +131,27 @@ export function WhatsAppOnboardingManagementModule() {
       setErrorMessage(err.message || "Network error running diagnostics.")
     } finally {
       setRetrying(false)
+    }
+  }
+
+  const handleSetDefaultPhone = async (phoneNumberId: string) => {
+    try {
+      setSettingDefault(phoneNumberId)
+      setErrorMessage(null)
+      setActionMessage(null)
+      const res = await fetch("/api/whatsapp/accounts/default-phone", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phoneNumberId }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || "Failed to set default phone number.")
+      setActionMessage(`⭐ ${json.message}`)
+      await refreshAccounts()
+    } catch (err: any) {
+      setErrorMessage(err?.message || "Could not set default phone number.")
+    } finally {
+      setSettingDefault(null)
     }
   }
 
@@ -857,7 +883,7 @@ export function WhatsAppOnboardingManagementModule() {
                 {/* TRI-PARTITE HEALTH MONITOR */}
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 12 }}>
                   <HealthBox label="API Connection" value={`● ${data?.health.apiConnection || "Active"}`} good />
-                  <HealthBox label="Webhook Status" value={`● ${data?.health.webhook || "Active"}`} good />
+                  <HealthBox label="Webhook Status" value={`● ${data?.health.webhook || "Active"}`} good={!data?.health?.webhook?.includes("Inactive")} />
                   <HealthBox label="Number Registration" value={`✓ ${data?.health.numberRegistration || "Complete"}`} good />
                   <HealthBox label="Quality Rating" value={phone?.qualityRating || "GREEN"} />
                   <HealthBox label="Messaging Tier" value={data?.health.messagingLimit || "TIER_250"} />
@@ -876,6 +902,107 @@ export function WhatsAppOnboardingManagementModule() {
                   <StepItem completed={Boolean(phone?.verificationStatus)} title="Phone Verified" subtitle="SMS / Voice OTP" />
                   <StepItem completed={Boolean(phone?.status === "CONNECTED")} title="Number Registered" subtitle="PIN provisioned" />
                   <StepItem completed={isConnected} title="API Connected" subtitle="Broadcast ready" />
+                </div>
+              </div>
+
+              {/* CONNECTED PHONE NUMBERS & WORKSPACE DEFAULT SWITCHER */}
+              <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 20 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 10 }}>
+                  <div>
+                    <h4 style={{ fontFamily: "Sora, sans-serif", fontSize: 15, fontWeight: 800, color: "#0f172a", margin: 0 }}>
+                      📱 Connected Phone Numbers &amp; Workspace Active Sender
+                    </h4>
+                    <p style={{ fontSize: 12, color: "#64748b", margin: "2px 0 0" }}>
+                      Select which verified WhatsApp number is the default outbound sender across Live Chat, Campaigns, and Broadcasts.
+                    </p>
+                  </div>
+                  <span style={{ fontSize: 11, fontWeight: 800, background: "#f1f5f9", color: "#475569", padding: "3px 10px", borderRadius: 20 }}>
+                    {data?.accounts?.reduce((acc, a) => acc + (a.phoneNumbers?.length || 0), 0) || 1} Phone Number(s) Total
+                  </span>
+                </div>
+
+                <div style={{ display: "grid", gap: 10 }}>
+                  {data?.accounts?.flatMap(a =>
+                    a.phoneNumbers.map(p => {
+                      const isDefaultNumber = Boolean(p.isDefault || p.phoneNumberId === phone?.phoneNumberId)
+                      return (
+                        <div
+                          key={p.id}
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            background: isDefaultNumber ? "#f0fdf4" : "#f8fafc",
+                            border: `1.5px solid ${isDefaultNumber ? "#86efac" : "#e2e8f0"}`,
+                            borderRadius: 10,
+                            padding: "12px 16px",
+                            flexWrap: "wrap",
+                            gap: 12,
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                            <div
+                              style={{
+                                width: 34,
+                                height: 34,
+                                borderRadius: 8,
+                                background: isDefaultNumber ? "#16a34a" : "#cbd5e1",
+                                color: "#fff",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontSize: 16,
+                              }}
+                            >
+                              📱
+                            </div>
+                            <div>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                                <strong style={{ fontSize: 14, color: "#0f172a" }}>{p.phoneNumber}</strong>
+                                {isDefaultNumber && (
+                                  <span style={{ fontSize: 10, fontWeight: 800, background: "#dcfce7", color: "#15803d", padding: "2px 8px", borderRadius: 10, border: "1px solid #86efac" }}>
+                                    ⭐ DEFAULT OUTBOUND SENDER
+                                  </span>
+                                )}
+                                <span style={{ fontSize: 10, fontWeight: 700, color: p.status === "CONNECTED" ? "#16a34a" : "#ca8a04" }}>
+                                  ● {p.status}
+                                </span>
+                              </div>
+                              <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>
+                                Display: <strong>{p.displayName || "Recruitment Training Academy"}</strong> &bull; WABA: <code>{a.wabaId}</code> &bull; Phone ID: <code>{p.phoneNumberId}</code>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div>
+                            {isDefaultNumber ? (
+                              <span style={{ fontSize: 12, fontWeight: 800, color: "#166534", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                                <span>✓</span> Active Sender
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleSetDefaultPhone(p.phoneNumberId)}
+                                disabled={Boolean(settingDefault)}
+                                style={{
+                                  background: "#ffffff",
+                                  border: "1.5px solid #cbd5e1",
+                                  borderRadius: 8,
+                                  padding: "6px 14px",
+                                  fontSize: 12,
+                                  fontWeight: 700,
+                                  color: "#334155",
+                                  cursor: settingDefault ? "not-allowed" : "pointer",
+                                }}
+                              >
+                                {settingDefault === p.phoneNumberId ? "Setting…" : "⭐ Set as Workspace Default"}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })
+                  )}
                 </div>
               </div>
             </div>
@@ -1500,6 +1627,25 @@ export function WhatsAppOnboardingManagementModule() {
             <p style={{ margin: "0 0 16px", fontSize: 13, color: "#64748b" }}>
               Ensure your business meets these requirements before opening the Meta Embedded Signup dialog:
             </p>
+
+            {/* MOBILE COEXISTENCE & NUMBER MIGRATION NOTICE */}
+            <div style={{ background: "#eff6ff", border: "1.5px solid #93c5fd", borderRadius: 10, padding: "12px 14px", marginBottom: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                <span style={{ fontSize: 16 }}>📱</span>
+                <strong style={{ fontSize: 13, color: "#1e40af" }}>
+                  Migrating a number currently on WhatsApp or WhatsApp Business mobile app?
+                </strong>
+              </div>
+              <p style={{ margin: "0 0 8px", fontSize: 11, color: "#334155", lineHeight: 1.5 }}>
+                Meta requires a number to be unlinked from the mobile app before connecting to the Cloud API to prevent OTP verification error <code>#133005</code>.
+              </p>
+              <div style={{ fontSize: 11, color: "#1e3a8a", lineHeight: 1.5, background: "#fff", padding: "8px 10px", borderRadius: 6, border: "1px solid #bfdbfe" }}>
+                <strong>Required 3-Step Migration:</strong><br />
+                1. Open WhatsApp on phone &rarr; <strong>Settings &rarr; Account &rarr; Delete My Account</strong>.<br />
+                2. Wait <strong>3 to 5 minutes</strong> for Meta to release the phone number from mobile routing.<br />
+                3. Ensure your SIM can receive SMS/Voice calls for the 6-digit Meta verification code.
+              </div>
+            </div>
 
             <div style={{ display: "grid", gap: 10, marginBottom: 20 }}>
               {readiness?.preflightChecklist?.map((item: any) => (

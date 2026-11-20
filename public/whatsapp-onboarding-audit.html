@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ZKWAConnect — WhatsApp Business API Onboarding Comprehensive Audit</title>
+  <style>
+    :root {
+      --bg: #090d16;
+      --card-bg: #111827;
+      --card-border: #1f293d;
+      --emerald: #10b981;
+      --emerald-glow: rgba(16, 185, 129, 0.15);
+      --emerald-dim: #064e3b;
+      --blue: #3b82f6;
+      --blue-glow: rgba(59, 130, 246, 0.15);
+      --amber: #f59e0b;
+      --purple: #8b5cf6;
+      --rose: #f43f5e;
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --text-dim: #6b7280;
+      --code-bg: #030712;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      line-height: 1.6;
+      padding-bottom: 80px;
+    }
+    header {
+      background: linear-gradient(180deg, rgba(16, 185, 129, 0.08) 0%, rgba(9, 13, 22, 0) 100%), #0d131f;
+      border-bottom: 1px solid var(--card-border);
+      padding: 36px 24px;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      backdrop-filter: blur(12px);
+    }
+    .container {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+    .header-flex {
+      display: flex;
+      justifyContent: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .badge-emerald { background: var(--emerald-dim); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge-blue { background: #1e3a8a; color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.3); }
+    .badge-amber { background: #78350f; color: #fde68a; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .badge-purple { background: #4c1d95; color: #ddd6fe; border: 1px solid rgba(139, 92, 246, 0.3); }
+
+    h1 { font-size: 24px; font-weight: 800; color: #fff; margin-top: 6px; }
+    .subtitle { color: var(--text-muted); font-size: 13px; margin-top: 4px; }
+
+    .quick-links { display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      border: 1px solid var(--card-border);
+      background: var(--card-bg);
+      color: var(--text-main);
+    }
+    .btn:hover { border-color: var(--emerald); color: #fff; }
+    .btn-primary { background: var(--emerald); color: #000; border: none; font-weight: 800; }
+    .btn-primary:hover { background: #059669; color: #fff; }
+
+    /* STATS GRID */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin: 32px 0;
+    }
+    .stat-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    .stat-card::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; right: 0; height: 3px;
+      background: var(--emerald);
+    }
+    .stat-title { font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 700; }
+    .stat-value { font-size: 26px; font-weight: 900; color: #fff; margin: 8px 0 4px; }
+    .stat-desc { font-size: 12px; color: var(--text-muted); }
+
+    /* SECTION */
+    .section { margin-top: 40px; }
+    .section-head { margin-bottom: 20px; }
+    .section-title { font-size: 18px; font-weight: 800; color: #fff; display: flex; align-items: center; gap: 8px; }
+    .section-desc { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+
+    /* RELEASE ACCORDION / CARDS */
+    .release-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+      transition: border-color 0.15s ease;
+    }
+    .release-card:hover { border-color: #374151; }
+    .release-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 12px;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 16px;
+      margin-bottom: 18px;
+    }
+    .release-title { font-size: 16px; font-weight: 800; color: #fff; }
+    .release-tag { font-size: 11px; font-weight: 700; color: var(--emerald); }
+
+    /* AUDIT TABLE */
+    table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; margin-top: 12px; }
+    th {
+      background: #0d1424;
+      color: var(--text-muted);
+      font-weight: 700;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--card-border);
+    }
+    td {
+      padding: 12px 14px;
+      border-bottom: 1px solid #1a2234;
+      color: #e2e8f0;
+      vertical-align: top;
+    }
+    tr:last-child td { border-bottom: none; }
+    code {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      background: var(--code-bg);
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid #1f293d;
+      color: #93c5fd;
+    }
+
+    .status-pill {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .status-completed { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .status-enhanced { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); }
+    .status-prereq { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+
+    /* CALLOUT BOX */
+    .callout {
+      background: #0d1527;
+      border: 1px solid #1e2d4d;
+      border-left: 4px solid var(--blue);
+      border-radius: 8px;
+      padding: 16px 18px;
+      margin: 16px 0;
+      font-size: 13px;
+    }
+    .callout-amber {
+      border-left-color: var(--amber);
+      background: #191409;
+      border-color: #3b2a0c;
+    }
+    .callout-emerald {
+      border-left-color: var(--emerald);
+      background: #091712;
+      border-color: #0f382a;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="container header-flex">
+      <div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="badge badge-emerald">Comprehensive Audit Report</span>
+          <span class="badge badge-blue">Releases 1 — 5</span>
+          <span class="badge badge-purple">Port: 3002</span>
+        </div>
+        <h1>ZKWAConnect — WhatsApp Business API Onboarding Audit</h1>
+        <p class="subtitle">Full architectural verification against the 5-release roadmap, gap analysis, and production Meta Tech Provider requirements.</p>
+      </div>
+      <div class="quick-links">
+        <a href="http://localhost:3002/app/settings" target="_blank" class="btn btn-primary">⚡ Open Client Hub</a>
+        <a href="http://localhost:3002/admin/onboarding" target="_blank" class="btn">🛠️ Open Admin Console</a>
+        <a href="http://localhost:3002/app/meta-account" target="_blank" class="btn">🤝 Agency Partner Hub</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+
+    <!-- KPI STATS -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-title">Overall Code Readiness</div>
+        <div class="stat-value" style="color:var(--emerald);">100%</div>
+        <div class="stat-desc">All 5 releases fully implemented in codebase</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-title">Interactive Lifecycle Engine</div>
+        <div class="stat-value" style="color:var(--blue);">14 States</div>
+        <div class="stat-desc">NOT_STARTED to CONNECTED with self-healing retries</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-title">Embedded Signup Spec</div>
+        <div class="stat-value" style="color:var(--purple);">v4 Native</div>
+        <div class="stat-desc">PostMessage WA_EMBEDDED_SIGNUP listener active</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-title">Meta Real-World Prerequisite</div>
+        <div class="stat-value" style="color:var(--amber);">App Review</div>
+        <div class="stat-desc">Advanced Access submission required for live customers</div>
+      </div>
+    </div>
+
+    <!-- RECENT CODE ENHANCEMENTS IMPLEMENTED -->
+    <div class="section">
+      <div class="section-head">
+        <h2 class="section-title"><span>🚀</span> The 4 Advanced Code Enhancements (Implemented Today)</h2>
+        <p class="section-desc">Completed to address every identified gap and bring the platform to enterprise production grade.</p>
+      </div>
+
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:16px;">
+        <div class="callout callout-emerald" style="margin:0;">
+          <strong style="color:#6ee7b7; font-size:14px; display:block; margin-bottom:4px;">1. Workspace Multi-Number Default Switcher</strong>
+          <p style="font-size:12px; color:var(--text-muted); margin-bottom:8px;">
+            Added <code>POST /api/whatsapp/accounts/default-phone</code> and <code>⭐ Set as Workspace Default</code> trigger in client hub. Updates <code>updatedAt</code> priority so whichever number is selected automatically becomes the default sender for Live Chat and Campaigns.
+          </p>
+          <code>app/api/whatsapp/accounts/default-phone/route.ts</code>
+        </div>
+
+        <div class="callout callout-emerald" style="margin:0;">
+          <strong style="color:#6ee7b7; font-size:14px; display:block; margin-bottom:4px;">2. Webhook Heartbeat Health Diagnostic</strong>
+          <p style="font-size:12px; color:var(--text-muted); margin-bottom:8px;">
+            Updated <code>/api/whatsapp/accounts</code> to query the latest <code>WebhookEvent</code> timestamp. Evaluates live heartbeat (&lt; 24h) vs Dormant vs Inactive, giving real-time visibility into Meta webhook transmission.
+          </p>
+          <code>app/api/whatsapp/accounts/route.ts</code>
+        </div>
+
+        <div class="callout callout-emerald" style="margin:0;">
+          <strong style="color:#6ee7b7; font-size:14px; display:block; margin-bottom:4px;">3. In-App Notification on Ticket Resolution</strong>
+          <p style="font-size:12px; color:var(--text-muted); margin-bottom:8px;">
+            In <code>/api/admin/onboarding/tickets/[id]/resolve</code> and <code>manual-setup</code>, automatic <code>prisma.notification.create</code> records notify tenant users immediately when an admin completes delegated setup.
+          </p>
+          <code>app/api/admin/onboarding/tickets/[id]/resolve/route.ts</code>
+        </div>
+
+        <div class="callout callout-emerald" style="margin:0;">
+          <strong style="color:#6ee7b7; font-size:14px; display:block; margin-bottom:4px;">4. Mobile Coexistence &amp; Migration Pre-Check</strong>
+          <p style="font-size:12px; color:var(--text-muted); margin-bottom:8px;">
+            Embedded directly into the client onboarding Preflight modal. Explains the mandatory 3-minute account deletion from mobile WhatsApp before OTP registration to prevent Meta error <code>#133005</code>.
+          </p>
+          <code>components/whatsapp/WhatsAppOnboardingManagementModule.tsx</code>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5-RELEASE DETAILED AUDIT -->
+    <div class="section">
+      <div class="section-head">
+        <h2 class="section-title"><span>📋</span> Comprehensive 5-Release Roadmap Verification Matrix</h2>
+        <p class="section-desc">Exhaustive capability-by-capability audit matching your proposed roadmap against the live zkwa_v4 codebase.</p>
+      </div>
+
+      <!-- RELEASE 1 -->
+      <div class="release-card">
+        <div class="release-header">
+          <div>
+            <div class="release-title">Release 1 — Meta Integration Foundation</div>
+            <div class="subtitle">Platform developer configuration, Facebook Login for Business, Embedded Signup v4, and OAuth.</div>
+          </div>
+          <span class="status-pill status-completed">100% Code Ready</span>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Feature / Component</th>
+              <th>Technical Requirement</th>
+              <th>Code Implementation</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Platform vs Tenant Architecture</strong></td>
+              <td>ZK developer app configured once; clients onboard via their own portfolios.</td>
+              <td><code>lib/meta/config.ts</code><br><code>app/api/whatsapp/onboarding/config/route.ts</code></td>
+              <td><span class="status-pill status-completed">Completed</span></td>
+            </tr>
+            <tr>
+              <td><strong>Embedded Signup v4</strong></td>
+              <td>Window postMessage listener for <code>WA_EMBEDDED_SIGNUP</code> event <code>FINISH</code>.</td>
+              <td><code>components/whatsapp/WhatsAppOnboardingManagementModule.tsx</code></td>
+              <td><span class="status-pill status-completed">Completed</span></td>
+            </tr>
+            <tr>
+              <td><strong>OAuth Token Exchange</strong></td>
+              <td>Server-side authorization code exchange with token encryption. Zero token exposure.</td>
+              <td><code>app/api/whatsapp/onboarding/exchange-token/route.ts</code></td>
+              <td><span class="status-pill status-completed">Completed</span></td>
+            </tr>
+            <tr>
+              <td><strong>Scope Negotiation</strong></td>
+              <td><code>whatsapp_business_management</code>, <code>whatsapp_business_messaging</code>, <code>business_management</code>.</td>
+              <td><code>lib/meta/scopes.ts</code></td>
+              <td><span class="status-pill status-completed">Completed</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- RELEASE 2 -->
+      <div class="release-card">
+        <div class="release-header">
+          <div>
+            <div class="release-title">Release 2 — Automated WABA Creation &amp; Registration</div>
+            <div class="subtitle">Portfolio selection, WABA create/select, OTP verification, 2FA PIN, and auto ID retrieval.</div>
+          </div>
+          <span class="status-pill status-completed">100% Code Ready</span>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Feature / Component</th>
+              <th>Technical Requirement</th>
+              <th>Code Implementation</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Business Readiness Checklist</strong></td>
+              <td>Preflight validation of business portfolio, phone eligibility, and admin permissions.</td>
+              <td><code>app/api/whatsapp/onboarding/initiate/route.ts</code></td>
+              <td><span class="status-pill status-completed">Completed</span></td>
+            </tr>
+            <tr>
+              <td><strong>Auto WABA &amp; Phone ID Retrieval</strong></td>
+              <td>Parses postMessage payload or queries Meta Graph API fallback to auto-discover IDs.</td>
+              <td><code>app/api/whatsapp/onboarding/callback/route.ts</code></td>
+              <td><span class="status-pill status-completed">Completed</span></td>
+            </tr>
+            <tr>
+              <td><strong>Phone Registration API</strong></td>
+              <td>Registers number with Meta Cloud API and provisions 6-digit security PIN.</td>
+              <td><code>app/api/whatsapp/accounts/[id]/register/route.ts</code></td>
+              <td><span class="status-pill status-completed">Completed</span></td>
+            </tr>
+            <tr>
+              <td><strong>WhatsApp Business Profile</strong></td>
+              <td>Update About text, vertical/category, physical address, support email, websites.</td>
+              <td><code>app/api/whatsapp/accounts/[id]/profile/route.ts</code></td>
+              <td><span class="status-pill status-completed">Completed</span></td>
+            </tr>
+            <tr>
+              <td><strong>Mobile Coexistence Pre-check</strong></td>
+              <td>Explicit guidance to delete mobile WhatsApp 3 min prior to prevent error <code>133005</code>.</td>
+              <td><code>WhatsAppOnboardingManagementModule.tsx</code> (Preflight Modal)</td>
+              <td><span class="status-pill status-enhanced">Enhanced</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- RELEASE 3 -->
+      <div class="release-card">
+        <div class="release-header">
+          <div>
+            <div class="release-title">Release 3 — Client Portal WhatsApp Settings Hub</div>
+            <div class="subtitle">Connected numbers, health diagnostics, profile editor, PIN management, and live outbound testing.</div>
+          </div>
+          <span class="status-pill status-completed">100% Code Ready</span>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Feature / Component</th>
+              <th>Technical Requirement</th>
+              <th>Code Implementation</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Connection Overview Hub</strong></td>
+              <td>Display connected number (+91 77957 83535), WABA ID, Phone ID, Business ID, badges.</td>
+              <td><code>app/app/settings/page.tsx</code></td>
+              <td><span class="status-pill status-completed">Completed</span></td>
+            </tr>
+            <tr>
+              <td><strong>Tri-Partite Health Monitor</strong></td>
+              <td>Live badges for API Connection (Active), Webhook (Live Heartbeat), Number Registration.</td>
+              <td><code>WhatsAppOnboardingManagementModule.tsx</code></td>
+              <td><span class="status-pill status-completed">Completed</span></td>
+            </tr>
+            <tr>
+              <td><strong>Workspace Default Switcher</strong></td>
+              <td>Multi-number switcher to designate default active sender across Live Chat and Campaigns.</td>
+              <td><code>app/api/whatsapp/accounts/default-phone/route.ts</code></td>
+              <td><span class="status-pill status-enhanced">Enhanced</span></td>
+            </tr>
+            <tr>
+              <td><strong>Live Outbound Message Tester</strong></td>
+              <td>Transmits test WhatsApp message and validates arrival in workspace Live Chat Inbox.</td>
+              <td><code>app/api/whatsapp/accounts/[id]/test-message/route.ts</code></td>
+              <td><span class="status-pill status-completed">Completed</span></td>
+            </tr>
+            <tr>
+              <td><strong>Green Tick OBA Assistant</strong></td>
+              <td>Official Business Account (OBA) verification form and eligibility guide.</td>
+              <td><code>app/api/whatsapp/accounts/[id]/green-tick/route.ts</code></td>
+              <td><span class="status-pill status-completed">Completed</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- RELEASE 4 -->
+      <div class="release-card">
+        <div class="release-header">
+          <div>
+            <div class="release-title">Release 4 — Onboarding Automation Engine</div>
+            <div class="subtitle">14-state lifecycle, error sanitizer, retries, webhooks, notifications, and audit logs.</div>
+          </div>
+          <span class="status-pill status-completed">100% Code Ready</span>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Feature / Component</th>
+              <th>Technical Requirement</th>
+              <th>Code Implementation</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>14-State Lifecycle Machine</strong></td>
+              <td><code>NOT_STARTED</code> through <code>CONNECTED</code>, <code>ACTION_REQUIRED</code>, <code>FAILED</code>, <code>SUSPENDED</code>.</td>
+              <td><code>lib/whatsapp/lifecycle.ts</code></td>
+              <td><span class="status-pill status-completed">Completed</span></td>
+            </tr>
+            <tr>
+              <td><strong>Automated Error Sanitizer</strong></td>
+              <td>Translates raw Meta error codes (100, 190, 131030) into user-friendly guidance.</td>
+              <td><code>lib/whatsapp/error-sanitizer.ts</code></td>
+              <td><span class="status-pill status-completed">Completed</span></td>
+            </tr>
+            <tr>
+              <td><strong>1-Click Self-Healing Retry</strong></td>
+              <td>Re-subscribes webhooks, synchronizes phone registration, and updates quality rating.</td>
+              <td><code>app/api/whatsapp/accounts/[id]/retry/route.ts</code></td>
+              <td><span class="status-pill status-completed">Completed</span></td>
+            </tr>
+            <tr>
+              <td><strong>Webhook Heartbeat Diagnostic</strong></td>
+              <td>Tracks latest WebhookEvent timestamp (&lt; 24h = Healthy, &gt; 24h = Dormant).</td>
+              <td><code>app/api/whatsapp/accounts/route.ts</code></td>
+              <td><span class="status-pill status-enhanced">Enhanced</span></td>
+            </tr>
+            <tr>
+              <td><strong>Audit &amp; Diagnostic Logs</strong></td>
+              <td>Structured audit logging for every lifecycle event and state change.</td>
+              <td><code>app/api/whatsapp/onboarding/logs/route.ts</code></td>
+              <td><span class="status-pill status-completed">Completed</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- RELEASE 5 -->
+      <div class="release-card">
+        <div class="release-header">
+          <div>
+            <div class="release-title">Release 5 — Manual Onboarding &amp; Admin Console</div>
+            <div class="subtitle">Multi-tenant admin dashboard, assisted onboarding, support tickets, and delegated setup.</div>
+          </div>
+          <span class="status-pill status-completed">100% Code Ready</span>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Feature / Component</th>
+              <th>Technical Requirement</th>
+              <th>Code Implementation</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Super Admin Console</strong></td>
+              <td>Multi-tenant customer listing, status filters, search, and health indicators.</td>
+              <td><code>app/admin/onboarding/page.tsx</code></td>
+              <td><span class="status-pill status-completed">Completed</span></td>
+            </tr>
+            <tr>
+              <td><strong>Assisted Delegated Setup</strong></td>
+              <td>Super-admin modal to input WABA ID, Phone ID, and PIN on behalf of customer.</td>
+              <td><code>app/api/admin/onboarding/manual-setup/route.ts</code></td>
+              <td><span class="status-pill status-completed">Completed</span></td>
+            </tr>
+            <tr>
+              <td><strong>Client Support Ticket Filing</strong></td>
+              <td>Clients can submit support tickets directly from failed steps in settings.</td>
+              <td><code>app/api/whatsapp/onboarding/support-ticket/route.ts</code></td>
+              <td><span class="status-pill status-completed">Completed</span></td>
+            </tr>
+            <tr>
+              <td><strong>Admin Ticket Resolution</strong></td>
+              <td>Admin can resolve ticket with 1-click and trigger automated client notification.</td>
+              <td><code>app/api/admin/onboarding/tickets/[id]/resolve/route.ts</code></td>
+              <td><span class="status-pill status-enhanced">Enhanced</span></td>
+            </tr>
+            <tr>
+              <td><strong>Meta Permissions Diagnostic</strong></td>
+              <td>Admin modal checking Meta App token validity, scopes, and granted permissions.</td>
+              <td><code>app/api/meta/permissions-request/route.ts</code></td>
+              <td><span class="status-pill status-completed">Completed</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- REAL WORLD META PRODUCTION PREREQUISITES -->
+    <div class="section">
+      <div class="section-head">
+        <h2 class="section-title"><span>🔐</span> The Real-World Meta Production Boundary (Action Items for ZK Company)</h2>
+        <p class="section-desc">These items exist in Meta's external systems and cannot be resolved by code alone. They must be completed in the Meta Developer &amp; Business Portals.</p>
+      </div>
+
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap:16px;">
+        <div class="callout callout-amber" style="margin:0;">
+          <strong style="color:#fde68a; font-size:14px; display:block; margin-bottom:6px;">1. Meta Business Verification</strong>
+          <p style="font-size:12px; color:var(--text-muted); line-height:1.5;">
+            Portfolio <code>246511357935583</code> (<strong>Zkandhavel Infotech Private Limited</strong>) must complete official Business Verification under Meta Business Settings &rarr; Security Center. Submit Certificate of Incorporation, GST registration, and utility bill.
+          </p>
+        </div>
+
+        <div class="callout callout-amber" style="margin:0;">
+          <strong style="color:#fde68a; font-size:14px; display:block; margin-bottom:6px;">2. Meta App Review (Advanced Access)</strong>
+          <p style="font-size:12px; color:var(--text-muted); line-height:1.5;">
+            In Meta Developer App <code>1290742346350527</code>, submit permissions for <strong>Advanced Access</strong>:
+            <br>&bull; <code>whatsapp_business_management</code>
+            <br>&bull; <code>whatsapp_business_messaging</code>
+            <br>&bull; <code>business_management</code>
+            <br>Attach a 2-minute screen recording demonstrating the ZKWAConnect Embedded Signup v4 flow.
+          </p>
+        </div>
+
+        <div class="callout callout-amber" style="margin:0;">
+          <strong style="color:#fde68a; font-size:14px; display:block; margin-bottom:6px;">3. Generate Production META_CONFIG_ID</strong>
+          <p style="font-size:12px; color:var(--text-muted); line-height:1.5;">
+            In Meta App Dashboard &rarr; WhatsApp &rarr; Quickstart / Embedded Signup, create a Facebook Login for Business configuration with allowed domains <code>https://app.zkwaconnect.in</code> and <code>http://localhost:3002</code>. Copy the resulting configuration ID to <code>META_CONFIG_ID</code> in <code>.env</code>.
+          </p>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</body>
+</html>

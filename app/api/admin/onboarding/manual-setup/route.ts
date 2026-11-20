@@ -154,6 +154,25 @@ export async function POST(request: Request) {
       sanitizedMessage: `Super Admin completed delegated setup for WABA ${waba.wabaId} and Phone ${phone.phoneNumber}.`,
     })
 
+    // Dispatch in-app notification to the tenant workspace
+    try {
+      await prisma.notification.create({
+        data: {
+          organizationId: org.id,
+          type: "WHATSAPP_ACTIVATED",
+          title: "WhatsApp Business API Activated",
+          message: `Super Admin completed onboarding setup for WhatsApp number ${phone.phoneNumber}. Your WhatsApp Cloud API gateway is now fully active!`,
+          metadata: {
+            wabaId: waba.wabaId,
+            phoneNumber: phone.phoneNumber,
+            activatedAt: new Date().toISOString(),
+          },
+        },
+      })
+    } catch (notifErr: any) {
+      console.warn("[MANUAL_SETUP_NOTIFICATION_NOTE]", notifErr?.message)
+    }
+
     return NextResponse.json({
       ok: true,
       status: "CONNECTED",
