@@ -709,7 +709,7 @@ export default function AdminOnboardingPage() {
                   </div>
 
                   {/* SECTION 1: AGENCY PARTNERS (Users -> Partners) */}
-                  <div style={{ background: "#0b1320", border: "1.5px solid #10b981", borderRadius: 10, padding: 16 }}>
+                  <div style={{ background: "#0b1320", border: `1.5px solid ${portfolioAccessData?.agencyPartner?.accessLevel === "FULL_ACCESS" ? "#10b981" : "#f59e0b"}`, borderRadius: 10, padding: 16 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12, marginBottom: 12 }}>
                       <div>
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -720,16 +720,18 @@ export default function AdminOnboardingPage() {
                           <span style={{
                             fontSize: 10,
                             fontWeight: 800,
-                            padding: "2px 8px",
+                            padding: "3px 8px",
                             borderRadius: 10,
                             background: portfolioAccessData?.agencyPartner?.accessLevel === "FULL_ACCESS" ? "rgba(16,185,129,0.2)" : "rgba(245,158,11,0.2)",
                             color: portfolioAccessData?.agencyPartner?.accessLevel === "FULL_ACCESS" ? "#86efac" : "#fde68a",
                           }}>
-                            {portfolioAccessData?.agencyPartner?.accessLevel === "FULL_ACCESS" ? "FULL ACCESS (FULL CONTROL)" : "PARTIAL / NOT ASSIGNED"}
+                            {portfolioAccessData?.agencyPartner?.accessLevel === "FULL_ACCESS" ? "✓ FULL ACCESS (FULL CONTROL)" : "PARTIAL / NOT ASSIGNED"}
                           </span>
                         </div>
                         <p style={{ fontSize: 11, color: "#94a3b8", margin: "4px 0 0" }}>
-                          Assign Zkandhavel Infotech as the official Agency Partner in the customer&apos;s Meta Business Portfolio with Full Control.
+                          {portfolioAccessData?.agencyPartner?.accessLevel === "FULL_ACCESS"
+                            ? "✓ Zkandhavel Infotech has Full Control over this customer's Meta Business Portfolio & WABA assets (MANAGE, MESSAGING, TEMPLATES)."
+                            : "Assign Zkandhavel Infotech as the official Agency Partner in the customer's Meta Business Portfolio with Full Control."}
                         </p>
                       </div>
 
@@ -747,7 +749,7 @@ export default function AdminOnboardingPage() {
                           onClick={handleAssignAgencyPartner}
                           disabled={actionLoading}
                           style={{
-                            background: "#059669",
+                            background: portfolioAccessData?.agencyPartner?.accessLevel === "FULL_ACCESS" ? "#047857" : "#059669",
                             color: "#fff",
                             border: 0,
                             borderRadius: 6,
@@ -757,7 +759,7 @@ export default function AdminOnboardingPage() {
                             cursor: actionLoading ? "not-allowed" : "pointer",
                           }}
                         >
-                          {actionLoading ? "Assigning…" : "⚡ 1-Click Auto-Assign Partner"}
+                          {actionLoading ? "Assigning…" : portfolioAccessData?.agencyPartner?.accessLevel === "FULL_ACCESS" ? "✓ Re-Sync / Update Access" : "⚡ 1-Click Auto-Assign Partner"}
                         </button>
                       </div>
                     </div>
