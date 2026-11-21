@@ -51,6 +51,61 @@ export default function AdminOnboardingPage() {
   const [showPermissionsModal, setShowPermissionsModal] = useState(false)
   const [permissionsData, setPermissionsData] = useState<any>(null)
   const [permissionsLoading, setPermissionsLoading] = useState(false)
+  const [appModalTab, setAppModalTab] = useState<"dashboard" | "roles" | "permissions">("dashboard")
+  const [newRoleUserId, setNewRoleUserId] = useState("")
+  const [newRoleType, setNewRoleType] = useState<"testers" | "developers" | "administrators">("testers")
+  const [roleSubmitting, setRoleSubmitting] = useState(false)
+  const [roleActionResult, setRoleActionResult] = useState<{ ok: boolean; message: string; directUrl?: string } | null>(null)
+  const [apiTesting, setApiTesting] = useState(false)
+  const [apiTestResult, setApiTestResult] = useState<string | null>(null)
+
+  const handleGrantRole = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setRoleSubmitting(true)
+    setRoleActionResult(null)
+    try {
+      const res = await fetch("/api/meta/permissions-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "grant_role", userId: newRoleUserId, role: newRoleType }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setRoleActionResult({ ok: true, message: data.message })
+        setNewRoleUserId("")
+        const refresh = await fetch("/api/meta/permissions-request")
+        if (refresh.ok) setPermissionsData(await refresh.json())
+      } else {
+        setRoleActionResult({ ok: false, message: data.error, directUrl: data.directUrl })
+      }
+    } catch (err: any) {
+      setRoleActionResult({ ok: false, message: err.message || "Failed to grant role" })
+    } finally {
+      setRoleSubmitting(false)
+    }
+  }
+
+  const handleTestApi = async () => {
+    setApiTesting(true)
+    setApiTestResult(null)
+    try {
+      const res = await fetch("/api/meta/permissions-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "test_api" }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setApiTestResult(data.message)
+      } else {
+        setApiTestResult(`✕ ${data.error}`)
+      }
+    } catch (err: any) {
+      setApiTestResult(`✕ ${err.message}`)
+    } finally {
+      setApiTesting(false)
+    }
+  }
 
   // Portfolio Access, People & Partners Modal state
   const [showPortfolioAccessModal, setShowPortfolioAccessModal] = useState(false)
@@ -850,93 +905,309 @@ export default function AdminOnboardingPage() {
           </div>
         )}
         {showPermissionsModal && (
-          <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 20 }}>
-            <div style={{ background: "#172235", border: "1px solid #334155", borderRadius: 14, maxWidth: 640, width: "100%", padding: 24, boxShadow: "0 20px 40px rgba(0,0,0,0.5)" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.8)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 20 }}>
+            <div style={{ background: "#172235", border: "1.5px solid #0e8b71", borderRadius: 14, maxWidth: 780, width: "100%", maxHeight: "90vh", overflowY: "auto", padding: 24, boxShadow: "0 25px 50px rgba(0,0,0,0.6)" }}>
+              {/* Header */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16, borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: 14 }}>
                 <div>
-                  <h3 style={{ fontFamily: "Sora, sans-serif", fontSize: 17, fontWeight: 800, color: "#fff", margin: 0 }}>
-                    🛡️ Meta App Review &amp; Permissions Inspector
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(14,139,113,0.2)", color: "#86efac", padding: "2px 8px", borderRadius: 12, fontSize: 11, fontWeight: 700, marginBottom: 6 }}>
+                    ⚡ Automated Meta Developer App Dashboard &amp; Access Center
+                  </div>
+                  <h3 style={{ fontFamily: "Sora, sans-serif", fontSize: 18, fontWeight: 800, color: "#fff", margin: 0 }}>
+                    {permissionsData?.appDetails?.name || "rtawaba-zkwaconnect"}
                   </h3>
-                  {permissionsData?.appId && (
-                    <div style={{ fontSize: 11, color: "#38bdf8", marginTop: 4 }}>
-                      Meta App ID: <code style={{ background: "rgba(56,189,248,0.15)", padding: "1px 5px", borderRadius: 4 }}>{permissionsData.appId}</code>
-                      {permissionsData.businessId && (
-                        <span> · Portfolio ID: <code style={{ background: "rgba(56,189,248,0.15)", padding: "1px 5px", borderRadius: 4 }}>{permissionsData.businessId}</code></span>
-                      )}
-                    </div>
-                  )}
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", marginTop: 4, display: "flex", gap: 12, flexWrap: "wrap" }}>
+                    <span>App ID: <code style={{ color: "#38bdf8", background: "rgba(56,189,248,0.15)", padding: "1px 6px", borderRadius: 4 }}>{permissionsData?.appId || "1710743377107186"}</code></span>
+                    <span>Portfolio ID: <code style={{ color: "#86efac", background: "rgba(14,139,113,0.2)", padding: "1px 6px", borderRadius: 4 }}>{permissionsData?.businessId || "246511357935583"}</code></span>
+                    <span style={{ color: "#fbbf24" }}>🛠️ Development Mode (Roles &amp; Testers Active)</span>
+                  </div>
                 </div>
-                <button onClick={() => setShowPermissionsModal(false)} style={{ background: "transparent", border: 0, color: "#94a3b8", fontSize: 18, cursor: "pointer" }}>✕</button>
+                <button onClick={() => setShowPermissionsModal(false)} style={{ background: "transparent", border: 0, color: "#94a3b8", fontSize: 20, cursor: "pointer" }}>✕</button>
               </div>
 
-              <p style={{ fontSize: 12, color: "#94a3b8", margin: "0 0 16px", lineHeight: 1.5 }}>
-                To onboard external production customers without adding them as app testers, your Meta Developer App requires <strong>Advanced Access</strong> for the following WhatsApp scopes:
-              </p>
+              {/* Tabs */}
+              <div style={{ display: "flex", gap: 8, marginBottom: 18, borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: 8 }}>
+                {[
+                  { id: "dashboard", label: "📊 App Overview & Live Health" },
+                  { id: "roles", label: "👥 App Roles & Give Access" },
+                  { id: "permissions", label: "🛡️ Permissions & Scopes" },
+                ].map(t => (
+                  <button
+                    key={t.id}
+                    onClick={() => setAppModalTab(t.id as any)}
+                    style={{
+                      background: appModalTab === t.id ? "#0e8b71" : "rgba(255,255,255,0.06)",
+                      border: 0,
+                      color: appModalTab === t.id ? "#fff" : "rgba(255,255,255,0.6)",
+                      padding: "7px 14px",
+                      borderRadius: 6,
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
 
               {permissionsLoading ? (
-                <div style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>Querying Meta Graph API permissions…</div>
+                <div style={{ textAlign: "center", padding: 32, color: "#94a3b8", fontSize: 13 }}>Querying Meta Developer App live details…</div>
               ) : (
-                <div style={{ display: "grid", gap: 12, marginBottom: 20 }}>
-                  {(permissionsData?.requiredPermissions || permissionsData?.permissionsStatus)?.length ? (
-                    (permissionsData.requiredPermissions || permissionsData.permissionsStatus).map((p: any) => (
-                      <div key={p.permission} style={{ background: "#0b1320", border: "1px solid #334155", borderRadius: 8, padding: 14 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, flexWrap: "wrap", marginBottom: 6 }}>
-                          <div>
-                            <code style={{ fontSize: 13, fontWeight: 800, color: "#38bdf8" }}>{p.permission}</code>
-                            <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>{p.description}</div>
-                          </div>
-                          <span style={{
-                            fontSize: 10,
-                            fontWeight: 800,
-                            borderRadius: 12,
-                            padding: "2px 8px",
-                            background: (p.hasAdvancedAccess || p.isAdvancedAccess) ? "rgba(16,185,129,0.2)" : "rgba(245,158,11,0.2)",
-                            color: (p.hasAdvancedAccess || p.isAdvancedAccess) ? "#86efac" : "#fde68a",
-                          }}>
-                            {((p.liveAccessLevel || p.currentTier)?.replace(/_/g, " ").toUpperCase()) || "STANDARD ACCESS"}
-                          </span>
+                <div>
+                  {/* TAB 1: APP OVERVIEW & LIVE HEALTH */}
+                  {appModalTab === "dashboard" && (
+                    <div style={{ display: "grid", gap: 16 }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                        <div style={{ background: "#0b1320", border: "1px solid #334155", borderRadius: 8, padding: 12 }}>
+                          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", fontWeight: 700 }}>App Name</span>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", marginTop: 2 }}>{permissionsData?.appDetails?.name || "rtawaba-zkwaconnect"}</div>
                         </div>
-                        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
-                          <a
-                            href={p.directSubmissionUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            style={{
-                              background: "#2563eb",
-                              color: "#fff",
-                              textDecoration: "none",
-                              borderRadius: 6,
-                              padding: "5px 12px",
-                              fontSize: 11,
-                              fontWeight: 700,
-                            }}
-                          >
-                            Request in App Dashboard ↗
-                          </a>
+                        <div style={{ background: "#0b1320", border: "1px solid #334155", borderRadius: 8, padding: 12 }}>
+                          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", fontWeight: 700 }}>Category</span>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: "#38bdf8", marginTop: 2 }}>{permissionsData?.appDetails?.category || "Education"}</div>
+                        </div>
+                        <div style={{ background: "#0b1320", border: "1px solid #334155", borderRadius: 8, padding: 12 }}>
+                          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", fontWeight: 700 }}>Contact Email</span>
+                          <div style={{ fontSize: 13, color: "#cbd5e1", marginTop: 2 }}>{permissionsData?.appDetails?.contact_email || "freelancerswaminathan@gmail.com"}</div>
+                        </div>
+                        <div style={{ background: "#0b1320", border: "1px solid #334155", borderRadius: 8, padding: 12 }}>
+                          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", fontWeight: 700 }}>Privacy Policy</span>
+                          <div style={{ fontSize: 12, color: "#38bdf8", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {permissionsData?.appDetails?.privacy_policy_url || "https://learner.recruitmenttrainingacademy.com/privacypolicy"}
+                          </div>
                         </div>
                       </div>
-                    ))
-                  ) : (
-                    <div style={{ color: "#f87171", fontSize: 12 }}>
-                      {permissionsData?.errorNote || "Could not query Meta API. Check META_APP_ID in .env."}
+
+                      {/* Live API Health & Verification Card */}
+                      <div style={{ background: "#0b1320", border: "1px solid #0e8b71", borderRadius: 10, padding: 16 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: "#86efac" }}>⚡ Automated Cloud API Connectivity Test</div>
+                            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", marginTop: 2 }}>
+                              Verify that ZKWAConnect can communicate directly with this Meta App via Graph API.
+                            </div>
+                          </div>
+                          <button
+                            onClick={handleTestApi}
+                            disabled={apiTesting}
+                            style={{
+                              background: "#25D366",
+                              color: "#053d36",
+                              border: 0,
+                              borderRadius: 6,
+                              padding: "8px 14px",
+                              fontSize: 12,
+                              fontWeight: 800,
+                              cursor: "pointer",
+                              opacity: apiTesting ? 0.6 : 1,
+                            }}
+                          >
+                            {apiTesting ? "Testing…" : "⚡ 1-Click Test & Verify API"}
+                          </button>
+                        </div>
+                        {apiTestResult && (
+                          <div style={{ marginTop: 10, padding: "8px 12px", borderRadius: 6, background: apiTestResult.startsWith("✓") ? "rgba(74,222,128,0.15)" : "rgba(248,113,113,0.15)", color: apiTestResult.startsWith("✓") ? "#86efac" : "#fca5a5", fontSize: 12 }}>
+                            {apiTestResult}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TAB 2: APP ROLES & GIVE ACCESS DIRECTLY HERE */}
+                  {appModalTab === "roles" && (
+                    <div style={{ display: "grid", gap: 16 }}>
+                      {/* Give Access Form */}
+                      <div style={{ background: "#0b1320", border: "1.5px solid #25D366", borderRadius: 10, padding: 18 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                          <span style={{ fontSize: 16 }}>⚡</span>
+                          <h4 style={{ fontSize: 14, fontWeight: 800, color: "#fff", margin: 0 }}>
+                            Give Immediate Access to Meta User ID (No App Review Required!)
+                          </h4>
+                        </div>
+                        <p style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", margin: "0 0 14px", lineHeight: 1.5 }}>
+                          In Development Mode, any user added as a <b>Tester</b> or <b>Developer</b> receives immediate access to send &amp; receive live WhatsApp messages without waiting for Meta App Review approval.
+                        </p>
+
+                        <form onSubmit={handleGrantRole} style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr auto", gap: 10, alignItems: "flex-end" }}>
+                          <div>
+                            <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", marginBottom: 4 }}>
+                              Meta User ID *
+                            </label>
+                            <input
+                              required
+                              value={newRoleUserId}
+                              onChange={e => setNewRoleUserId(e.target.value)}
+                              placeholder="e.g. 122105442147545330"
+                              style={{ width: "100%", boxSizing: "border-box", background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 6, padding: "8px 10px", fontSize: 13, color: "#fff" }}
+                            />
+                          </div>
+                          <div>
+                            <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", marginBottom: 4 }}>
+                              Access Role *
+                            </label>
+                            <select
+                              value={newRoleType}
+                              onChange={e => setNewRoleType(e.target.value as any)}
+                              style={{ width: "100%", boxSizing: "border-box", background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 6, padding: "8px 10px", fontSize: 12, color: "#fff" }}
+                            >
+                              <option value="testers">Tester (Immediate WhatsApp Messaging)</option>
+                              <option value="developers">Developer (Full API &amp; Webhook Access)</option>
+                              <option value="administrators">Administrator (Full App Control)</option>
+                            </select>
+                          </div>
+                          <button
+                            type="submit"
+                            disabled={roleSubmitting}
+                            style={{
+                              background: "#25D366",
+                              color: "#053d36",
+                              border: 0,
+                              borderRadius: 6,
+                              padding: "9px 16px",
+                              fontSize: 12,
+                              fontWeight: 800,
+                              cursor: "pointer",
+                              opacity: roleSubmitting ? 0.6 : 1,
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {roleSubmitting ? "Granting…" : "⚡ Give Access"}
+                          </button>
+                        </form>
+
+                        {roleActionResult && (
+                          <div style={{
+                            marginTop: 12,
+                            padding: "8px 12px",
+                            borderRadius: 6,
+                            background: roleActionResult.ok ? "rgba(74,222,128,0.15)" : "rgba(248,113,113,0.15)",
+                            color: roleActionResult.ok ? "#86efac" : "#fca5a5",
+                            fontSize: 12,
+                          }}>
+                            <div>{roleActionResult.message}</div>
+                            {roleActionResult.directUrl && (
+                              <div style={{ marginTop: 6 }}>
+                                <a
+                                  href={roleActionResult.directUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  style={{ color: "#38bdf8", fontWeight: 700, textDecoration: "underline" }}
+                                >
+                                  Open Meta App Roles Dashboard to Confirm User ↗
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Current Authorized Users on App */}
+                      <div>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: "#fff", textTransform: "uppercase", letterSpacing: ".05em" }}>
+                            Current Authorized Users on this App ({permissionsData?.appRoles?.length || 0})
+                          </span>
+                          <a
+                            href={permissionsData?.links?.rolesDashboard || `https://developers.facebook.com/apps/${permissionsData?.appId}/roles/roles/`}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{ color: "#38bdf8", fontSize: 11, textDecoration: "none", fontWeight: 700 }}
+                          >
+                            ↗ Manage in Meta Developers
+                          </a>
+                        </div>
+
+                        <div style={{ background: "#0b1320", border: "1px solid #334155", borderRadius: 8, overflow: "hidden" }}>
+                          {permissionsData?.appRoles?.map((r: any, idx: number) => (
+                            <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", borderBottom: idx < permissionsData.appRoles.length - 1 ? "1px solid rgba(255,255,255,0.06)" : 0 }}>
+                              <div>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>User ID: {r.user}</div>
+                                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>App ID: {r.app_id}</div>
+                              </div>
+                              <span style={{
+                                background: r.role === "administrators" ? "rgba(56,189,248,0.15)" : "rgba(74,222,128,0.15)",
+                                color: r.role === "administrators" ? "#38bdf8" : "#86efac",
+                                padding: "3px 8px",
+                                borderRadius: 4,
+                                fontSize: 11,
+                                fontWeight: 700,
+                                textTransform: "uppercase",
+                              }}>
+                                {r.role}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TAB 3: PERMISSIONS & SCOPES */}
+                  {appModalTab === "permissions" && (
+                    <div style={{ display: "grid", gap: 12 }}>
+                      <p style={{ fontSize: 12, color: "#94a3b8", margin: "0 0 4px", lineHeight: 1.5 }}>
+                        To onboard external production customers without adding them as app testers, your Meta Developer App requires <strong>Advanced Access</strong> for the following WhatsApp scopes:
+                      </p>
+
+                      {(permissionsData?.requiredPermissions || permissionsData?.permissionsStatus)?.map((p: any) => (
+                        <div key={p.permission} style={{ background: "#0b1320", border: "1px solid #334155", borderRadius: 8, padding: 14 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, flexWrap: "wrap", marginBottom: 6 }}>
+                            <div>
+                              <code style={{ fontSize: 13, fontWeight: 800, color: "#38bdf8" }}>{p.permission}</code>
+                              <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>{p.description}</div>
+                            </div>
+                            <span style={{
+                              fontSize: 10,
+                              fontWeight: 800,
+                              borderRadius: 12,
+                              padding: "2px 8px",
+                              background: (p.hasAdvancedAccess || p.isAdvancedAccess) ? "rgba(16,185,129,0.2)" : "rgba(245,158,11,0.2)",
+                              color: (p.hasAdvancedAccess || p.isAdvancedAccess) ? "#86efac" : "#fde68a",
+                            }}>
+                              {((p.liveAccessLevel || p.currentTier)?.replace(/_/g, " ").toUpperCase()) || "STANDARD ACCESS"}
+                            </span>
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+                            <a
+                              href={p.directSubmissionUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{
+                                background: "#2563eb",
+                                color: "#fff",
+                                textDecoration: "none",
+                                borderRadius: 6,
+                                padding: "5px 12px",
+                                fontSize: 11,
+                                fontWeight: 700,
+                              }}
+                            >
+                              Request in App Dashboard ↗
+                            </a>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
               )}
 
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid #334155", paddingTop: 14 }}>
+              {/* Modal Footer */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 16, marginTop: 18 }}>
                 <a
-                  href="https://developers.facebook.com/apps"
+                  href={permissionsData?.links?.appDashboard || `https://developers.facebook.com/apps/${permissionsData?.appId}/dashboard/`}
                   target="_blank"
                   rel="noreferrer"
                   style={{ color: "#38bdf8", fontSize: 12, textDecoration: "none", fontWeight: 700 }}
                 >
-                  Open Meta Developer Console ↗
+                  ↗ Open Meta Developers App Dashboard
                 </a>
                 <button
                   type="button"
                   onClick={() => setShowPermissionsModal(false)}
-                  style={{ background: "#334155", color: "#e2e8f0", border: 0, borderRadius: 8, padding: "8px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                  style={{ background: "#334155", color: "#e2e8f0", border: 0, borderRadius: 8, padding: "8px 18px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
                 >
                   Close
                 </button>
