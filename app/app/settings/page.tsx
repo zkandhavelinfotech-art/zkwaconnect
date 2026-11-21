@@ -96,6 +96,22 @@ export default function SettingsPage() {
 
   const archivedAccounts = data?.accounts?.filter(account => !account.isActive) || []
 
+  const handleDeleteArchived = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to delete '${name}' from this workspace? This will permanently remove the duplicate record from ZKWAConnect.`)) return
+    try {
+      const res = await fetch(`/api/whatsapp/accounts/${id}`, { method: "DELETE" })
+      const json = await res.json()
+      if (res.ok) {
+        alert(json.message || "Account removed.")
+        load()
+      } else {
+        alert(json.error || "Could not delete account.")
+      }
+    } catch (err: any) {
+      alert(err.message || "Network error.")
+    }
+  }
+
   return (
     <div style={{ maxWidth: 1200, margin: "0 auto", paddingBottom: 40 }}>
       {/* PAGE HEADER */}
@@ -256,8 +272,28 @@ export default function SettingsPage() {
           <div style={{ display: "grid", gap: 8 }}>
             {archivedAccounts.map(acc => (
               <div key={acc.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 12 }}>
-                <span><strong>{acc.name}</strong> <span style={{ color: "#64748b" }}>· WABA ID: {acc.wabaId}</span></span>
-                <span style={{ fontSize: 11, background: "#f1f5f9", color: "#64748b", padding: "2px 8px", borderRadius: 10, fontWeight: 700 }}>ARCHIVED</span>
+                <div>
+                  <strong>{acc.name}</strong> <span style={{ color: "#64748b" }}>· WABA ID: <code>{acc.wabaId}</code></span>
+                </div>
+                <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                  <span style={{ fontSize: 11, background: "#f1f5f9", color: "#64748b", padding: "2px 8px", borderRadius: 10, fontWeight: 700 }}>ARCHIVED</span>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteArchived(acc.id, acc.name)}
+                    style={{
+                      background: "#fee2e2",
+                      border: "1px solid #fca5a5",
+                      color: "#b91c1c",
+                      borderRadius: 6,
+                      padding: "4px 10px",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                  >
+                    🗑️ Delete from App
+                  </button>
+                </div>
               </div>
             ))}
           </div>

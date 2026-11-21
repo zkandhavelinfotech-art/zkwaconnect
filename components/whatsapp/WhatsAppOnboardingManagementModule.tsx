@@ -64,6 +64,7 @@ export function WhatsAppOnboardingManagementModule() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [showPreflight, setShowPreflight] = useState(false)
   const [showDisconnectModal, setShowDisconnectModal] = useState(false)
+  const [showAddPhoneModal, setShowAddPhoneModal] = useState(false)
   const [readiness, setReadiness] = useState<any>(null)
   const [metaConfig, setMetaConfig] = useState<any>(null)
   const [settingDefault, setSettingDefault] = useState<string | null>(null)
@@ -916,9 +917,30 @@ export function WhatsAppOnboardingManagementModule() {
                       Select which verified WhatsApp number is the default outbound sender across Live Chat, Campaigns, and Broadcasts.
                     </p>
                   </div>
-                  <span style={{ fontSize: 11, fontWeight: 800, background: "#f1f5f9", color: "#475569", padding: "3px 10px", borderRadius: 20 }}>
-                    {data?.accounts?.reduce((acc, a) => acc + (a.phoneNumbers?.length || 0), 0) || 1} Phone Number(s) Total
-                  </span>
+                  <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                    <span style={{ fontSize: 11, fontWeight: 800, background: "#f1f5f9", color: "#475569", padding: "4px 10px", borderRadius: 20 }}>
+                      {data?.accounts?.reduce((acc, a) => acc + (a.phoneNumbers?.length || 0), 0) || 1} Phone Number(s) Total
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddPhoneModal(true)}
+                      style={{
+                        background: "#075e54",
+                        color: "#fff",
+                        border: 0,
+                        borderRadius: 6,
+                        padding: "6px 14px",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                      }}
+                    >
+                      ➕ Add Phone Number
+                    </button>
+                  </div>
                 </div>
 
                 <div style={{ display: "grid", gap: 10 }}>
@@ -1673,6 +1695,119 @@ export function WhatsAppOnboardingManagementModule() {
                 style={{ background: "#16a34a", border: 0, borderRadius: 8, padding: "9px 18px", fontSize: 13, fontWeight: 800, color: "#ffffff", cursor: "pointer" }}
               >
                 Continue to Meta Signup →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ADD ADDITIONAL PHONE NUMBER MODAL */}
+      {showAddPhoneModal && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(15,23,42,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 20 }}>
+          <div style={{ background: "#ffffff", borderRadius: 14, maxWidth: 500, width: "100%", padding: 24, boxShadow: "0 20px 40px rgba(0,0,0,0.2)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <h3 style={{ fontFamily: "Sora, sans-serif", fontSize: 17, fontWeight: 800, color: "#0f172a", margin: 0 }}>
+                📱 Add Another Phone Number
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowAddPhoneModal(false)}
+                style={{ background: "transparent", border: 0, color: "#64748b", fontSize: 20, cursor: "pointer" }}
+              >
+                ✕
+              </button>
+            </div>
+            <p style={{ fontSize: 13, color: "#64748b", margin: "0 0 16px", lineHeight: 1.5 }}>
+              You can connect multiple phone numbers (e.g. Sales, Support, VIP) to your active WhatsApp Business Account <strong>{data?.primaryAccount?.name}</strong> (<code>{data?.primaryAccount?.wabaId}</code>).
+            </p>
+
+            <div style={{ display: "grid", gap: 12, marginBottom: 20 }}>
+              <div style={{ background: "#f0fdf4", border: "1.5px solid #86efac", borderRadius: 10, padding: 14 }}>
+                <div style={{ fontSize: 12, fontWeight: 800, color: "#166534", marginBottom: 4 }}>
+                  Option 1: Guided Meta Embedded Signup (Recommended)
+                </div>
+                <p style={{ fontSize: 11, color: "#334155", margin: "0 0 10px", lineHeight: 1.5 }}>
+                  Launch official Meta dialog, enter your new phone number, and verify with SMS/Voice OTP. It will automatically attach to this workspace.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddPhoneModal(false)
+                    launchMetaEmbeddedSignup()
+                  }}
+                  style={{
+                    background: "#16a34a",
+                    color: "#fff",
+                    border: 0,
+                    borderRadius: 6,
+                    padding: "8px 14px",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  ⚡ Launch Meta Dialog to Add Number →
+                </button>
+              </div>
+
+              <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: 14 }}>
+                <div style={{ fontSize: 12, fontWeight: 800, color: "#0f172a", marginBottom: 4 }}>
+                  Option 2: Meta WhatsApp Manager Link
+                </div>
+                <p style={{ fontSize: 11, color: "#64748b", margin: "0 0 10px", lineHeight: 1.5 }}>
+                  If you already added a number in Meta Business Suite, click below to open your phone numbers list or sync immediately into ZKWAConnect.
+                </p>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <a
+                    href={`https://business.facebook.com/latest/whatsapp_manager/phone_numbers?business_id=${data?.primaryAccount?.businessId || "1185206983626614"}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      background: "#ffffff",
+                      border: "1px solid #cbd5e1",
+                      color: "#2563eb",
+                      textDecoration: "none",
+                      borderRadius: 6,
+                      padding: "7px 12px",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 4,
+                    }}
+                  >
+                    Open Meta WhatsApp Manager ↗
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      refreshAccounts()
+                      setShowAddPhoneModal(false)
+                    }}
+                    style={{
+                      background: "#0f172a",
+                      color: "#fff",
+                      border: 0,
+                      borderRadius: 6,
+                      padding: "7px 14px",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                  >
+                    ↻ Sync Numbers into Workspace
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                onClick={() => setShowAddPhoneModal(false)}
+                style={{ background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: 8, padding: "8px 16px", fontSize: 12, fontWeight: 700, color: "#334155", cursor: "pointer" }}
+              >
+                Close
               </button>
             </div>
           </div>
