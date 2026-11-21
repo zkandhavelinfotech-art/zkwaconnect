@@ -60,7 +60,9 @@ export async function GET() {
     return {
       ...p,
       currentTier: liveStatus,
+      liveAccessLevel: liveStatus,
       isAdvancedAccess: hasAdvanced,
+      hasAdvancedAccess: hasAdvanced,
       actionNeeded: !hasAdvanced,
     }
   })
@@ -70,6 +72,7 @@ export async function GET() {
     appId,
     businessId,
     permissionsStatus,
+    requiredPermissions: permissionsStatus,
     allAdvancedGranted: permissionsStatus.every(p => p.isAdvancedAccess),
     errorNote,
     links: {

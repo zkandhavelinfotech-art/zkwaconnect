@@ -853,9 +853,19 @@ export default function AdminOnboardingPage() {
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 20 }}>
             <div style={{ background: "#172235", border: "1px solid #334155", borderRadius: 14, maxWidth: 640, width: "100%", padding: 24, boxShadow: "0 20px 40px rgba(0,0,0,0.5)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                <h3 style={{ fontFamily: "Sora, sans-serif", fontSize: 17, fontWeight: 800, color: "#fff", margin: 0 }}>
-                  🛡️ Meta App Review &amp; Permissions Inspector
-                </h3>
+                <div>
+                  <h3 style={{ fontFamily: "Sora, sans-serif", fontSize: 17, fontWeight: 800, color: "#fff", margin: 0 }}>
+                    🛡️ Meta App Review &amp; Permissions Inspector
+                  </h3>
+                  {permissionsData?.appId && (
+                    <div style={{ fontSize: 11, color: "#38bdf8", marginTop: 4 }}>
+                      Meta App ID: <code style={{ background: "rgba(56,189,248,0.15)", padding: "1px 5px", borderRadius: 4 }}>{permissionsData.appId}</code>
+                      {permissionsData.businessId && (
+                        <span> · Portfolio ID: <code style={{ background: "rgba(56,189,248,0.15)", padding: "1px 5px", borderRadius: 4 }}>{permissionsData.businessId}</code></span>
+                      )}
+                    </div>
+                  )}
+                </div>
                 <button onClick={() => setShowPermissionsModal(false)} style={{ background: "transparent", border: 0, color: "#94a3b8", fontSize: 18, cursor: "pointer" }}>✕</button>
               </div>
 
@@ -867,45 +877,49 @@ export default function AdminOnboardingPage() {
                 <div style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>Querying Meta Graph API permissions…</div>
               ) : (
                 <div style={{ display: "grid", gap: 12, marginBottom: 20 }}>
-                  {permissionsData?.requiredPermissions?.map((p: any) => (
-                    <div key={p.permission} style={{ background: "#0b1320", border: "1px solid #334155", borderRadius: 8, padding: 14 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, flexWrap: "wrap", marginBottom: 6 }}>
-                        <div>
-                          <code style={{ fontSize: 13, fontWeight: 800, color: "#38bdf8" }}>{p.permission}</code>
-                          <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>{p.description}</div>
+                  {(permissionsData?.requiredPermissions || permissionsData?.permissionsStatus)?.length ? (
+                    (permissionsData.requiredPermissions || permissionsData.permissionsStatus).map((p: any) => (
+                      <div key={p.permission} style={{ background: "#0b1320", border: "1px solid #334155", borderRadius: 8, padding: 14 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, flexWrap: "wrap", marginBottom: 6 }}>
+                          <div>
+                            <code style={{ fontSize: 13, fontWeight: 800, color: "#38bdf8" }}>{p.permission}</code>
+                            <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>{p.description}</div>
+                          </div>
+                          <span style={{
+                            fontSize: 10,
+                            fontWeight: 800,
+                            borderRadius: 12,
+                            padding: "2px 8px",
+                            background: (p.hasAdvancedAccess || p.isAdvancedAccess) ? "rgba(16,185,129,0.2)" : "rgba(245,158,11,0.2)",
+                            color: (p.hasAdvancedAccess || p.isAdvancedAccess) ? "#86efac" : "#fde68a",
+                          }}>
+                            {((p.liveAccessLevel || p.currentTier)?.replace(/_/g, " ").toUpperCase()) || "STANDARD ACCESS"}
+                          </span>
                         </div>
-                        <span style={{
-                          fontSize: 10,
-                          fontWeight: 800,
-                          borderRadius: 12,
-                          padding: "2px 8px",
-                          background: p.hasAdvancedAccess ? "rgba(16,185,129,0.2)" : "rgba(245,158,11,0.2)",
-                          color: p.hasAdvancedAccess ? "#86efac" : "#fde68a",
-                        }}>
-                          {p.liveAccessLevel?.replace(/_/g, " ").toUpperCase() || "STANDARD ACCESS"}
-                        </span>
+                        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+                          <a
+                            href={p.directSubmissionUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{
+                              background: "#2563eb",
+                              color: "#fff",
+                              textDecoration: "none",
+                              borderRadius: 6,
+                              padding: "5px 12px",
+                              fontSize: 11,
+                              fontWeight: 700,
+                            }}
+                          >
+                            Request in App Dashboard ↗
+                          </a>
+                        </div>
                       </div>
-                      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
-                        <a
-                          href={p.directSubmissionUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          style={{
-                            background: "#2563eb",
-                            color: "#fff",
-                            textDecoration: "none",
-                            borderRadius: 6,
-                            padding: "5px 12px",
-                            fontSize: 11,
-                            fontWeight: 700,
-                          }}
-                        >
-                          Request in App Dashboard ↗
-                        </a>
-                      </div>
+                    ))
+                  ) : (
+                    <div style={{ color: "#f87171", fontSize: 12 }}>
+                      {permissionsData?.errorNote || "Could not query Meta API. Check META_APP_ID in .env."}
                     </div>
-                  )) || (
-                    <div style={{ color: "#f87171", fontSize: 12 }}>Could not query Meta API. Check META_APP_ID in .env.</div>
                   )}
                 </div>
               )}
