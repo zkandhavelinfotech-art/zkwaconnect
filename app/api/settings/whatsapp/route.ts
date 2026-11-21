@@ -46,16 +46,59 @@ export async function GET() {
     if (!accessToken && wabas.length) warnings.push("Meta is not connected, so live details could not be loaded. Reconnect Meta from setup.")
 
     const accounts = await Promise.all(wabas.map(async waba => {
+      // For disconnected / inactive accounts, skip calling Meta Graph API to prevent noisy 400 errors
+      if (waba.status !== "CONNECTED") {
+        return {
+          id: waba.id,
+          wabaId: waba.wabaId,
+          name: waba.name,
+          status: waba.status,
+          isActive: false,
+          liveMetaStatus: null,
+          metaBusinessId: waba.metaBusinessId,
+          currency: waba.currency,
+          timezone: waba.timezone,
+          accountReviewStatus: null,
+          businessVerificationStatus: null,
+          webhookSubscribed: null,
+          phones: waba.phoneNumbers.map(p => ({
+            id: p.id,
+            phoneNumberId: p.phoneNumberId,
+            phoneNumber: p.phoneNumber,
+            displayName: p.displayName,
+            status: p.status,
+            metaStatus: null,
+            nameStatus: null,
+            qualityRating: p.qualityRating,
+            messagingLimit: p.messagingLimit,
+            verificationStatus: p.verificationStatus,
+            profile: null,
+          })),
+        }
+      }
+
       const wabaAccessToken = await getMetaAccessTokenForWaba(organizationId, waba.wabaId)
       if (!wabaAccessToken) warnings.push(`No Meta connection matches the Business Portfolio for ${waba.name}. Reconnect this exact customer account.`)
       const live = wabaAccessToken ? await Promise.all([
         metaGraph<{ name?:string; status?:string; account_review_status?:string; currency?:string; timezone_id?:string }>(
-          `${waba.wabaId}?fields=name,status,account_review_status,currency,timezone_id`, wabaAccessToken).catch(error => { warnings.push(`WABA ${waba.name}: ${message(error)}`); return null }),
+          `${waba.wabaId}?fields=name,status,account_review_status,currency,timezone_id`, wabaAccessToken).catch(error => {
+            const msg = message(error)
+            if (!msg.includes("does not exist")) warnings.push(`WABA ${waba.name}: ${msg}`)
+            return null
+          }),
         waba.metaBusinessId ? metaGraph<{ verification_status?:string }>(`${waba.metaBusinessId}?fields=verification_status`, wabaAccessToken)
           .catch(() => null) : Promise.resolve(null),
-        isWabaSubscribed(waba.wabaId, wabaAccessToken).catch(error => { warnings.push(`Webhook subscription check for ${waba.name}: ${message(error)}`); return null }),
+        isWabaSubscribed(waba.wabaId, wabaAccessToken).catch(error => {
+          const msg = message(error)
+          if (!msg.includes("does not exist")) warnings.push(`Webhook subscription check for ${waba.name}: ${msg}`)
+          return null
+        }),
         metaGraph<{ data:MetaPhone[] }>(`${waba.wabaId}/phone_numbers?fields=id,display_phone_number,verified_name,quality_rating,code_verification_status,name_status,status,platform_type&limit=50`,
-          wabaAccessToken).catch(error => { warnings.push(`Phone numbers for ${waba.name}: ${message(error)}`); return null }),
+          wabaAccessToken).catch(error => {
+            const msg = message(error)
+            if (!msg.includes("does not exist")) warnings.push(`Phone numbers for ${waba.name}: ${msg}`)
+            return null
+          }),
       ]) : null
       const [info, business, subscribed, phonesLive] = live || [null, null, null, null]
 
